@@ -4,5 +4,140 @@
 @media(max-width:1100px){.app-shell{grid-template-columns:198px 1fr;padding:16px;gap:16px}.side{padding:16px 11px}.brandname{font-size:20px}.side .brandname{font-size:17px}.tilegrid{grid-template-columns:repeat(2,minmax(0,1fr))}.tile{min-height:135px}.cols-2{grid-template-columns:1fr}.hero-logo{width:100px;height:100px}.top-panels{grid-template-columns:1fr}}
 @media(max-width:760px){.app-shell{display:block;padding:0 0 83px}.side{display:none}.main{padding:0 13px}.topbar{padding:14px 3px 8px;margin-bottom:4px}.mobile-brand{display:flex;align-items:center;gap:8px}.mobile-brand .logo-image{width:33px;height:33px;border-radius:9px}.mobile-brand .brandname{font-size:18px}.mobile-brand .brandsub{font-size:8px}.topbar .kicker{display:none}.hero{padding:21px 20px;min-height:170px;border-radius:19px}.hero h1{font-size:24px}.hero p{font-size:12px}.hero-logo{width:75px;height:75px;border-radius:17px}.section-heading{margin-top:20px}.section-heading h2{font-size:19px}.tilegrid{gap:10px}.tile{min-height:136px;padding:14px 12px;gap:8px}.tile .icon-bg{width:40px;height:40px}.tile svg{width:20px;height:20px}.tile strong{font-size:13px}.tile span{font-size:10px}.panel{padding:15px;border-radius:16px}.pageheader{margin-top:9px}.pageheader h1{font-size:23px}.form-grid,.form-grid.three{grid-template-columns:1fr 1fr;gap:10px}.top-panels{grid-template-columns:1fr}.bottomnav{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.98);box-shadow:0 -10px 36px #0a365017;padding:10px 6px max(8px,env(safe-area-inset-bottom));z-index:20;border-top:1px solid var(--line)}.bottomnav button{border:0;background:transparent;color:#5b7891;display:flex;flex-direction:column;gap:4px;align-items:center;font-size:10px;font-weight:700}.bottomnav button svg{width:21px;height:21px}.bottomnav button.active{color:#0a989f}.two-col-row{grid-template-columns:1fr 74px 82px 29px;gap:5px}.two-col-row input,.two-col-row select{font-size:11px;padding:7px}.brandname{font-size:21px}.chat-shell{min-height:440px}.top-actions{gap:7px}.round-icon{min-width:35px;height:35px}.info-columns{gap:5px}.stat{padding:9px}.stat b{font-size:20px}}
 @media(max-width:380px){.hero-logo{display:none}.form-grid.three{grid-template-columns:1fr}.tile span{display:none}.tile{min-height:112px}}
+
+/* LifeMag IA v0.1.3 — alinhamento visual com referência A/B/C; legibilidade para iPhone. */
+:root{--muted:#435f79;--ink:#102942;--line:#d7e3ec;font-size:16px}
+body{font-size:16px;line-height:1.48}
+a{color:#085a98}
+button{touch-action:manipulation}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #00aeac;outline-offset:3px}
+.home-shortcut,.brand-home{border:0;background:transparent;cursor:pointer;color:inherit;display:flex;align-items:center;gap:7px}
+.home-shortcut{font-size:15px;font-weight:800;background:#e7f2fb;color:#083e70;border-radius:13px;padding:10px 13px;min-height:44px}
+.brand-home{padding:0;text-align:left}
+.profile-mini{width:34px;height:34px;border-radius:50%;object-fit:cover}
+.round-icon{min-height:44px;min-width:44px}
+.round-icon svg{width:22px;height:22px}
+.topbar .kicker{font-size:14px;font-weight:720;color:#304e67}
+.topbar .badge.neutral{font-size:13px;color:#294f70}
+.welcome-panel{display:flex;align-items:center;gap:15px;background:linear-gradient(111deg,#052a4c,#064b76 68%,#0b8c9e);color:#fff;padding:20px 23px;border-radius:21px 21px 0 0;min-height:112px;box-shadow:0 10px 24px #052b5015}
+.portrait-button{border:2px solid #e9fcff;background:#e4f0f5;border-radius:50%;width:72px;height:72px;flex:0 0 72px;padding:0;overflow:hidden}
+.professional-portrait{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%}
+.portrait-placeholder{background:linear-gradient(135deg,#e6f6fc,#b3dce8);color:#0d4b71;display:flex;align-items:center;justify-content:center}
+.welcome-name{display:flex;flex-direction:column;min-width:0;flex:1;gap:3px}
+.welcome-name strong{font-size:19px;line-height:1.28;letter-spacing:-.35px}
+.welcome-name span{font-size:14px;color:#e1f5fa;line-height:1.5}
+.welcome-kicker{font-size:12px;letter-spacing:1px;font-weight:800;color:#aff1ed}
+.welcome-notifications{min-width:44px;min-height:44px;position:relative;display:grid;place-items:center;color:white;background:#ffffff14;border:1px solid #ffffff61;border-radius:13px}
+.home-brand-banner{padding:25px 27px 21px;background:#fff;border:1px solid #ddeaf4;border-top:0;border-radius:0 0 21px 21px;box-shadow:var(--shadow);margin-bottom:10px}
+.home-brand-banner .brandline{align-items:center;gap:12px;margin-bottom:17px}
+.home-brand-banner .logo-image{height:68px;width:68px;border-radius:16px;object-fit:contain}
+.home-brand-banner .brandname{font-size:29px}
+.home-brand-banner .brandsub{font-size:13px;letter-spacing:1px;color:#3c5974}
+.home-brand-banner h1{font-size:23px;letter-spacing:-.5px;color:#0c3158;margin:0 0 9px}
+.home-brand-banner p{color:#3c5771;font-size:16px;line-height:1.55;max-width:610px;margin:0}
+.section-heading h2{font-size:22px}
+.section-heading .small,.small{font-size:14px}
+.tile{position:relative;border-color:#d9e9f2;gap:12px;padding:19px 18px 31px;min-height:178px}
+.tile .icon-bg{width:51px;height:51px;background:linear-gradient(145deg,#0d4f86,#006e9b 65%,#08b1ad);color:#fff;border-radius:15px;box-shadow:0 4px 10px #0e47701b}
+.tile svg{width:27px;height:27px}
+.tile .tile-logo{width:100%;height:100%;border-radius:13px;object-fit:cover}
+.tile strong{font-size:17px;line-height:1.27;color:#102c4f}
+.tile>span:not(.icon-bg):not(.tile-chevron){font-size:14px;color:#405a71;line-height:1.48}
+.tile .tile-chevron{position:absolute;bottom:12px;right:14px;color:#24577b}
+.science-banner{width:100%;margin-top:17px;border:0;border-radius:18px;background:linear-gradient(103deg,#06315c,#07689a);padding:18px 19px;color:#fff;display:flex;align-items:center;gap:14px;text-align:left}
+.science-banner-icon{width:51px;height:51px;display:grid;place-items:center;border-radius:14px;background:#ffffff1c;flex-shrink:0}
+.science-banner>span:nth-child(2){flex:1}
+.science-banner strong{display:block;font-size:16px;line-height:1.3}
+.science-banner small{display:block;font-size:14px;color:#e0f1fa;margin-top:4px;line-height:1.45}
+.panel h3{font-size:17px}.panel h2{font-size:21px}
+.pageheader h1{font-size:26px}
+.pageheader p,.listline p,.person-row span,.source p,.source .domain,.stat span{font-size:14px;color:#435f77;line-height:1.55}
+.person-row strong,.listline strong{font-size:15px}
+.source strong{font-size:16px}
+.chat-bubble{font-size:16px}
+.chat-bubble .chat-label{font-size:13px}
+.chat-input textarea,.field input,.field textarea,.field select,.two-col-row input,.two-col-row select,.ingredient-details textarea{font-size:16px;min-height:45px}
+.field label{font-size:15px;color:#294c68}
+.field-note,.ingredient-details summary,.stat span,.yearline{font-size:14px;color:#405b75}
+.btn{font-size:15px;min-height:43px}
+.badge,.pill{font-size:13px}
+.empty{font-size:15px;color:#3e5c75}
+.notice{font-size:14px;color:#70520e}
+.notice.blue{color:#224c72}
+.nav-item{font-size:15px}
+.side-footer{font-size:13px}
+.brandname{font-size:24px}
+.brandsub{font-size:12px;letter-spacing:1px}
+.profile-edit{display:flex;align-items:center;gap:18px;padding:10px 0 22px;border-bottom:1px solid var(--line);margin-bottom:19px}
+.profile-edit>div:first-child{width:92px;height:92px;flex:0 0 92px}
+.profile-edit .professional-portrait{width:92px;height:92px}
+.profile-edit h2{margin:0 0 7px;font-size:20px}
+.profile-edit p{font-size:15px;color:#365771;line-height:1.55}
+.profile-edit .btn{margin:3px 7px 3px 0}
+.profile-photo-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.upload-label{cursor:pointer}
+@media(max-width:760px){
+ .app-shell{padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+ .main{padding:0 12px}
+ .topbar{padding:10px 2px;gap:5px;min-height:66px}
+ .topbar .kicker,.topbar .badge.neutral{display:none}
+ .home-shortcut{padding:8px;gap:4px;font-size:13px;min-width:48px}
+ .home-shortcut svg{width:19px;height:19px}
+ .mobile-brand{flex:1;min-width:0}
+ .mobile-brand .brandline{gap:7px}
+ .mobile-brand .logo-image{height:34px;width:34px}
+ .mobile-brand .brandname{font-size:19px;white-space:nowrap}
+ .mobile-brand .brandsub{font-size:10px;letter-spacing:0}
+ .top-actions{gap:5px}
+ .round-icon{height:39px;min-width:39px;min-height:39px}
+ .welcome-panel{padding:17px 15px;gap:11px;min-height:100px}
+ .portrait-button{width:65px;height:65px;flex-basis:65px}
+ .welcome-name strong{font-size:17px}
+ .welcome-name span{font-size:13px;color:#ebf8ff}
+ .welcome-kicker{font-size:11px}
+ .welcome-notifications{min-width:41px;min-height:41px}
+ .home-brand-banner{padding:23px 18px 19px}
+ .home-brand-banner .logo-image{width:56px;height:56px}
+ .home-brand-banner .brandname{font-size:26px}
+ .home-brand-banner .brandsub{font-size:11px}
+ .home-brand-banner h1{font-size:21px;line-height:1.28}
+ .home-brand-banner p{font-size:16px}
+ .section-heading{margin-top:22px}
+ .section-heading h2{font-size:21px}
+ .tilegrid{gap:12px}
+ .tile{padding:17px 12px 30px;min-height:178px;gap:9px}
+ .tile .icon-bg{width:46px;height:46px}
+ .tile strong{font-size:17px}
+ .tile>span:not(.icon-bg):not(.tile-chevron){font-size:14px}
+ .tile .tile-chevron{bottom:10px;right:12px}
+ .panel{padding:17px}
+ .form-grid,.form-grid.three{grid-template-columns:1fr;gap:14px}
+ .pageheader{gap:10px;flex-wrap:wrap}
+ .pageheader h1{font-size:24px}
+ .pageheader p{font-size:15px}
+ .bottomnav{grid-template-columns:repeat(5,minmax(0,1fr));padding:9px 3px max(9px,env(safe-area-inset-bottom));gap:2px}
+ .bottomnav button{font-size:11px;font-weight:800;min-height:54px;justify-content:center;gap:5px;color:#3f607a}
+ .bottomnav button svg{width:23px;height:23px}
+ .bottomnav button.active{color:#006d75}
+ .two-col-row{grid-template-columns:minmax(0,1fr) 80px 85px 32px}
+ .two-col-row input,.two-col-row select{font-size:16px;padding:7px;min-width:0}
+ .profile-edit{align-items:flex-start}
+ .profile-edit>div:first-child,.profile-edit .professional-portrait{width:70px;height:70px}
+ .profile-edit>div:first-child{flex-basis:70px}
+ .profile-edit p{font-size:14px}
+ .btn{font-size:15px}
+ .small,.badge,.pill{font-size:13px}
+}
+@media(max-width:390px){
+ .mobile-brand .brandsub{display:none}
+ .home-shortcut span{display:none}
+ .home-shortcut{min-width:39px;min-height:39px;justify-content:center}
+ .welcome-name strong{font-size:16px}
+ .welcome-name span{font-size:12px}
+ .tile strong{font-size:16px}
+ .tile>span:not(.icon-bg):not(.tile-chevron){font-size:13px}
+ .bottomnav button{font-size:10px}
+}
+
 @media print{ @page{size:A4;margin:13mm 13mm 14mm}body{background:#fff;color:#142b47}.app-shell,.bottomnav,.toast{display:none!important}#print-root{display:block!important}.print-page{font:11pt/1.45 Arial,sans-serif;color:#182a43}.print-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #10b6b0;padding-bottom:14px;margin-bottom:20px}.print-head img{width:67px;height:67px;object-fit:contain;border-radius:12px}.print-head strong{font-size:18pt;display:block;color:#0b315a}.print-head small{display:block;font-size:9pt;color:#50657c}.print-institution{font-size:9pt;margin-top:4px}.print-h{font-size:16pt;color:#0e365a;text-align:center;border-bottom:1px solid #dae9ee;padding-bottom:12px;margin-bottom:17px}.print-section{padding:8px 0;border-bottom:1px solid #e2eaf2}.print-label{font-weight:700;color:#174568}.print-table{width:100%;border-collapse:collapse;margin:14px 0}.print-table td,.print-table th{border-bottom:1px solid #dce7ef;padding:8px;text-align:left}.print-foot{margin-top:55px;text-align:center}.print-sign{border-top:1px solid #52687d;display:inline-block;padding:6px 35px 0}.print-note{font-size:9pt;color:#a45324;margin:8px 0}}
 
