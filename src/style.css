@@ -162,5 +162,117 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .bottomnav .ai-center.active .ai-orb{box-shadow:0 0 0 3px #31d6c9,0 5px 15px #145e8266}
 }
 
+
+/* v0.1.6 — cabeçalho Home fiel à composição do modelo aprovado.
+   Barra superior azul, foto pequena, identificação compacta e card branco sobreposto. */
+@media(max-width:760px){
+ .app-shell.is-home .main{padding-top:0}
+ .app-shell.is-home .home-intro{
+   position:relative;
+   margin:0 -12px;
+   background:linear-gradient(to bottom,#073956 0px,#073956 116px,#f5f8fc 116px,#f5f8fc 100%);
+ }
+ .app-shell.is-home .welcome-panel{
+   display:flex;
+   align-items:center;
+   min-height:120px;
+   padding:19px 19px 35px;
+   gap:11px;
+   border-radius:0;
+   background:linear-gradient(105deg,#062b45 0%,#053954 63%,#075772 100%);
+   box-shadow:none;
+ }
+ .app-shell.is-home .welcome-name{
+   display:flex;
+   flex:1;
+   min-width:0;
+   gap:2px;
+   justify-content:center;
+ }
+ .app-shell.is-home .welcome-name strong{
+   font-size:17px;
+   line-height:1.26;
+   color:#fff;
+   letter-spacing:0;
+ }
+ .app-shell.is-home .welcome-name span{
+   font-size:13px;
+   line-height:1.35;
+   color:#e0f0f8;
+ }
+ .app-shell.is-home .portrait-button{
+   width:49px;
+   height:49px;
+   flex:0 0 49px;
+   border:2px solid #e5f4fc;
+   background:#e0eff5;
+   box-shadow:none;
+ }
+ .app-shell.is-home .portrait-placeholder svg{width:27px;height:27px}
+ .app-shell.is-home .welcome-notifications{
+   min-width:38px;
+   min-height:44px;
+   width:38px;
+   padding:3px;
+   background:transparent;
+   border:0;
+   border-radius:0;
+ }
+ .app-shell.is-home .welcome-notifications svg{width:24px;height:24px}
+ .app-shell.is-home .home-brand-banner{
+   position:relative;
+   z-index:1;
+   margin:-19px 13px 0;
+   padding:22px 21px 24px;
+   border:1px solid #e7eef5;
+   border-radius:33px 33px 26px 26px;
+   background:#fff;
+   box-shadow:0 7px 23px #173c5b0d;
+ }
+ .app-shell.is-home .home-brand-banner .brandline{
+   gap:10px;
+   margin-bottom:19px;
+ }
+ .app-shell.is-home .home-brand-banner .logo-image{
+   width:55px;
+   height:55px;
+   border-radius:12px;
+   object-fit:contain;
+ }
+ .app-shell.is-home .home-brand-banner .brandname{
+   font-size:23px;
+   line-height:1.2;
+   letter-spacing:-.7px;
+ }
+ .app-shell.is-home .home-brand-banner .brandsub{
+   font-size:11px;
+   letter-spacing:.5px;
+   line-height:1.4;
+   color:#4c6279;
+ }
+ .app-shell.is-home .home-brand-banner h1{
+   font-size:19px;
+   line-height:1.3;
+   letter-spacing:-.3px;
+   margin:0 0 7px;
+ }
+ .app-shell.is-home .home-brand-banner p{
+   font-size:15px;
+   line-height:1.5;
+   color:#405771;
+   max-width:none;
+ }
+ .app-shell.is-home .section-heading{margin-top:19px}
+}
+@media(max-width:390px){
+ .app-shell.is-home .welcome-panel{padding-left:14px;padding-right:14px;gap:9px}
+ .app-shell.is-home .welcome-name strong{font-size:16px}
+ .app-shell.is-home .welcome-name span{font-size:12.5px}
+ .app-shell.is-home .home-brand-banner{margin-left:12px;margin-right:12px}
+ .app-shell.is-home .home-brand-banner{padding-left:18px;padding-right:18px}
+ .app-shell.is-home .home-brand-banner .brandname{font-size:21px}
+ .app-shell.is-home .home-brand-banner h1{font-size:18px}
+}
+
 @media print{ @page{size:A4;margin:13mm 13mm 14mm}body{background:#fff;color:#142b47}.app-shell,.bottomnav,.toast{display:none!important}#print-root{display:block!important}.print-page{font:11pt/1.45 Arial,sans-serif;color:#182a43}.print-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #10b6b0;padding-bottom:14px;margin-bottom:20px}.print-head img{width:67px;height:67px;object-fit:contain;border-radius:12px}.print-head strong{font-size:18pt;display:block;color:#0b315a}.print-head small{display:block;font-size:9pt;color:#50657c}.print-institution{font-size:9pt;margin-top:4px}.print-h{font-size:16pt;color:#0e365a;text-align:center;border-bottom:1px solid #dae9ee;padding-bottom:12px;margin-bottom:17px}.print-section{padding:8px 0;border-bottom:1px solid #e2eaf2}.print-label{font-weight:700;color:#174568}.print-table{width:100%;border-collapse:collapse;margin:14px 0}.print-table td,.print-table th{border-bottom:1px solid #dce7ef;padding:8px;text-align:left}.print-foot{margin-top:55px;text-align:center}.print-sign{border-top:1px solid #52687d;display:inline-block;padding:6px 35px 0}.print-note{font-size:9pt;color:#a45324;margin:8px 0}}
 
