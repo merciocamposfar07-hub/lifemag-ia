@@ -274,5 +274,103 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .app-shell.is-home .home-brand-banner h1{font-size:18px}
 }
 
+
+/* v0.1.7 — Home no mesmo balão branco CONTÍNUO do modelo.
+   Legibilidade reforçada: tamanho, contraste e fundo opaco na navegação. */
+:root{--muted:#2f475e;--ink:#102b45}
+body{color:#122e49}
+.muted,.field-note,.yearline{color:#344e65}
+.small,.field-note,.notice,.empty,.pageheader p,.listline p,.source p{font-size:16px;line-height:1.55}
+.field label,.person-row span,.listline strong{font-size:16px;color:#24415d}
+.field input,.field textarea,.field select,.chat-input textarea{font-size:17px;color:#18344f;line-height:1.45}
+.btn{font-size:16px}
+.nav-item{font-size:16px}
+.badge,.pill{font-size:14px}
+@media(max-width:760px){
+ .app-shell.is-home .home-intro{
+   background:linear-gradient(to bottom,#073956 0,#073956 145px,#f5f8fc 145px,#f5f8fc 100%);
+ }
+ .app-shell.is-home .welcome-panel{
+   min-height:126px;
+   padding:16px 17px 31px;
+   gap:11px;
+ }
+ .app-shell.is-home .welcome-name strong{font-size:18px;line-height:1.3;font-weight:750}
+ .app-shell.is-home .welcome-name span{font-size:15px;line-height:1.34;color:#f4faff}
+ .app-shell.is-home .home-brand-banner{
+   margin:-18px 12px 0;
+   padding:25px 18px 24px;
+   border:1px solid #d6e3ee;
+   border-radius:37px 37px 21px 21px;
+   background:#fff;
+   box-shadow:0 9px 30px rgba(15,55,88,.07);
+ }
+ .app-shell.is-home .home-brand-banner .brandline{
+   margin-bottom:19px;
+   align-items:center;
+   gap:10px;
+ }
+ .app-shell.is-home .home-brand-banner .logo-image{
+   width:57px;height:57px;object-fit:contain;border-radius:12px;
+ }
+ .app-shell.is-home .home-brand-banner .brandname{font-size:24px;color:#0c2d52;letter-spacing:-.5px}
+ .app-shell.is-home .home-brand-banner .brandname span{color:#374c66}
+ .app-shell.is-home .home-brand-banner .brandsub{font-size:15px;line-height:1.25;letter-spacing:0;color:#263f58}
+ .app-shell.is-home .home-brand-banner h1{font-size:22px;line-height:1.32;color:#0b2b4e;margin:0 0 10px}
+ .app-shell.is-home .home-brand-banner p{font-size:18px;line-height:1.52;color:#263f58}
+ .app-shell.is-home .home-brand-banner .tilegrid{
+   display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+   gap:12px;margin-top:23px;
+ }
+ .app-shell.is-home .home-brand-banner .tile{
+   min-height:188px; padding:17px 13px 34px;gap:11px;
+   border:1px solid #d3e1eb;border-radius:19px;
+   background:#fff;
+   box-shadow:0 3px 13px rgba(23,65,97,.065);
+ }
+ .app-shell.is-home .home-brand-banner .tile .icon-bg{width:47px;height:47px}
+ .app-shell.is-home .home-brand-banner .tile strong{font-size:18px;line-height:1.32;color:#0a2c50;font-weight:800}
+ .app-shell.is-home .home-brand-banner .tile>span:not(.icon-bg):not(.tile-chevron){font-size:16px;line-height:1.42;color:#2b445b}
+ .app-shell.is-home .home-brand-banner .tile-chevron{color:#0c3d66;bottom:11px}
+ .app-shell.is-home .home-brand-banner .science-banner{
+   margin-top:15px;padding:16px 14px;border-radius:15px;
+ }
+ .app-shell.is-home .home-brand-banner .science-banner strong{font-size:18px;color:#fff}
+ .app-shell.is-home .home-brand-banner .science-banner small{font-size:16px;color:#fff;line-height:1.4}
+ .app-shell.is-home .section-heading{margin-top:21px}
+ .bottomnav{
+   background:#fff;
+   box-shadow:0 -6px 22px rgba(9,45,76,.15);
+   border-top:1px solid #cedce8;
+   gap:0;
+ }
+ .bottomnav button{
+   font-size:13px;font-weight:800;line-height:1.15;
+   color:#244563;
+   min-width:0;min-height:59px;
+   padding:3px 1px;
+ }
+ .bottomnav button span:last-child{max-width:100%;letter-spacing:-.15px}
+ .bottomnav button.active{color:#005c64}
+ .bottomnav .ai-center>span:last-child{font-size:14px}
+ .pageheader p,.listline p,.source p,.notice,.empty,.person-row span{font-size:16px;color:#2b485f}
+ .field label{font-size:16px;color:#193c58}
+ .field input,.field textarea,.field select{font-size:17px;min-height:47px}
+ .tile>span:not(.icon-bg):not(.tile-chevron){color:#2b445b}
+ .badge,.pill{font-size:14px;color:#244563}
+}
+@media(max-width:390px){
+ .app-shell.is-home .welcome-name strong{font-size:17px}
+ .app-shell.is-home .welcome-name span{font-size:14.5px}
+ .app-shell.is-home .home-brand-banner{padding:23px 15px 22px;margin-left:11px;margin-right:11px}
+ .app-shell.is-home .home-brand-banner .brandname{font-size:23px}
+ .app-shell.is-home .home-brand-banner .brandsub{font-size:14px}
+ .app-shell.is-home .home-brand-banner h1{font-size:21px}
+ .app-shell.is-home .home-brand-banner p{font-size:17px}
+ .app-shell.is-home .home-brand-banner .tile strong{font-size:17px}
+ .app-shell.is-home .home-brand-banner .tile>span:not(.icon-bg):not(.tile-chevron){font-size:15.5px}
+ .bottomnav button{font-size:12.7px}
+}
+
 @media print{ @page{size:A4;margin:13mm 13mm 14mm}body{background:#fff;color:#142b47}.app-shell,.bottomnav,.toast{display:none!important}#print-root{display:block!important}.print-page{font:11pt/1.45 Arial,sans-serif;color:#182a43}.print-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #10b6b0;padding-bottom:14px;margin-bottom:20px}.print-head img{width:67px;height:67px;object-fit:contain;border-radius:12px}.print-head strong{font-size:18pt;display:block;color:#0b315a}.print-head small{display:block;font-size:9pt;color:#50657c}.print-institution{font-size:9pt;margin-top:4px}.print-h{font-size:16pt;color:#0e365a;text-align:center;border-bottom:1px solid #dae9ee;padding-bottom:12px;margin-bottom:17px}.print-section{padding:8px 0;border-bottom:1px solid #e2eaf2}.print-label{font-weight:700;color:#174568}.print-table{width:100%;border-collapse:collapse;margin:14px 0}.print-table td,.print-table th{border-bottom:1px solid #dce7ef;padding:8px;text-align:left}.print-foot{margin-top:55px;text-align:center}.print-sign{border-top:1px solid #52687d;display:inline-block;padding:6px 35px 0}.print-note{font-size:9pt;color:#a45324;margin:8px 0}}
 
