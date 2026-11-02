@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** protótipo demonstrativo v0.1.3 • 02/11/2026
+**Status:** protótipo demonstrativo v0.1.5 • 02/11/2026
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -15,7 +15,7 @@ Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas 
 - `docs/MATRIZ_NAVEGACAO.md`: destinos sem redundância.
 - `docs/ESTADO_E_TESTES.md`: funcionalidades, testes, falhas e pendências.
 - `testes/testar_logica.js`: 17 testes de lógica, datas e armazenamento fictício.
-- `testes/testar_interface.js`: 16 verificações estáticas de interface, legibilidade e navegação.
+- `testes/testar_interface.js`: 22 verificações estáticas de interface, legibilidade e navegação.
 - `.github/workflows/validacao.yml`: verificação automatizada de sintaxe e testes.
 - `.github/workflows/publicar-pages.yml`: publicação automática do protótipo após alterações na branch `main`, com opção de execução manual.
 
@@ -25,6 +25,13 @@ Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas 
 - Ícone oficial do app preservado; a nova formulação exibe o ícone oficial na Home.
 - Barra inferior com **Início** + Acompanhar, Simulador, Ciência e Documentos; botão de Início também no cabeçalho e suporte ao histórico do navegador.
 - Nome **LifeMag IA** e os demais fluxos A/B/C preservados.
+
+## Navegação v0.1.5
+- No iPhone, a Home utiliza diretamente o cabeçalho azul com foto/nome/CRF e elimina a barra clara redundante.
+- Barra inferior com cinco destinos: **Início, Acompanhar, IA (central, destacado), Ciência e Documentos**.
+- O botão central **IA** abre a tela Conversa Inteligente. Trata-se de navegação funcional, **não** de geração inteligente: não há backend, modelo de linguagem nem conexão segura com provedor de IA.
+- Para ativar IA real, será necessário hospedar um backend autenticado, guardar credenciais somente no servidor, aplicar controles de segurança/LGPD, validação de evidências e revisão humana antes de gerar receitas.
+- O Simulador permanece acessível dentro do Editor Studio Magistral e na navegação lateral de desktop.
 
 ## Status funcional
 Cadastro e histórico **fictícios**, registro de conversa sem IA, editor e revisão de fórmulas, comparação de versões, cálculo do lembrete de três dias, documentos demonstrativos e links a fontes científicas. **Não** inclui IA clínica real, checagem automatizada de interações, monitoramento científico em tempo real, banco seguro, assinatura ou notificações push.
