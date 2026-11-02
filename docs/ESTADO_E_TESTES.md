@@ -34,3 +34,11 @@
 - Preservados o **LifeMag IA**, o arquivo do ícone oficial, o botão IA central e a navegação inferior.
 - 17 testes de lógica e 28 testes estáticos de interface executados sem falhas no ambiente de verificação; isso não substitui teste visual em iPhone real.
 - A correspondência visual final com o mockup permanece pendente de conferência pelo proprietário após a atualização do GitHub Pages.
+
+## Correção de acessibilidade e balão integrado (v0.1.7)
+- A comparação visual mostrou que o card branco anterior terminava após a saudação, enquanto a referência aprovada possui uma superfície branca contínua também atrás dos quatro cartões principais e do bloco de evidências.
+- Corrigido **HTML estrutural** da Home: `home-brand-banner` envolve logomarca/saudação, grade com quatro cartões e faixa de evidências, dentro de `home-intro`. O cabeçalho azul permanece separado apenas como fundo visual superior, e a área branca se sobrepõe com cantos superiores arredondados.
+- Removido o título intermediário redundante `Acesso rápido / Escolha uma função`, que não fazia parte da composição visual da referência.
+- Legibilidade: textos principais de 17–18px, títulos dos cartões 18px, descrições de 16px, cores escuras de alto contraste; textos de formulários e avisos aumentados para uso no iPhone. O menu inferior agora tem fundo branco opaco para não deixar transparecer textos da página por trás.
+- Preservados nome **LifeMag IA**, ícone oficial, foto profissional, botão IA central, navegação e funcionalidades preexistentes.
+- Validação de código: 17 testes de lógica e 34 testes de interface executados sem erros no ambiente de verificação. A inspeção visual real no Safari pelo proprietário ainda é necessária antes de declarar identidade com o mockup.
