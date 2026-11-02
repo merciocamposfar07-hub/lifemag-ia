@@ -1,8 +1,10 @@
 name: LifeMag IA — publicar protótipo no GitHub Pages
 
-# Acionar manualmente somente após Settings > Pages > Source: GitHub Actions.
-# Em repositório privado, GitHub Pages exige plano elegível.
+# Publicar automaticamente quando o código aprovado mudar em main.
+# Executar manualmente também é possível no menu Actions.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -23,6 +25,18 @@ jobs:
     steps:
       - name: Obter arquivos do protótipo
         uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar sintaxe e comportamento do protótipo
+        run: |
+          node --check src/store.js
+          node --check src/app.js
+          node --check testes/testar_logica.js
+          node --check testes/testar_interface.js
+          node testes/testar_logica.js
+          node testes/testar_interface.js
       - name: Preparar somente arquivos públicos do site
         run: |
           mkdir -p public/src public/assets
