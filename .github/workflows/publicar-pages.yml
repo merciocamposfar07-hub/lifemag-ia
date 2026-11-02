@@ -1,0 +1,41 @@
+name: LifeMag IA — publicar protótipo no GitHub Pages
+
+# Acionar manualmente somente após Settings > Pages > Source: GitHub Actions.
+# Em repositório privado, GitHub Pages exige plano elegível.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Obter arquivos do protótipo
+        uses: actions/checkout@v4
+      - name: Preparar somente arquivos públicos do site
+        run: |
+          mkdir -p public/src public/assets
+          cp index.html public/
+          cp src/app.js src/store.js src/style.css public/src/
+          cp assets/icone-oficial-escuro.png public/assets/
+          touch public/.nojekyll
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Enviar site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+      - name: Publicar
+        id: deployment
+        uses: actions/deploy-pages@v4
