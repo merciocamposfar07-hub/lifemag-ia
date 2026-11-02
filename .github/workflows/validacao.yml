@@ -24,5 +24,8 @@ jobs:
           node --check src/store.js
           node --check src/app.js
           node --check testes/testar_logica.js
+          node --check testes/testar_interface.js
       - name: Executar testes
-        run: node testes/testar_logica.js
+        run: |
+          node testes/testar_logica.js
+          node testes/testar_interface.js
