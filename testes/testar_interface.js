@@ -11,6 +11,13 @@ const cases = [
   ['identidade LifeMag IA mantida', () => assert.match(html, /<title>LifeMag IA/)],
   ['ícone oficial preservado', () => assert.match(js, /assets\/icone-oficial-escuro\.png/)],
   ['página inicial personalizada', () => assert.match(js, /Bem-vindo\(a\)/)],
+
+  ['cabeçalho e card em um único conjunto', () => assert.match(js, /class="home-intro"[\s\S]*class="welcome-panel"[\s\S]*class="home-brand-banner"/)],
+  ['sem texto extra no cabeçalho', () => assert.equal(js.includes('ESPAÇO CLÍNICO</div><strong>'), false)],
+  ['foto compacta no celular', () => assert.match(css, /flex:0 0 49px/)],
+  ['card branco sobreposto ao azul', () => assert.match(css, /margin:-19px 13px 0/)],
+  ['card com cantos superiores arredondados', () => assert.match(css, /border-radius:33px 33px 26px 26px/)],
+  ['faixa azul sem aparência de cartão', () => assert.match(css, /border-radius:0;[\s\S]*background:linear-gradient\(105deg,#062b45/)],
   ['identificação e registro profissional', () => assert.match(js, /welcome-name[\s\S]*info\.crf/)],
   ['sem botão Início duplicado no cabeçalho', () => assert.equal(js.includes('class="home-shortcut"'), false)],
   ['marca do topo apenas visual', () => assert.equal(js.includes('class="brand-home"'), false)],
