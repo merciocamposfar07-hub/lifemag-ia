@@ -30,20 +30,28 @@ function yyyyMmDd(date = new Date()) {
   const y = date.getFullYear(), m=String(date.getMonth()+1).padStart(2,'0'), d=String(date.getDate()).padStart(2,'0');
   return `${y}-${m}-${d}`;
 }
+// Rejeita datas inexistentes (ex.: 31/02) antes de calcular seguimentos.
+function parseISODate(iso) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(y, m - 1, d, 12, 0, 0);
+  return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d
+    ? date : null;
+}
 function addDays(iso, delta) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso||'')) return '';
-  const [y,m,d]=iso.split('-').map(Number);
-  const date=new Date(y,m-1,d,12,0,0);
-  if (Number.isNaN(date.getTime())) return '';
-  date.setDate(date.getDate()+delta);
+  const date = parseISODate(iso);
+  if (!date || !Number.isInteger(delta)) return '';
+  date.setDate(date.getDate() + delta);
   return yyyyMmDd(date);
 }
-const endDate = (visit) => addDays(visit.startDate || visit.date, Math.max(1,Number(visit.duration)||1)-1);
+const endDate = (visit) => addDays(visit.startDate || visit.date, Math.max(1, Number(visit.duration) || 1) - 1);
 const alertDate = (visit) => addDays(endDate(visit), -3);
-function daysUntil(iso, now=yyyyMmDd()) {
-  if (!iso) return Infinity;
-  const asUTC = s => Date.UTC(...s.split('-').map((n,i)=>i===1?Number(n)-1:Number(n)));
-  return Math.round((asUTC(iso)-asUTC(now))/86400000);
+function daysUntil(iso, now = yyyyMmDd()) {
+  const target = parseISODate(iso);
+  const base = parseISODate(now);
+  if (!target || !base) return Infinity;
+  const asUTC = date => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.round((asUTC(target) - asUTC(base)) / 86400000);
 }
-const fmtDate = iso => iso && /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('/') : '—';
+const fmtDate = iso => parseISODate(iso) ? iso.split('-').reverse().join('/') : '—';
 
