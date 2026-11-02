@@ -1,0 +1,28 @@
+name: LifeMag IA — validação automática
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificar sintaxe
+        run: |
+          node --check src/store.js
+          node --check src/app.js
+          node --check testes/testar_logica.js
+      - name: Executar testes
+        run: node testes/testar_logica.js
