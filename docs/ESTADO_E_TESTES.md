@@ -1,22 +1,29 @@
 # Implementação e testes — 02/11/2026
 
-## Versão 0.1.2 — confirmado no repositório
-- Mantidos layout A/B/C, ícone oficial e navegação sem redundâncias.
-- Cadastro e histórico **fictícios**; conversa sem IA real e editor magistral demonstrativo.
-- Comparação simples, lembrete de três dias e impressão de documentos demonstrativos.
-- Corrigida a rejeição de datas inexistentes no cálculo de início, término e lembretes.
-- Incluídos 17 testes automatizados no arquivo `testes/testar_logica.js`.
-- Criado CI `.github/workflows/validacao.yml` para verificar sintaxe de JavaScript e executar os 17 testes em alterações no repositório.
-- Criado fluxo **manual** `.github/workflows/publicar-pages.yml` para publicar somente os arquivos necessários do protótipo, quando Pages estiver autorizado.
+## Versão 0.1.3 — modificações gravadas no GitHub
+- Preservados **LifeMag IA**, ícone oficial e fluxos A/B/C aprovados.
+- Nova Home com cabeçalho azul, identificação profissional, saudação personalizável, quatro cartões principais e seção de ciência.
+- Ajustados ícones dos cartões, tipografia, contraste, espaçamento e tamanho dos campos no iPhone.
+- Foto do farmacêutico configurável em **Identidade profissional**. A imagem é recortada para 256 × 256, convertida em JPEG e armazenada localmente na demonstração; não há sincronização com outros dispositivos.
+- A barra inferior oferece **Início** e as quatro ferramentas próprias (Acompanhar, Simulador, Ciência, Documentos), mantendo a matriz de navegação sem duplicar os quatro cartões da Home.
+- O cabeçalho oferece retorno ao início; navegação com histórico de páginas para o botão Voltar no navegador.
+- Mantidos cadastros fictícios, editor, documentos demonstrativos e lembretes internos.
+- Inclusos 17 testes de lógica e 16 verificações estáticas de interface no GitHub Actions.
 
-## Evidências e limitações de verificação
-- Versão anterior: 10 verificações PASSARAM em uma cópia de desenvolvimento, conforme relatório de 01/11/2026.
-- Versão 0.1.2: código e testes foram gravados no GitHub. O resultado da nova execução automática ainda não foi confirmado aqui.
-- Publicação: **não habilitada**. O fluxo GitHub Pages precisa de ativação em **Settings > Pages > Source: GitHub Actions** e execução manual em **Actions**. Repositório privado pode exigir plano GitHub Pro/Team/Enterprise.
-- Publicação alternativa pela Vercel foi impedida por falta de autorização da conexão ao escopo da conta. Nenhuma implantação foi declarada como concluída.
-- Testes visuais no iPhone real e no Chrome: **pendentes**.
+## Publicação e verificação
+- **GitHub Pages:** primeira publicação confirmada por gravação fornecida pelo proprietário em 02/11/2026.
+- A versão 0.1.3 será publicada pelo fluxo automático após push em `main`, com execução manual disponível.
+- **Não afirmar visual validado:** a revisão v0.1.3 ainda não foi conferida pelo proprietário em iPhone real.
+- **Testes:** o código e os testes foram versionados; verificar os resultados em GitHub Actions antes de afirmar execução bem-sucedida.
+- O repositório foi tornado público pelo proprietário; não há proteção do código-fonte por privacidade do repositório.
 
-## Antes de dados clínicos reais
-Exigir autenticação, segregação e proteção dos dados conforme LGPD, backend seguro, auditoria, backups, integração IA e fontes confiáveis, revisão de segurança e interações, notificações remotas, assinaturas válidas, validação documental e testes em dispositivos.
+## Limitações
+- Ainda **não há** IA clínica conectada, banco protegido para dados de pacientes, checagem real de interação, assinaturas digitais, push ou atualização automática de evidências.
+- O armazenamento usa `localStorage`. Não inserir dados de pacientes reais. A foto profissional também não deve ser considerada armazenamento remoto seguro.
+- Receituários são apenas rascunhos não assinados.
+- O visual final ainda depende de avaliação e refinamentos sucessivos pelo proprietário.
 
-**Não usar dados reais de pacientes; prescrições emitidas por esta versão são rascunhos sem assinatura.**
+## Próximo ciclo
+1. Testar abertura/Home, retorno, foto, saudação e contraste no Safari de iPhone.
+2. Registrar diferenças visuais em relação ao card aprovado e corrigir somente as discrepâncias identificadas.
+3. Avançar posteriormente para arquitetura clínica e proteção de dados, sem presumir que o protótipo está apto para atendimento real.
