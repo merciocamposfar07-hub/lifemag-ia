@@ -27,3 +27,10 @@
 1. Testar abertura/Home, retorno, foto, saudação e contraste no Safari de iPhone.
 2. Registrar diferenças visuais em relação ao card aprovado e corrigir somente as discrepâncias identificadas.
 3. Avançar posteriormente para arquitetura clínica e proteção de dados, sem presumir que o protótipo está apto para atendimento real.
+
+## Correção visual da Home — 02/11/2026 (v0.1.6)
+- Comparação do proprietário entre mockup aprovado e tela do Safari revelou: faixa azul com formato de cartão, foto excessiva, título extra `ESPAÇO CLÍNICO`, separação incorreta do card branco e hierarquia visual muito alta.
+- Modificou-se a composição **somente na Home móvel**: faixa azul em largura total, imagem profissional compacta, nome/função/CRF alinhados, sino à direita, card branco sobreposto com cantos superiores arredondados e espaçamentos menores.
+- Preservados o **LifeMag IA**, o arquivo do ícone oficial, o botão IA central e a navegação inferior.
+- 17 testes de lógica e 28 testes estáticos de interface executados sem falhas no ambiente de verificação; isso não substitui teste visual em iPhone real.
+- A correspondência visual final com o mockup permanece pendente de conferência pelo proprietário após a atualização do GitHub Pages.
