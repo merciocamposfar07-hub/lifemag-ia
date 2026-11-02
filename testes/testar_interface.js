@@ -13,6 +13,13 @@ const cases = [
   ['página inicial personalizada', () => assert.match(js, /Bem-vindo\(a\)/)],
 
   ['cabeçalho e card em um único conjunto', () => assert.match(js, /class="home-intro"[\s\S]*class="welcome-panel"[\s\S]*class="home-brand-banner"/)],
+
+  ['balão branco inclui os quatro cartões', () => assert.match(js, /class="home-brand-banner"[\s\S]*class="tilegrid" aria-label="Acesso rápido"/)],
+  ['balão branco contém também a faixa de evidências', () => assert.match(js, /class="science-banner"[\s\S]*<\/section><\/div>\s*<div class="section-heading"><h2>Seu acompanhamento/)],
+  ['sem título Acesso rápido separado do balão', () => assert.equal(js.includes('<h2>Acesso rápido</h2>'), false)],
+  ['descrição inicial em fonte 18px', () => assert.match(css, /\.home-brand-banner p\{font-size:18px/)],
+  ['cartões com texto escuro e legível', () => assert.match(css, /\.home-brand-banner \.tile>span:not\(\.icon-bg\):not\(\.tile-chevron\)\{font-size:16px/)],
+  ['barra inferior com fundo branco opaco', () => assert.match(css, /\.bottomnav\{\s*background:#fff;/)],
   ['sem texto extra no cabeçalho', () => assert.equal(js.includes('ESPAÇO CLÍNICO</div><strong>'), false)],
   ['foto compacta no celular', () => assert.match(css, /flex:0 0 49px/)],
   ['card branco sobreposto ao azul', () => assert.match(css, /margin:-19px 13px 0/)],
