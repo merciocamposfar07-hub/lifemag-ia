@@ -1,5 +1,5 @@
 
-/* LifeMag IA v0.1.5 — Protótipo funcional sem serviços de IA conectados. */
+/* LifeMag IA v0.1.6 — Protótipo funcional sem serviços de IA conectados. */
 'use strict';
 const IMG = 'assets/icone-oficial-escuro.png';
 const iconPaths = {
@@ -57,7 +57,7 @@ function startVisit(pid){if(!pid){toast('Cadastre ou selecione um paciente antes
 function pageLabel(){return {home:'Início',patients:'Pacientes',conversation:'Conversa Inteligente',editor:'Studio Magistral',formulas:'Minhas fórmulas',prescriptions:'Receituário',followup:'Acompanhamento',simulator:'Simulador',science:'Central Científica',docs:'Documentos',settings:'Configurações'}[ui.page]||'LifeMag IA';}
 function layout(){const count=getAlerts().length;return `<div class="app-shell ${ui.page==='home'?'is-home':''}">
 <aside class="side">${renderBrand()}<div class="side-label">ESPAÇO CLÍNICO</div><nav aria-label="Navegação principal">${navTop.map(([p,label,ic])=>`<button class="nav-item ${p===ui.page?'active':''}" data-page="${p}">${I(ic)} ${label}</button>`).join('')}</nav><div class="side-label">FERRAMENTAS ESPECIALIZADAS</div><nav aria-label="Ferramentas">${navBottom.map(([p,label,ic])=>`<button class="nav-item ${p===ui.page?'active':''}" data-page="${p}">${I(ic)} ${label}${p==='followup'&&count?` <span class="badge warn">${count}</span>`:''}</button>`).join('')}<button class="nav-item ${ui.page==='simulator'?'active':''}" data-page="simulator">${I('compare')} Simulador</button><button class="nav-item ${ui.page==='settings'?'active':''}" data-page="settings">${I('settings')} Configurações</button></nav><div class="side-footer">${I('shield',16)} <strong>Protótipo de desenvolvimento</strong><br>Utilize apenas dados fictícios. Sem proteção de prontuários ou validação clínica.</div></aside>
-<main class="main"><header class="topbar"><div class="mobile-brand">${renderBrand()}</div><span class="kicker">PAINEL CLÍNICO / ${E(pageLabel())}</span><div class="top-actions"><span class="badge neutral">v0.1.5</span><button class="round-icon" data-page="followup" aria-label="Acompanhamentos">${I('bell')}${count?`<span class="count-dot">${count}</span>`:''}</button><button class="round-icon" data-page="settings" aria-label="Foto e dados profissionais">${professionalPhotoSrc()?`<img class="profile-mini" src="${professionalPhotoSrc()}" alt="" />`:I('settings')}</button></div></header>${pageContent()}</main></div>
+<main class="main"><header class="topbar"><div class="mobile-brand">${renderBrand()}</div><span class="kicker">PAINEL CLÍNICO / ${E(pageLabel())}</span><div class="top-actions"><span class="badge neutral">v0.1.6</span><button class="round-icon" data-page="followup" aria-label="Acompanhamentos">${I('bell')}${count?`<span class="count-dot">${count}</span>`:''}</button><button class="round-icon" data-page="settings" aria-label="Foto e dados profissionais">${professionalPhotoSrc()?`<img class="profile-mini" src="${professionalPhotoSrc()}" alt="" />`:I('settings')}</button></div></header>${pageContent()}</main></div>
 <nav class="bottomnav" aria-label="Navegação principal e ferramentas"><button class="${ui.page==='home'?'active':''}" data-page="home" aria-label="Voltar ao início">${I('home')}<span>Início</span></button>${navBottom.map(([p,label,ic])=>`<button class="${p===ui.page?'active':''} ${p==='conversation'?'ai-center':''}" data-page="${p}" ${p==='conversation'?'aria-label="Abrir a Conversa Inteligente; IA não conectada"':''}>${p==='conversation'?`<span class="ai-orb">${I('sparkles',29)}</span>`:I(ic)}<span>${label}</span></button>`).join('')}</nav>`;}
 function pageHeader(title,desc,right=''){return `<div class="pageheader"><div><h1>${title}</h1><p>${desc}</p></div><div>${right}</div></div>`;}
 function empty(title,desc,iconName='info'){return `<div class="empty">${I(iconName,32)}<strong>${E(title)}</strong><br>${E(desc)}</div>`;}
@@ -74,12 +74,12 @@ function professionalPortrait() {
 function home() {
   const due=getAlerts(), info=data.settings;
   const prof=E(info.professional||'Profissional farmacêutico');
-  return `<section class="welcome-panel" aria-label="Identificação do farmacêutico">
+  return `<div class="home-intro"><section class="welcome-panel" aria-label="Identificação do farmacêutico">
     <button class="portrait-button" type="button" data-page="settings" aria-label="Adicionar ou alterar foto profissional">${professionalPortrait()}</button>
-    <div class="welcome-name"><div class="welcome-kicker">ESPAÇO CLÍNICO</div><strong>${prof}</strong><span>${E(info.role||'Farmacêutico Clínico')} · ${E(info.crf||'')}</span></div>
+    <div class="welcome-name"><strong>${prof}</strong><span>${E(info.role||'Farmacêutico Clínico')} · ${E(info.crf||'')}</span></div>
     <button class="welcome-notifications" type="button" data-page="followup" aria-label="Ver acompanhamentos">${I('bell',25)}${due.length?`<span class="count-dot">${due.length}</span>`:''}</button>
   </section>
-  <section class="home-brand-banner"><div class="home-brand-main">${renderBrand()}<h1>Bem-vindo(a), ${prof}!</h1><p>Ciência, segurança e precisão para formular, revisar e acompanhar com responsabilidade profissional.</p></div></section>
+  <section class="home-brand-banner"><div class="home-brand-main">${renderBrand()}<h1>Bem-vindo(a), ${prof}!</h1><p>Ciência, segurança e precisão para uma prescrição magistral mais eficiente e baseada em evidências.</p></div></section></div>
   <div class="section-heading"><h2>Acesso rápido</h2><span class="muted small">Escolha uma função</span></div>
   <div class="tilegrid">
   ${[['sparkles','Nova formulação','Crie fórmulas com apoio do assistente','new-visit'],['patients','Pacientes','Cadastre e consulte os atendimentos','patients'],['files','Minhas fórmulas','Acesse e edite formulações salvas','formulas'],['prescription','Receituário','Gere e personalize receituários','prescriptions']].map(([ic,title,desc,act])=>`<button class="tile" ${act==='new-visit'?'data-action="new-visit"':`data-page="${act}"`}><span class="icon-bg">${act==='new-visit'?`<img src="${IMG}" class="tile-logo" alt="" />`:I(ic,27)}</span><strong>${title}</strong><span>${desc}</span><span class="tile-chevron" aria-hidden="true">${I('arrow',17)}</span></button>`).join('')}
