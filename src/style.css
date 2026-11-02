@@ -139,5 +139,28 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .bottomnav button{font-size:10px}
 }
 
+
+/* v0.1.5 — Home no padrão do cabeçalho aprovado e botão IA central. */
+@media(max-width:760px){
+ .app-shell.is-home .topbar{display:none}
+ .app-shell.is-home .main{padding-top:12px}
+ .app-shell.is-home .welcome-panel{border-radius:25px 25px 0 0}
+ .app-shell.is-home .home-brand-banner{border-radius:0 0 24px 24px}
+ .bottomnav .ai-center{position:relative;z-index:1;gap:3px;overflow:visible}
+ .bottomnav .ai-center .ai-orb{
+   display:grid;place-items:center;
+   width:55px;height:55px;min-height:55px;
+   border-radius:50%;
+   background:linear-gradient(140deg,#093e74 4%,#086a94 55%,#0bc0b4);
+   border:3px solid #e2f6f9;
+   color:#fff;
+   box-shadow:0 3px 10px #0b54735e;
+   margin-top:-24px;
+ }
+ .bottomnav .ai-center .ai-orb svg{width:28px;height:28px}
+ .bottomnav .ai-center>span:last-child{color:#064a70;font-size:13px;font-weight:800}
+ .bottomnav .ai-center.active .ai-orb{box-shadow:0 0 0 3px #31d6c9,0 5px 15px #145e8266}
+}
+
 @media print{ @page{size:A4;margin:13mm 13mm 14mm}body{background:#fff;color:#142b47}.app-shell,.bottomnav,.toast{display:none!important}#print-root{display:block!important}.print-page{font:11pt/1.45 Arial,sans-serif;color:#182a43}.print-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #10b6b0;padding-bottom:14px;margin-bottom:20px}.print-head img{width:67px;height:67px;object-fit:contain;border-radius:12px}.print-head strong{font-size:18pt;display:block;color:#0b315a}.print-head small{display:block;font-size:9pt;color:#50657c}.print-institution{font-size:9pt;margin-top:4px}.print-h{font-size:16pt;color:#0e365a;text-align:center;border-bottom:1px solid #dae9ee;padding-bottom:12px;margin-bottom:17px}.print-section{padding:8px 0;border-bottom:1px solid #e2eaf2}.print-label{font-weight:700;color:#174568}.print-table{width:100%;border-collapse:collapse;margin:14px 0}.print-table td,.print-table th{border-bottom:1px solid #dce7ef;padding:8px;text-align:left}.print-foot{margin-top:55px;text-align:center}.print-sign{border-top:1px solid #52687d;display:inline-block;padding:6px 35px 0}.print-note{font-size:9pt;color:#a45324;margin:8px 0}}
 
