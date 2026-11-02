@@ -1,5 +1,5 @@
 
-/* LifeMag IA v0.1.2 — Protótipo funcional sem serviços de IA conectados. */
+/* LifeMag IA v0.1.3 — Protótipo funcional sem serviços de IA conectados. */
 'use strict';
 const IMG = 'assets/icone-oficial-escuro.png';
 const iconPaths = {
@@ -32,7 +32,9 @@ const I = (name,size=20) => `<svg width="${size}" height="${size}" viewBox="0 0 
 const E = x => String(x??'').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const S = (name,value='',opts='')=>`<div class="field"><label for="${E(name)}">${E(opts||name)}</label><input id="${E(name)}" name="${E(name)}" value="${E(value)}"></div>`;
 const data = readStore();
-const ui = { page:'home', patientId:null, visitId:null, notices:[], search:'', toastTimer:0, doc:'prescription' };
+const VALID_PAGES = ['home','patients','conversation','editor','formulas','prescriptions','followup','simulator','science','docs','settings'];
+const pageFromUrl = () => { const page = decodeURIComponent(location.hash.replace(/^#\//,'')); return VALID_PAGES.includes(page) ? page : 'home'; };
+const ui = { page:pageFromUrl(), patientId:null, visitId:null, notices:[], search:'', toastTimer:0, doc:'prescription' };
 const persist = () => { try{writeStore(data);}catch(e){toast('Não foi possível salvar no navegador.');}};
 const patient = () => data.patients.find(p=>p.id===ui.patientId) || null;
 const visit = () => data.visits.find(v=>v.id===ui.visitId) || null;
@@ -43,21 +45,49 @@ const navTop=[['home','Visão geral','home'],['patients','Pacientes','patients']
 const navBottom=[['followup','Acompanhar','bell'],['simulator','Simulador','compare'],['science','Ciência','science'],['docs','Documentos','files']];
 const renderBrand=()=>`<div class="brandline"><img class="logo-image" src="${IMG}" alt="Ícone oficial LifeMag IA"><div><div class="brandname">Life<em>Mag</em> <span>IA</span></div><div class="brandsub">Prescrição Magistral Inteligente</div></div></div>`;
 function toast(message){let node=document.querySelector('.toast');if(node)node.remove();node=document.createElement('div');node.className='toast';node.textContent=message;document.body.appendChild(node);clearTimeout(ui.toastTimer);ui.toastTimer=setTimeout(()=>node.remove(),3100);}
-function setPage(next){ui.page=next;render();scrollTo(0,0);}
+function setPage(next){
+  if(!VALID_PAGES.includes(next)) return;
+  if(ui.page!==next) history.pushState({lifemagPage:next},'', '#/'+next);
+  ui.page=next;
+  render();
+  scrollTo(0,0);
+}
 function useVisit(v){ui.visitId=v.id;ui.patientId=v.patientId;}
 function startVisit(pid){if(!pid){toast('Cadastre ou selecione um paciente antes de começar.');setPage('patients');return;}const v={id:uid('at'),patientId:pid,date:yyyyMmDd(),startDate:yyyyMmDd(),duration:15,status:'em acompanhamento',formulaName:'Nova formulação',presentation:'Cápsulas',route:'Oral',quantity:'',posology:'',schedules:'',meals:'',observations:'',protocol:'',ingredients:[],chat:[],revisions:[]};data.visits.push(v);persist();useVisit(v);setPage('conversation');toast('Atendimento criado. Descreva a necessidade clínica.');}
 function pageLabel(){return {home:'Início',patients:'Pacientes',conversation:'Conversa Inteligente',editor:'Studio Magistral',formulas:'Minhas fórmulas',prescriptions:'Receituário',followup:'Acompanhamento',simulator:'Simulador',science:'Central Científica',docs:'Documentos',settings:'Configurações'}[ui.page]||'LifeMag IA';}
 function layout(){const count=getAlerts().length;return `<div class="app-shell">
 <aside class="side">${renderBrand()}<div class="side-label">ESPAÇO CLÍNICO</div><nav aria-label="Navegação principal">${navTop.map(([p,label,ic])=>`<button class="nav-item ${p===ui.page?'active':''}" data-page="${p}">${I(ic)} ${label}</button>`).join('')}</nav><div class="side-label">FERRAMENTAS ESPECIALIZADAS</div><nav aria-label="Ferramentas">${navBottom.map(([p,label,ic])=>`<button class="nav-item ${p===ui.page?'active':''}" data-page="${p}">${I(ic)} ${label}${p==='followup'&&count?` <span class="badge warn">${count}</span>`:''}</button>`).join('')}<button class="nav-item ${ui.page==='settings'?'active':''}" data-page="settings">${I('settings')} Configurações</button></nav><div class="side-footer">${I('shield',16)} <strong>Protótipo de desenvolvimento</strong><br>Utilize apenas dados fictícios. Sem proteção de prontuários ou validação clínica.</div></aside>
-<main class="main"><header class="topbar"><div class="mobile-brand">${renderBrand()}</div><span class="kicker">PAINEL CLÍNICO <span style="color:#aac0d0">/</span> ${E(pageLabel())}</span><div class="top-actions"><span class="badge neutral">Versão 0.1.2</span><button class="round-icon" data-page="followup" title="Acompanhamentos">${I('bell')}${count?`<span class="count-dot">${count}</span>`:''}</button><button class="round-icon" data-page="settings" title="Identidade profissional">${I('settings')}</button></div></header>${pageContent()}</main></div>
+<main class="main"><header class="topbar"><div class="mobile-brand">${renderBrand()}</div><span class="kicker">PAINEL CLÍNICO <span style="color:#aac0d0">/</span> ${E(pageLabel())}</span><div class="top-actions"><span class="badge neutral">v0.1.3</span><button class="round-icon" data-page="followup" title="Acompanhamentos">${I('bell')}${count?`<span class="count-dot">${count}</span>`:''}</button><button class="round-icon" data-page="settings" title="Identidade profissional">${I('settings')}</button></div></header>${pageContent()}</main></div>
 <nav class="bottomnav" aria-label="Ferramentas rápidas exclusivas">${navBottom.map(([p,label,ic])=>`<button class="${p===ui.page?'active':''}" data-page="${p}">${I(ic)}<span>${label}</span></button>`).join('')}</nav>`;}
 function pageHeader(title,desc,right=''){return `<div class="pageheader"><div><h1>${title}</h1><p>${desc}</p></div><div>${right}</div></div>`;}
 function empty(title,desc,iconName='info'){return `<div class="empty">${I(iconName,32)}<strong>${E(title)}</strong><br>${E(desc)}</div>`;}
-function home(){const due=getAlerts();return `<section class="hero"><div class="hero-text"><div class="eyebrow">ASSISTENTE FARMACÊUTICO</div><h1>Prescrição Magistral Inteligente</h1><p>Formule, revise, documente e acompanhe tratamentos com organização clínica e controle profissional.</p></div><img src="${IMG}" class="hero-logo" alt="Ícone oficial LifeMag IA"></section>
-<div class="section-heading"><h2>Acesso rápido</h2><span class="muted small">Um destino para cada função</span></div><div class="tilegrid">
-${[['sparkles','Nova formulação','Inicie a conversa e crie um atendimento','new-visit'],['patients','Pacientes','Cadastro e histórico de atendimento','patients'],['files','Minhas fórmulas','Rascunhos e versões salvas','formulas'],['prescription','Receituário','Emissão e consulta de documentos','prescriptions']].map(([ic,title,desc,act])=>`<button class="tile" ${act==='new-visit'?'data-action="new-visit"':`data-page="${act}"`}><span class="icon-bg">${I(ic)}</span><strong>${title}</strong><span>${desc}</span></button>`).join('')}</div>
-<div class="section-heading"><h2>Seu acompanhamento</h2><button class="btn compact" data-page="followup">Ver todos ${I('arrow',14)}</button></div>
-<div class="cols-2"><div class="panel"><div class="panel-title"><h3>Atendimentos recentes</h3><span class="pill">${data.visits.length} no protótipo</span></div>${data.visits.length?latestVisits().slice(0,4).map(v=>visitRow(v)).join(''):empty('Nenhum atendimento salvo','Cadastre um paciente para começar.','calendar')}</div><div class="panel"><div class="panel-title"><h3>Alertas previstos</h3><span class="badge ${due.length?'warn':'ok'}">${due.length?due.length+' atenção':'Sem alertas'}</span></div>${due.length?due.slice(0,3).map(v=>alertRow(v)).join(''):empty('Nenhum alerta vencendo','Os lembretes serão calculados pela data real de início.','bell')}<div class="notice blue">${I('info',15)} Base de demonstração local, sem IA ou notificações externas conectadas.</div></div></div>`;}
+function professionalPhotoSrc() {
+  const photo = data.settings?.photoData;
+  return typeof photo === 'string' && /^data:image\/jpeg;base64,[a-z0-9+/=]+$/i.test(photo) ? photo : '';
+}
+function professionalPortrait() {
+  const src = professionalPhotoSrc();
+  return src
+    ? `<img class="professional-portrait" src="${src}" alt="Foto do farmacêutico" />`
+    : `<span class="professional-portrait portrait-placeholder" aria-label="Foto não configurada">${I('patients',34)}</span>`;
+}
+function home() {
+  const due=getAlerts(), info=data.settings;
+  const prof=E(info.professional||'Profissional farmacêutico');
+  return `<section class="welcome-panel" aria-label="Identificação do farmacêutico">
+    <button class="portrait-button" type="button" data-page="settings" aria-label="Adicionar ou alterar foto profissional">${professionalPortrait()}</button>
+    <div class="welcome-name"><div class="welcome-kicker">ESPAÇO CLÍNICO</div><strong>${prof}</strong><span>${E(info.role||'Farmacêutico Clínico')} · ${E(info.crf||'')}</span></div>
+    <button class="welcome-notifications" type="button" data-page="followup" aria-label="Ver acompanhamentos">${I('bell',25)}${due.length?`<span class="count-dot">${due.length}</span>`:''}</button>
+  </section>
+  <section class="home-brand-banner"><div class="home-brand-main">${renderBrand()}<h1>Bem-vindo(a), ${prof}!</h1><p>Ciência, segurança e precisão para formular, revisar e acompanhar com responsabilidade profissional.</p></div></section>
+  <div class="section-heading"><h2>Acesso rápido</h2><span class="muted small">Escolha uma função</span></div>
+  <div class="tilegrid">
+  ${[['sparkles','Nova formulação','Crie fórmulas com apoio do assistente','new-visit'],['patients','Pacientes','Cadastre e consulte os atendimentos','patients'],['files','Minhas fórmulas','Acesse e edite formulações salvas','formulas'],['prescription','Receituário','Gere e personalize receituários','prescriptions']].map(([ic,title,desc,act])=>`<button class="tile" ${act==='new-visit'?'data-action="new-visit"':`data-page="${act}"`}><span class="icon-bg">${act==='new-visit'?`<img src="${IMG}" class="tile-logo" alt="" />`:I(ic,27)}</span><strong>${title}</strong><span>${desc}</span><span class="tile-chevron" aria-hidden="true">${I('arrow',17)}</span></button>`).join('')}
+  </div>
+  <button class="science-banner" data-page="science" type="button"><span class="science-banner-icon">${I('science',26)}</span><span><strong>Baseada em evidências</strong><small>Fontes científicas e atualizações em um só lugar.</small></span>${I('arrow',21)}</button>
+  <div class="section-heading"><h2>Seu acompanhamento</h2><button class="btn compact" data-page="followup">Ver todos ${I('arrow',17)}</button></div>
+  <div class="cols-2"><div class="panel"><div class="panel-title"><h3>Atendimentos recentes</h3><span class="pill">${data.visits.length} no protótipo</span></div>${data.visits.length?latestVisits().slice(0,4).map(v=>visitRow(v)).join(''):empty('Nenhum atendimento salvo','Cadastre um paciente fictício para começar.','calendar')}</div><div class="panel"><div class="panel-title"><h3>Alertas previstos</h3><span class="badge ${due.length?'warn':'ok'}">${due.length?due.length+' atenção':'Sem alertas'}</span></div>${due.length?due.slice(0,3).map(v=>alertRow(v)).join(''):empty('Nenhum alerta vencendo','Os lembretes serão calculados pela data real de início.','bell')}<div class="notice blue">${I('info',17)} Demonstração local. Ainda sem IA clínica ou notificações externas.</div></div></div>`;
+}
 function patientCard(p){const visits=data.visits.filter(v=>v.patientId===p.id).length;return `<div class="person-row ${ui.patientId===p.id?'active':''}"><div><strong>${E(p.name)}</strong><br><span>${E(p.phone||'Sem telefone')} · ${visits} atendimento(s)</span></div><button class="btn compact" data-select-patient="${p.id}">${I('arrow',15)}</button></div>`;}
 function patients(){const p=patient();return pageHeader('Pacientes','Cadastre informações essenciais e mantenha o histórico associado ao paciente.',`<button class="btn primary" data-action="new-visit">${I('plus')} Novo atendimento</button>`)+`<div class="top-panels"><div class="panel"><h3>Lista de pacientes</h3><div class="field"><label>Buscar pelo nome ou telefone</label><input id="patient-filter" value="${E(ui.search)}" placeholder="Buscar..." /></div><div class="menu-rows" id="patient-results" style="margin-top:13px">${data.patients.filter(x=>(x.name+' '+x.phone).toLowerCase().includes(ui.search.toLowerCase())).map(patientCard).join('')||empty('Nenhum paciente','Use o formulário para cadastrar.')}</div></div>
 <div class="panel"><div class="panel-title"><h3>${p?'Cadastro selecionado':'Novo cadastro'}</h3>${p?`<button class="btn compact" data-action="clear-patient">Novo</button>`:''}</div><form id="patient-form"><div class="form-grid">${field('name','Nome completo',p?.name||'',true)}${field('phone','Telefone',p?.phone||'',true,'tel')}${field('dob','Data de nascimento',p?.dob||'',false,'date')}${field('address','Endereço do paciente',p?.address||'')}${field('weight','Peso (kg)',p?.weight||'',false,'number')}${field('height','Altura (cm)',p?.height||'',false,'number')}<div class="field full"><label>Observações clínicas (somente teste)</label><textarea name="notes" placeholder="Condições clínicas, medicamentos, alergias...">${E(p?.notes||'')}</textarea></div></div><div class="form-actions"><button class="btn primary" type="submit">${I('check')} ${p?'Salvar alterações':'Cadastrar paciente'}</button></div></form>${p?`<hr class="divider"><h3>Atendimentos desse paciente</h3>${data.visits.filter(v=>v.patientId===p.id).map(visitRow).join('')||'<p class="muted small">Ainda não há atendimentos.</p>'}`:''}</div></div>`;}
