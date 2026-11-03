@@ -140,28 +140,32 @@ function assessmentPanel(v){const a=normalizeClinicalAssessment(v.assessment);re
 function clinicalAssessmentSummary(v){const a=normalizeClinicalAssessment(v.assessment);return `<div class="clinical-summary"><p><strong>Objetivo:</strong> ${E(a.chiefComplaint||'Não informado')}</p><p><strong>Medicamentos:</strong> ${E(a.medications||'Não informado')}</p><p><strong>Alergias:</strong> ${E(a.allergies||'Não informado')}</p><p><strong>Riscos:</strong> ${E(a.riskFactors||'Não informado')}</p><button class="btn compact" type="button" data-page="conversation">Revisar avaliação clínica</button></div>`;}
 
 function scientificOnly(){
-  const status=aiSession.ready
-    ?'Serviço conectado. Envie uma pergunta farmacêutica anônima para pesquisar resumos científicos verificáveis.'
-    :'Serviço de IA não conectado neste endereço. A pesquisa automática ainda não está disponível.';
-  const messages=anonymousResearch.chat.map(m=>{
-    const label=m.role==='assistant'?'LIFEMAG IA — CONFIRA AS REFERÊNCIAS':'FARMACÊUTICO';
+  const online=aiSession.ready;
+  const indicator=online?'IA científica conectada':'IA ainda indisponível';
+  const history=anonymousResearch.chat.map(m=>{
+    const label=m.role==='assistant'?'LIFEMAG IA — REVISÃO PROFISSIONAL':'FARMACÊUTICO';
     const sources=Array.isArray(m.sources)&&m.sources.length
-      ?'<div class="chat-sources"><strong>Publicações consultadas (resumos):</strong>'+
-        m.sources.map(ref=>'<a target="_blank" rel="noopener noreferrer" href="'+E(ref.url)+'">'+E(ref.title||'Artigo PubMed')+'</a>').join('')+'</div>'
+      ?'<div class="chat-sources"><strong>Artigos recuperados:</strong>'+
+        m.sources.map(ref=>'<a target="_blank" rel="noopener noreferrer" href="'+E(ref.url)+'">'+E(ref.title||'PubMed')+'</a>').join('')+'</div>'
       :'';
-    return '<div class="chat-bubble '+(m.role==='assistant'?'assistant':'user')+'"><div class="chat-label">'+label+'</div><div class="chat-text">'+E(m.text)+'</div>'+sources+'</div>';
+    return '<article class="chat-bubble '+(m.role==='assistant'?'assistant':'user')+'"><div class="chat-label">'+label+'</div><div class="chat-text">'+E(m.text)+'</div>'+sources+'</article>';
   }).join('');
   const disabled=aiSession.busy?'disabled':'';
-  const button=aiSession.busy?'Pesquisando...':I('send');
-  return pageHeader('Conversa Inteligente','Pesquisa científica sem cadastro de paciente.')+
-    '<div class="panel"><h3>Pesquisa científica anônima</h3>'+
-    '<div class="notice blue">Somente perguntas gerais sem dados pessoais. Não insira nomes, datas de nascimento, prontuários ou informações que identifiquem um paciente. Esta pesquisa não gera receituário nem substitui a avaliação farmacêutica.</div>'+
-    '<p>'+E(status)+'</p>'+
-    '<div class="chat-shell">'+messages+
-    '<form id="research-form" class="chat-input">'+
-    '<textarea name="message" maxlength="2500" required placeholder="Ex.: Quais evidências clínicas existem para riboflavina na prevenção da enxaqueca em adultos?"></textarea>'+
-    '<button type="submit" class="btn primary" '+disabled+' aria-label="Pesquisar evidências com IA">'+button+'</button></form></div>'+
-    '<p class="muted small">As perguntas desta área ficam somente nesta sessão e não são vinculadas a pacientes. Para o atendimento demonstrativo e o editor magistral, selecione um paciente fictício.</p></div>'+pickVisit();
+  const submitLabel=aiSession.busy?'Consultando fontes...':I('send');
+  return '<section class="research-page">'+
+    pageHeader('Conversa Inteligente','Pesquisa científica integrada — sem cadastro de paciente.')+
+    '<div class="panel research-panel">'+
+    '<div class="research-title"><h3>O que deseja pesquisar?</h3>'+
+    '<span class="research-indicator '+(online?'connected':'offline')+'">'+E(indicator)+'</span></div>'+
+    '<p class="research-intro">Pergunte sobre evidências, mecanismos, doses estudadas e segurança.</p>'+
+    '<form id="research-form" class="chat-input research-input">'+
+    '<textarea name="message" maxlength="2500" rows="3" required placeholder="Ex.: Quais evidências existem para riboflavina na prevenção da enxaqueca?"></textarea>'+
+    '<button type="submit" class="btn primary" '+disabled+' aria-label="Pesquisar evidências com IA">'+submitLabel+'</button></form>'+
+    '<p class="research-privacy">Somente perguntas anônimas, sem dados pessoais ou prontuários. As respostas exigem avaliação farmacêutica.</p>'+
+    (history?'<div class="research-history" role="log" aria-live="polite">'+history+'</div>':'')+
+    '</div>'+
+    '<details class="research-visits"><summary>Atendimentos e formulações (opcional)</summary>'+pickVisit()+'</details>'+
+    '</section>';
 }
 function conversation(){const v=visit();if(!v)return scientificOnly();const p=patientFor(v);return pageHeader('Conversa Inteligente',`Paciente: ${E(p?.name||'—')} · Atendimento em ${fmtDate(v.date)}`,`<button class="btn primary" data-page="editor">${I('edit')} Abrir Studio Magistral</button>`)+assessmentPanel(v)+`<div class="cols-2" style="grid-template-columns:minmax(0,1.4fr) minmax(240px,.7fr)"><div class="panel"><div class="chat-shell"><div class="chat-bubble assistant"><div class="chat-label">ASSISTENTE LIFEMAG</div>Registre o objetivo clínico e as informações relevantes. ${aiSession.ready?'O serviço científico está conectado. Utilize apenas questões clínicas anônimas. As fontes recuperadas precisam de revisão farmacêutica.':'A integração com IA científica ainda não foi conectada nesta versão. Você pode criar e revisar a formulação manualmente no Studio Magistral.'}</div>${(v.chat||[]).map(m=>`<div class="chat-bubble ${m.role==='assistant'?'assistant':'user'}"><div class="chat-label">${m.role==='assistant'?'LIFEMAG IA — REVISÃO FARMACÊUTICA OBRIGATÓRIA':'FARMACÊUTICO'}</div><div class="chat-text">${E(m.text)}</div>${m.role==='assistant'&&Array.isArray(m.sources)&&m.sources.length?`<div class="chat-sources"><strong>Artigos recuperados (resumos):</strong>${m.sources.map(src=>`<a href="${E(src.url)}" target="_blank" rel="noopener noreferrer">${E(src.title||'Artigo PubMed')} — ${E(src.date||'')}</a>`).join('')}</div>`:''}</div>`).join('')}<form class="chat-input" id="chat-form"><textarea name="message" required maxlength="2500" placeholder="${aiSession.ready?'Digite uma questão clínica ANÔNIMA, sem nome, CPF ou prontuário...':'Descreva objetivos fictícios; servidor científico ainda não conectado...'}"></textarea><button class="btn primary" type="submit" ${aiSession.busy?'disabled':''} aria-label="${aiSession.ready?'Consultar IA e PubMed':'Registrar observação'}">${aiSession.busy?'Analisando...':I('send')}</button></form></div></div>
 <div class="panel"><h3>Atendimento atual</h3><div class="info-columns"><div class="stat"><b>${v.ingredients.length}</b><span>Substâncias</span></div><div class="stat"><b>${Number(v.duration)||'—'}</b><span>Dias</span></div><div class="stat"><b>${(v.revisions||[]).length}</b><span>Versões</span></div></div><div class="accent-band" style="margin-top:16px"><strong>Motor / Coadjuvante</strong><p class="muted small" style="margin:7px 0 0">A função clínica, alvo sintomático e evidências ficarão aqui e no editor — nunca no PDF da receita.</p></div><div class="notice">Nenhuma formulação terapêutica será inventada neste protótipo. Sugestões automatizadas dependerão de fontes, validação de interações e revisão profissional.</div><div class="btnrow"><button class="btn primary" data-page="editor">${I('plus')} Criar formulação</button><button class="btn" data-page="science">${I('science')} Fontes</button></div></div></div>`;}
