@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** interface v0.3.0 • integração Cloudflare Access corrigida no GitHub em 03/11/2026; nova implantação e execução real da IA ainda dependem de confirmação.
+**Status:** v0.3.3 • tela de IA compactada e recuperação PubMed corrigida no GitHub em 03/11/2026; execução real após publicação Cloudflare ainda não confirmada.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -87,3 +87,11 @@ O histórico do planejamento original permanece nos documentos anteriores desta 
 - Após registrar pacientes reais de maneira segura em fase futura, o módulo poderá ser conectado ao fluxo clínico formal. Não usar dados reais até implantar controles LGPD e banco seguro.
 - Validação das três suítes pré-existentes adaptadas: 17 testes de lógica, 42 de interface e 12 clínicos (71 no total), além de 16 testes dedicados do Worker versionados no CI.
 - Revisão do cache `v0.3.2` para que a interface atualizada apareça no Worker quando o build automático da Cloudflare concluir.
+
+## Revisão da Conversa Inteligente e fontes científicas — v0.3.3 (03/11/2026)
+- **Interface somente IA:** removidos o espaço vazio causado pelo min-height do chat e o alinhamento inferior do campo de pergunta. A entrada foi movida para perto do cabeçalho, com tipografia maior, indicador de conexão e mensagens logo abaixo. Também foi compactado o chat de atendimentos. Home v0.1.8 inalterada.
+- **Europe PMC/PubMed real:** corrigido parâmetro inválido `sort=RELEVANCE` (padrão da API já é relevância), `resultType=core` para resumos, filtro `SRC:MED`, consultas mais amplas quando necessário e identificação adequada de HTTP/ausência de resumos. A IA não inventa resposta quando a pesquisa externa falha.
+- **RAG híbrido preparado:** mecanismo ativo de pesquisa online PubMed/Europe PMC e módulo opcional Cloudflare D1 FTS5 para compêndios oficiais versionados e revisados. Schema `database/base-cientifica-d1.sql`, consulta `worker/science-index.js` e detalhes `docs/FONTES_CIENTIFICAS_RAG.md`.
+- **Situação explícita:** a base D1 de monografias ainda NÃO está implantada, preenchida ou revisada. As referências da Anvisa existentes na Central Científica continuam apenas links até ingestão e verificação de suas monografias. Consensus não integrado.
+- **Validação:** 17 testes de lógica + 45 de interface + 12 de fluxos clínicos (74 verificações locais); 19 testes do Worker e 6 da futura base indexada também versionados nos workflows. Execução remota e resposta científica de ponta a ponta devem ser verificadas após a publicação Cloudflare.
+- **Pacientes reais:** continuam proibidos até banco clínico seguro, LGPD e validação técnica das propostas magistrais.
