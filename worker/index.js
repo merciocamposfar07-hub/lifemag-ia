@@ -58,9 +58,34 @@ function stripMarkup(s){
   return String(s||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
 }
 function buildEuropePmcQuery(terms){
-  // Nunca usar diretamente entrada como linguagem de busca EPMC sem normalizar.
-  const text=String(terms||'').replace(/[^\p{L}\p{N}\s-]/gu,' ').trim().slice(0,160);
-  return text?text.split(/\s+/).slice(0,9).join(' '):'';
+  // Vocabulário auxiliar português → descritores ingleses; não substitui MeSH.
+  const map={
+    'enxaqueca':'migraine','migranea':'migraine','cefaleia':'headache',
+    'cabeca':'headache','dor':'pain','preventivo':'prevention',
+    'prevencao':'prevention','profilaxia':'prophylaxis',
+    'riboflavina':'riboflavin','magnesio':'magnesium',
+    'coenzima':'coenzyme','cafeina':'caffeine',
+    'obesidade':'obesity','emagrecimento':'weight loss','emagrecer':'weight loss',
+    'fadiga':'fatigue','cansaco':'fatigue','insonia':'insomnia',
+    'diabetes':'diabetes','hipertensao':'hypertension',
+    'ansiedade':'anxiety','depressao':'depression',
+    'colesterol':'cholesterol','dislipidemia':'dyslipidemia',
+    'queda':'hair loss','cabelo':'hair loss','capilar':'hair',
+    'ferro':'iron','vitamina':'vitamin','deficiencia':'deficiency',
+    'fitoterapico':'herbal','fitoterapia':'herbal medicine',
+    'interacao':'interaction','seguranca':'safety','dosagem':'dose'
+  };
+  const stop=new Set(['de','da','do','das','dos','e','em','no','na','que','qual','para',
+    'por','com','um','uma','o','a','as','os','sua','seu','meu','minha','quero','pode',
+    'paciente','apresenta','preciso','gostaria','formula','formulacao','tratamento',
+    'clinica','clinico','estudos','estudo','segundo','sobre','uso','efeito']);
+  const original=String(terms||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/[^a-z0-9\s-]/g,' ').trim().slice(0,250);
+  const tokens=original.split(/\s+/).filter(x=>x.length>2&&!stop.has(x));
+  // Quando há termos farmacológicos mapeados, priorizar os específicos.
+  const translated=tokens.filter(x=>map[x]).map(x=>map[x]);
+  const selected=translated.length?translated:tokens;
+  return [...new Set(selected)].slice(0,9).join(' ').slice(0,160);
 }
 async function searchEvidence(query,fetcher=fetch){
   const q=buildEuropePmcQuery(query);
