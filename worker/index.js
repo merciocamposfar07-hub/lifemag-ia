@@ -124,7 +124,7 @@ async function searchEvidence(question,fetcher=fetch){
 function assistantPrompt(evidence){
   return [
     'Você é um ASSISTENTE DE APOIO à análise farmacêutica magistral brasileira. Responda em português técnico, objetivo e claro.',
-    'As fontes oficiais listadas no catálogo da Anvisa NÃO foram lidas automaticamente e não devem ser citadas como se uma monografia específica tivesse sido verificada.',
+    'Não afirme ter lido monografias apenas porque constam no catálogo. Só cite uma monografia oficial se seu trecho estiver explicitamente recuperado e identificado na lista abaixo.',
     'As referências listadas são artigos recuperados da API PubMed/Europe PMC (resumos) ou trechos de documentos oficiais previamente verificados no índice interno. Cite cada origem corretamente; não presuma leitura de outras seções.',
     'Não invente artigos, estudos, níveis de evidência, doses, contraindicações, interações, resultados ou monografias.',
     'Quando apoiar uma afirmação nos trechos fornecidos, cite exatamente os identificadores entre colchetes, como [1] ou [C1], e explique limitações do conteúdo recuperado.',
