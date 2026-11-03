@@ -47,6 +47,11 @@ async function tests(){
     assert.equal(r.status,200);
     const x=await r.json();assert.equal(x.ready,true);assert.equal(x.clinicalRecordStorage,false);
   }],
+  ['termos clínicos em português são traduzidos para busca PubMed',async()=>{
+    const q=buildEuropePmcQuery('Enxaqueca e prevenção com riboflavina e magnésio');
+    assert.ok(q.includes('migraine'));assert.ok(q.includes('prevention'));
+    assert.ok(q.includes('riboflavin'));assert.ok(q.includes('magnesium'));
+  }],
   ['pesquisa retorna artigos MED com URL PubMed',async()=>{
     const out=await searchEvidence('migraine prevention');
     assert.equal(out.items.length,1);
