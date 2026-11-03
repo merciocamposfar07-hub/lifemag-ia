@@ -483,5 +483,77 @@ body{color:#122e49}
   .chat-sources a{font-size:16px;line-height:1.5}
 }
 
+
+/* v0.3.3 — SOMENTE Conversa Inteligente sem atendimento: layout compacto mobile.
+   Não altera Home (v0.1.8), Cadastro, Editor nem outras telas. */
+.research-page{display:block}
+.research-page .pageheader{margin-bottom:10px;padding-bottom:0}
+.research-page .pageheader h1{margin-bottom:4px}
+.research-page .pageheader p{margin:0;line-height:1.4}
+.research-page .research-panel{
+  padding:16px 18px 14px;
+  border-color:#bed7e6;
+  border-radius:17px;
+  box-shadow:0 3px 12px rgba(6,48,83,.05);
+}
+.research-page .research-title{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;flex-wrap:wrap;margin-bottom:6px;
+}
+.research-page .research-title h3{font-size:19px;margin:0;color:#103858;line-height:1.25}
+.research-page .research-indicator{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:13px;font-weight:750;
+  border:1px solid #bbd4dd;border-radius:20px;padding:5px 9px;
+  color:#1c586b;background:#ebf7fa;
+}
+.research-page .research-indicator.connected::before{
+  content:"";display:block;width:8px;height:8px;border-radius:50%;background:#118769;
+}
+.research-page .research-indicator.offline{color:#825315;background:#fff4e3;border-color:#f2d9a5}
+.research-page .research-intro{font-size:16px;line-height:1.45;color:#294961;margin:5px 0 12px}
+.research-page .research-input{
+  margin-top:0;
+  border-top:0;
+  padding-top:0;
+  display:flex;
+  align-items:stretch;
+  gap:8px;
+}
+.research-page .research-input textarea{
+  font-size:17px;line-height:1.45;min-height:82px;max-height:150px;
+  border-color:#8bb2c9;background:#fff;color:#103655;
+  resize:vertical;padding:12px;
+}
+.research-page .research-input textarea:focus{outline:2px solid #087f92;outline-offset:1px}
+.research-page .research-input .btn{min-height:50px;height:auto;align-self:stretch;padding:12px}
+.research-page .research-privacy{font-size:14px;line-height:1.4;color:#3b5d70;margin:9px 0 0}
+.research-page .research-history{display:flex;flex-direction:column;gap:11px;margin-top:16px}
+.research-page .research-history .chat-bubble{max-width:100%;font-size:16px;line-height:1.5}
+.research-page .research-history .chat-bubble .chat-text{font-size:16px;line-height:1.5}
+.research-page .research-visits{
+  margin:14px 0 12px;
+  border:1px solid #d4e2ea;
+  border-radius:13px;background:#f8fbfd;
+  overflow:hidden;
+}
+.research-page .research-visits>summary{
+  cursor:pointer;list-style-position:inside;
+  padding:12px 15px;font-size:15px;font-weight:750;color:#254861;
+}
+.research-page .research-visits[open]{padding-bottom:12px}
+.research-page .research-visits[open]>summary{border-bottom:1px solid #d4e2ea;margin-bottom:10px}
+@media(max-width:760px){
+  .research-page .pageheader{margin-top:2px;margin-bottom:8px}
+  .research-page .pageheader h1{font-size:23px}
+  .research-page .pageheader p{font-size:15px}
+  .research-page .research-panel{padding:13px 12px 12px}
+  .research-page .research-title h3{font-size:19px}
+  .research-page .research-indicator{font-size:13px}
+  .research-page .research-input textarea{font-size:17px;min-height:79px}
+  .research-page .research-history .chat-bubble{max-width:100%}
+  .research-page .research-history .chat-bubble .chat-text{font-size:17px}
+}
+
 @media print{ @page{size:A4;margin:13mm 13mm 14mm}body{background:#fff;color:#142b47}.app-shell,.bottomnav,.toast{display:none!important}#print-root{display:block!important}.print-page{font:11pt/1.45 Arial,sans-serif;color:#182a43}.print-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #10b6b0;padding-bottom:14px;margin-bottom:20px}.print-head img{width:67px;height:67px;object-fit:contain;border-radius:12px}.print-head strong{font-size:18pt;display:block;color:#0b315a}.print-head small{display:block;font-size:9pt;color:#50657c}.print-institution{font-size:9pt;margin-top:4px}.print-h{font-size:16pt;color:#0e365a;text-align:center;border-bottom:1px solid #dae9ee;padding-bottom:12px;margin-bottom:17px}.print-section{padding:8px 0;border-bottom:1px solid #e2eaf2}.print-label{font-weight:700;color:#174568}.print-table{width:100%;border-collapse:collapse;margin:14px 0}.print-table td,.print-table th{border-bottom:1px solid #dce7ef;padding:8px;text-align:left}.print-foot{margin-top:55px;text-align:center}.print-sign{border-top:1px solid #52687d;display:inline-block;padding:6px 35px 0}.print-note{font-size:9pt;color:#a45324;margin:8px 0}}
 
