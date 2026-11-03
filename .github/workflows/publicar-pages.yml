@@ -36,9 +36,12 @@ jobs:
           node --check testes/testar_logica.js
           node --check testes/testar_interface.js
           node --check testes/testar_clinica.js
+          node --check worker/index.js
+          node --check testes/testar_ia.js
           node testes/testar_logica.js
           node testes/testar_interface.js
           node testes/testar_clinica.js
+          node testes/testar_ia.js
       - name: Preparar somente arquivos públicos do site
         run: |
           mkdir -p public/src public/assets
