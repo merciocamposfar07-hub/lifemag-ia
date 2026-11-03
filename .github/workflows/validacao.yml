@@ -27,6 +27,8 @@ jobs:
           node --check testes/testar_interface.js
           node --check testes/testar_clinica.js
           node --check worker/index.js
+          node --check worker/science-index.js
+          node --check testes/testar_fontes.js
           node --check testes/testar_ia.js
       - name: Executar testes
         run: |
@@ -35,3 +37,4 @@ jobs:
           node testes/testar_clinica.js
           node scripts/build-worker.mjs
           node testes/testar_ia.js
+          node testes/testar_fontes.js
