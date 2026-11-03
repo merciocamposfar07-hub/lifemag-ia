@@ -51,7 +51,7 @@ function buildEuropePmcQuery(terms){
     interacao:'interaction',seguranca:'safety',dosagem:'dose',
     adultos:'adults',adulto:'adults',idosos:'elderly',idoso:'elderly',
     criancas:'children',crianca:'children',gestacao:'pregnancy',
-    ensaio:'trial',revisao:'review',sistematica:'systematic',evidencias:'evidence'
+    ensaio:'trial',revisao:'review',sistematica:'systematic'
   };
   const stop=new Set([
     'de','da','do','das','dos','e','em','no','na','que','qual','quais','para','por',
