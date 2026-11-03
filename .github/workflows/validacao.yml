@@ -33,4 +33,5 @@ jobs:
           node testes/testar_logica.js
           node testes/testar_interface.js
           node testes/testar_clinica.js
+          node scripts/build-worker.mjs
           node testes/testar_ia.js
