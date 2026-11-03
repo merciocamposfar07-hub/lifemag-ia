@@ -11,6 +11,36 @@ const initialState = () => ({
     businessPhone: '', cnpj: '', professionalAddress: '', contact: '',
   },
 });
+// Avaliação clínica independente por atendimento. Apenas testes fictícios nesta versão.
+const CLINICAL_ASSESSMENT_FIELDS = [
+  'chiefComplaint','symptoms','clinicalHistory','medications',
+  'allergies','labResults','riskFactors','followUpPlan'
+];
+function emptyClinicalAssessment(){
+  return Object.fromEntries(CLINICAL_ASSESSMENT_FIELDS.map(field=>[field,'']));
+}
+function normalizeClinicalAssessment(value){
+  const source=value && typeof value==='object'&&!Array.isArray(value)?value:{};
+  return Object.fromEntries(CLINICAL_ASSESSMENT_FIELDS.map(field=>[
+    field,typeof source[field]==='string'?source[field].trim().slice(0,5000):''
+  ]));
+}
+function findPotentialDuplicatePatient(patients,candidate,excludedId=''){
+  const normalizedName=v=>String(v||'').normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').replace(/\s+/g,' ').trim();
+  const digits=v=>String(v||'').replace(/\D/g,'');
+  const name=normalizedName(candidate?.name);
+  const dob=String(candidate?.dob||'');
+  const phone=digits(candidate?.phone);
+  if(!name)return null;
+  return (patients||[]).find(p=>{
+    if(p.id===excludedId||normalizedName(p.name)!==name)return false;
+    const sameBirth=dob && p.dob && String(p.dob)===dob;
+    const samePhone=phone && digits(p.phone)===phone;
+    return Boolean(sameBirth||samePhone);
+  })||null;
+}
+
 function readStore() {
   try {
     const value = JSON.parse(localStorage.getItem(STORAGE_KEY));
