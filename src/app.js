@@ -49,6 +49,15 @@ async function initializeScientificAssistant(){
   aiSession.checked=true;
   if(ui.page==='conversation')render();
 }
+function allowedScientificReference(item){
+  if(!item||typeof item.url!=='string')return false;
+  try{
+    const url=new URL(item.url);
+    const hosts=new Set(['pubmed.ncbi.nlm.nih.gov','www.ncbi.nlm.nih.gov',
+      'www.gov.br','gov.br','www.who.int','who.int','www.anvisa.gov.br','anvisa.gov.br']);
+    return url.protocol==='https:'&&hosts.has(url.hostname);
+  }catch(_){return false}
+}
 async function sendScientificQuestion(v,question){
   if(!aiSession.ready||aiSession.busy)return false;
   aiSession.busy=true;render();
@@ -62,7 +71,7 @@ async function sendScientificQuestion(v,question){
     if(!result.requiresProfessionalReview||!Array.isArray(result.sources)||typeof result.answer!=='string')
       throw Error('Resposta incompleta. A análise não será registrada.');
     v.chat.push({id:uid('msg'),role:'assistant',text:result.answer.slice(0,13000),
-      sources:result.sources.filter(x=>/^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/$/.test(x.url||'')).slice(0,4),
+      sources:result.sources.filter(allowedScientificReference).slice(0,8),
       createdAt:new Date().toISOString(),requiresProfessionalReview:true});
     if(v!==anonymousResearch)persist();
     toast('Resposta recebida. Verifique as fontes e revise clinicamente.');
