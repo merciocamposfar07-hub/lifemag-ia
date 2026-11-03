@@ -1,5 +1,6 @@
 name: LifeMag IA — implantar IA protegida no Cloudflare
-# Manual: NÃO ativa serviço sem conta e segredos do proprietário.
+# Alternativa opcional: a integração GitHub->Cloudflare já pode publicar automaticamente.
+# Este fluxo só é necessário caso a integração direta não funcione.
 on:
   workflow_dispatch:
 permissions:
@@ -10,9 +11,6 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CF_ACCESS_TEAM_DOMAIN: ${{ secrets.CF_ACCESS_TEAM_DOMAIN }}
-      CF_ACCESS_AUD: ${{ secrets.CF_ACCESS_AUD }}
-      CF_ALLOWED_EMAILS: ${{ secrets.CF_ALLOWED_EMAILS }}
     steps:
       - name: Obter projeto isolado LifeMag IA
         uses: actions/checkout@v4
@@ -23,7 +21,7 @@ jobs:
       - name: Exigir configuração e segurança antes da implantação
         shell: bash
         run: |
-          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CF_ACCESS_TEAM_DOMAIN CF_ACCESS_AUD CF_ALLOWED_EMAILS; do
+          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
             if [[ -z "${!key:-}" ]]; then
               echo "::error::Configuração ausente em GitHub Actions Secrets: $key"
               exit 1
@@ -40,13 +38,7 @@ jobs:
         run: node scripts/build-worker.mjs
       - name: Enviar Worker e assets à conta Cloudflare
         run: npx --yes wrangler@4 deploy
-      - name: Vincular parâmetros de Access de modo protegido
-        shell: bash
-        run: |
-          printf "%s" "$CF_ACCESS_TEAM_DOMAIN" | npx --yes wrangler@4 secret put ACCESS_TEAM_DOMAIN
-          printf "%s" "$CF_ACCESS_AUD" | npx --yes wrangler@4 secret put ACCESS_AUD
-          printf "%s" "$CF_ALLOWED_EMAILS" | npx --yes wrangler@4 secret put ALLOWED_EMAILS
       - name: Observação de segurança
         run: |
-          echo "O Worker continua a exigir validação criptográfica de Cloudflare Access."
+          echo "O Worker usa ctx.access da plataforma. A política Cloudflare Access restringe o e-mail autorizado."
           echo "Confirme Access > Protect this Worker > All traffic e teste autorização antes de uso clínico."
