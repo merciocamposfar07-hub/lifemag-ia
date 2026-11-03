@@ -111,6 +111,11 @@ async function analyze(request,env){
     return reply({error:'A API inicial recebe apenas questão clínica sem identificação pessoal e termos de pesquisa.'},400)
   }
   const question=args.question.trim();
+  // Fase inicial: bloquear identificadores óbvios antes de consultar serviços externos.
+  // Esta triagem não substitui anonimização profissional nem permite prontuários reais.
+  if(/\b\d{3}[. ]?\d{3}[. ]?\d{3}[- ]?\d{2}\b/.test(question)||/\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b/.test(question)){
+    return reply({error:'Remova CPF, e-mail e qualquer identificação pessoal antes de consultar a IA.'},400)
+  }
   if(question.length<8||question.length>2500)return reply({error:'Descreva a pergunta entre 8 e 2.500 caracteres'},400);
   const terms=typeof args.searchTerms==='string'?args.searchTerms:question;
   if(terms.length>200)return reply({error:'Termos de pesquisa excessivos'},400);
