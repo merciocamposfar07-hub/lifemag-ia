@@ -1,5 +1,8 @@
 import {STATIC_ASSETS} from './assets.generated.mjs';
-/* LifeMag IA: assistente científico, protegido pelo Cloudflare Access.\n * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.\n * Nenhum texto clínico é registrado em logs.\n */
+/* LifeMag IA: assistente científico, protegido pelo Cloudflare Access.
+ * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
+ * Nenhum texto clínico é registrado em logs.
+ */
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -21,7 +24,7 @@ async function verifyAccess(request,env,ctx){
   try{
     const identity=await ctx.access.getIdentity();
     const email=String(identity?.email||'').trim().toLowerCase();
-    if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))return null;
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return null;
     // A política 'LifeMag IA - Acesso Farmacêutico' no Cloudflare Access
     // é a fonte de autorização; lista extra é opcional e nunca requerida.
     if(env.ALLOWED_EMAILS){
