@@ -35,6 +35,40 @@ const data = readStore();
 const VALID_PAGES = ['home','patients','conversation','editor','formulas','prescriptions','followup','simulator','science','docs','settings'];
 const pageFromUrl = () => { const page = decodeURIComponent(location.hash.replace(/^#\//,'')); return VALID_PAGES.includes(page) ? page : 'home'; };
 const ui = { page:pageFromUrl(), patientId:null, visitId:null, notices:[], search:'', toastTimer:0, doc:'prescription' };
+const aiSession={ready:false,checked:false,busy:false,message:'Servidor de IA ainda não conectado.'};
+async function initializeScientificAssistant(){
+  // A versão GitHub Pages não possui backend: nunca envia dados para uma URL externa.
+  if(location.protocol!=='https:'||!location.hostname||location.hostname.endsWith('.github.io'))return;
+  try{
+    const res=await fetch('/api/capabilities',{credentials:'same-origin',headers:{accept:'application/json'}});
+    const info=await res.json();
+    aiSession.ready=Boolean(res.ok&&info.authenticated&&info.ready);
+    aiSession.message=aiSession.ready?'IA autenticada, consulta de resumos PubMed ativa.':'Serviço de IA ainda indisponível.';
+  }catch(_){aiSession.message='Não foi possível verificar a conexão com a IA.'}
+  aiSession.checked=true;
+  if(ui.page==='conversation')render();
+}
+async function sendScientificQuestion(v,question){
+  if(!aiSession.ready||aiSession.busy)return false;
+  aiSession.busy=true;render();
+  try{
+    // Apenas mensagem digitada pelo farmacêutico. NÃO enviar fichas, nomes ou cadastros.
+    const response=await fetch('/api/assist',{method:'POST',credentials:'same-origin',
+      headers:{'content-type':'application/json','accept':'application/json'},
+      body:JSON.stringify({question})});
+    const result=await response.json();
+    if(!response.ok)throw Error(String(result.error||'Pesquisa indisponível'));
+    if(!result.requiresProfessionalReview||!Array.isArray(result.sources)||typeof result.answer!=='string')
+      throw Error('Resposta incompleta. A análise não será registrada.');
+    v.chat.push({id:uid('msg'),role:'assistant',text:result.answer.slice(0,13000),
+      sources:result.sources.filter(x=>/^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/$/.test(x.url||'')).slice(0,4),
+      createdAt:new Date().toISOString(),requiresProfessionalReview:true});
+    persist();toast('Resposta recebida. Verifique as fontes e revise clinicamente.');
+    return true;
+  }catch(error){toast(String(error?.message||'Serviço científico indisponível').slice(0,140));return false}
+  finally{aiSession.busy=false;render()}
+}
+
 const persist = () => { try{writeStore(data);}catch(e){toast('Não foi possível salvar no navegador.');}};
 const patient = () => data.patients.find(p=>p.id===ui.patientId) || null;
 const visit = () => data.visits.find(v=>v.id===ui.visitId) || null;
