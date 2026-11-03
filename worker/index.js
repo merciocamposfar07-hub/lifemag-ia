@@ -38,56 +38,87 @@ function stripMarkup(s){
   return String(s||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
 }
 function buildEuropePmcQuery(terms){
-  // Vocabulário auxiliar português → descritores ingleses; não substitui MeSH.
-  const map={
-    'enxaqueca':'migraine','migranea':'migraine','cefaleia':'headache',
-    'cabeca':'headache','dor':'pain','preventivo':'prevention',
-    'prevencao':'prevention','profilaxia':'prophylaxis',
-    'riboflavina':'riboflavin','magnesio':'magnesium',
-    'coenzima':'coenzyme','cafeina':'caffeine',
-    'obesidade':'obesity','emagrecimento':'weight loss','emagrecer':'weight loss',
-    'fadiga':'fatigue','cansaco':'fatigue','insonia':'insomnia',
-    'diabetes':'diabetes','hipertensao':'hypertension',
-    'ansiedade':'anxiety','depressao':'depression',
-    'colesterol':'cholesterol','dislipidemia':'dyslipidemia',
-    'queda':'hair loss','cabelo':'hair loss','capilar':'hair',
-    'ferro':'iron','vitamina':'vitamin','deficiencia':'deficiency',
-    'fitoterapico':'herbal','fitoterapia':'herbal medicine',
-    'interacao':'interaction','seguranca':'safety','dosagem':'dose'
+  // Conversão simples para inglês para localizar literatura biomédica.
+  // O texto enviado pela pessoa nunca vira comando de busca sem normalização.
+  const translations={
+    enxaqueca:'migraine',migranea:'migraine',cefaleia:'headache',prevencao:'prevention',
+    profilaxia:'prophylaxis',riboflavina:'riboflavin',magnesio:'magnesium',
+    coenzima:'coenzyme',cafeina:'caffeine',obesidade:'obesity',emagrecimento:'obesity',
+    fadiga:'fatigue',cansaco:'fatigue',insonia:'insomnia',hipertensao:'hypertension',
+    ansiedade:'anxiety',depressao:'depression',dislipidemia:'dyslipidemia',
+    cabelo:'hair',capilar:'hair',ferro:'iron',vitamina:'vitamin',
+    deficiencia:'deficiency',fitoterapico:'herbal',fitoterapia:'herbal',
+    interacao:'interaction',seguranca:'safety',dosagem:'dose',
+    adultos:'adults',adulto:'adults',idosos:'elderly',idoso:'elderly',
+    criancas:'children',crianca:'children',gestacao:'pregnancy',
+    ensaio:'trial',revisao:'review',sistematica:'systematic',evidencias:'evidence'
   };
-  const stop=new Set(['de','da','do','das','dos','e','em','no','na','que','qual','para',
-    'por','com','um','uma','o','a','as','os','sua','seu','meu','minha','quero','pode',
+  const stop=new Set([
+    'de','da','do','das','dos','e','em','no','na','que','qual','quais','para','por',
+    'com','um','uma','o','a','as','os','sua','seu','meu','minha','quero','pode',
     'paciente','apresenta','preciso','gostaria','formula','formulacao','tratamento',
-    'clinica','clinico','estudos','estudo','segundo','sobre','uso','efeito']);
-  const original=String(terms||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .toLowerCase().replace(/[^a-z0-9\s-]/g,' ').trim().slice(0,250);
-  const tokens=original.split(/\s+/).filter(x=>x.length>2&&!stop.has(x));
-  // Quando há termos farmacológicos mapeados, priorizar os específicos.
-  const translated=tokens.filter(x=>map[x]).map(x=>map[x]);
-  const selected=translated.length?translated:tokens;
-  return [...new Set(selected)].slice(0,9).join(' ').slice(0,160);
+    'clinica','clinico','estudos','estudo','segundo','sobre','uso','efeito','existe',
+    'existem','sustentam','podemos','fazer','isso','terapeutica','mg','mcg','ui',
+    'what','which','is','are','the','and','for','with','in','of','on','about','does',
+    'evidence','review','studies','study','dose','effective'
+  ]);
+  const raw=String(terms||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/[^a-z0-9\s-]/g,' ').slice(0,400);
+  const words=raw.split(/\s+/).filter(x=>x.length>2&&!stop.has(x)&&!/^\d+$/.test(x));
+  const translated=words.filter(w=>translations[w]).map(w=>translations[w]);
+  const search=translated.length?translated:words;
+  // Termos clínicos centrais predominam; não restringir a 9 palavras triviais.
+  return [...new Set(search)].slice(0,8).join(' ').slice(0,155);
 }
-async function searchEvidence(query,fetcher=fetch){
-  const q=buildEuropePmcQuery(query);
-  if(!q)return {items:[],error:'Consulta científica vazia'};
-  const params=new URLSearchParams({query:q,format:'json',resultType:'core',pageSize:'4',sort:'RELEVANCE'});
-  const url='https://www.ebi.ac.uk/europepmc/webservices/rest/search?'+params;
-  try{
-    const signal=AbortSignal.timeout(7500);
-    const response=await fetcher(url,{signal,headers:{accept:'application/json'}});
-    if(!response.ok)throw Error('Fonte temporariamente indisponível');
-    const json=await response.json();
-    const results=(json.resultList?.result||[]).filter(x=>x.source==='MED'&&/^\d{4,9}$/.test(String(x.id||'')));
-    const items=results.slice(0,4).map((x,i)=>({
-      id:String(i+1),title:stripMarkup(x.title).slice(0,260),
-      abstract:stripMarkup(x.abstractText).slice(0,1700),
-      date:String(x.firstPublicationDate||x.pubYear||''),
-      journal:stripMarkup(x.journalTitle).slice(0,100),
-      url:'https://pubmed.ncbi.nlm.nih.gov/'+x.id+'/',
-      source:'PubMed via Europe PMC'
-    }));
-    return {items,error:items.length?null:'Nenhum resumo PubMed verificável encontrado para os termos informados'};
-  }catch(_){return {items:[],error:'Falha ao consultar a literatura científica em tempo real'}}
+function evidenceSearchPlans(question){
+  const query=buildEuropePmcQuery(question);
+  if(!query)return [];
+  const words=query.split(/\s+/).filter(Boolean);
+  const stop=new Set(['prevention','prophylaxis','adults','evidence','systematic',
+    'review','trial','safety','dose','interaction','children','elderly']);
+  const specific=[...new Set(words.filter(x=>!stop.has(x)))];
+  // Busca focada primeiro; se excessivamente restritiva, repetir com os
+  // dois termos centrais. Nunca transformar uma ausência em estudo inventado.
+  const alternatives=[query];
+  if(specific.length>=2)alternatives.push(specific.slice(0,3).join(' '));
+  else if(words.length>2)alternatives.push(words.slice(0,2).join(' '));
+  return [...new Set(alternatives)].slice(0,2);
+}
+async function searchEvidence(question,fetcher=fetch){
+  const plans=evidenceSearchPlans(question);
+  if(!plans.length)return {items:[],error:'Informe termos clínicos ou substâncias para pesquisar.',status:'empty_query'};
+  let lastError='',seenHttp=false;
+  for(const terms of plans){
+    // Europe PMC ordena por RELEVÂNCIA por padrão: sort=RELEVANCE não é válido.
+    const params=new URLSearchParams({
+      query:terms,format:'json',resultType:'core',pageSize:'12'
+    });
+    const url='https://www.ebi.ac.uk/europepmc/webservices/rest/search?'+params.toString();
+    try{
+      const response=await fetcher(url,{signal:AbortSignal.timeout(10000),
+        headers:{accept:'application/json'}});
+      if(!response.ok){seenHttp=true;lastError='HTTP '+response.status;continue;}
+      const json=await response.json();
+      const sourceEntries=Array.isArray(json?.resultList?.result)?json.resultList.result:[];
+      const items=sourceEntries
+        .filter(x=>x?.source==='MED'&&/^\d{5,9}$/.test(String(x.id||'')))
+        .map(x=>({
+          title:stripMarkup(x.title).slice(0,260),
+          abstract:stripMarkup(x.abstractText).slice(0,2200),
+          date:String(x.firstPublicationDate||x.pubYear||'').slice(0,15),
+          journal:stripMarkup(x.journalInfo?.journal?.title||x.journalTitle||'').slice(0,120),
+          url:'https://pubmed.ncbi.nlm.nih.gov/'+x.id+'/',
+          source:'PubMed via Europe PMC'
+        }))
+        .filter(x=>x.title&&x.abstract.length>=60)
+        .slice(0,5)
+        .map((x,i)=>({id:String(i+1),...x}));
+      if(items.length)return {items,error:null,status:'ok',searchedTerms:terms};
+      lastError='Nenhum resumo PubMed com conteúdo suficiente para esta busca.';
+    }catch(_){lastError='A fonte Europe PMC não respondeu à consulta.';}
+  }
+  return {items:[],status:seenHttp?'source_error':'no_abstracts',
+    error:lastError||'Não foi possível recuperar resumos verificáveis.'};
 }
 function assistantPrompt(evidence){
   return [
@@ -125,9 +156,13 @@ async function analyze(request,env){
   if(question.length<8||question.length>2500)return reply({error:'Descreva a pergunta entre 8 e 2.500 caracteres'},400);
   const terms=question;
   const evidence=await searchEvidence(terms);
-  // FALHA FECHADA para qualquer resposta com pretensão de evidência: IA só roda com resumo recuperado.
+  // FALHA FECHADA: se não recuperar ao menos um resumo verificável, não consulta o modelo.
   if(!evidence.items.some(x=>x.abstract)){
-    return reply({error:'Sem resumos científicos verificáveis nesta consulta; não será gerada proposta.',evidenceStatus:evidence.error,sources:[]},422)
+    const failStatus=evidence.status==='source_error'?503:422;
+    return reply({error:evidence.status==='source_error'?
+      'A base científica não respondeu. Não foi possível verificar artigos nesta tentativa.':
+      'A pesquisa não encontrou resumos científicos adequados. Tente incluir a substância e a condição clínica.',
+      evidenceStatus:evidence.error,sourceStatus:evidence.status,sources:[]},failStatus);
   }
   if(!env.AI||typeof env.AI.run!=='function')return reply({error:'Serviço de IA não configurado'},503);
   try{
@@ -140,7 +175,7 @@ async function analyze(request,env){
     const answer=String(result?.response||'').trim();
     if(!answer)return reply({error:'O modelo não produziu resposta utilizável'},502);
     return reply({answer:answer.slice(0,13000),sources:evidence.items.map(({abstract,...citation})=>citation),
-      evidenceStatus:'Metadados e resumos consultados nesta requisição; análise automatizada não validada clinicamente.',
+      evidenceStatus:'Artigos PubMed recuperados online via Europe PMC nesta consulta; interpretação ainda requer validação clínica.',
       catalogStatus:'Anvisa: links de referência, monografias não indexadas nem pesquisadas automaticamente',
       model:MODEL,requiresProfessionalReview:true});
   }catch(_){return reply({error:'A IA não respondeu; nenhuma recomendação foi produzida'},502)}
