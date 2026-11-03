@@ -91,7 +91,7 @@ async function searchEvidence(question,fetcher=fetch){
   for(const terms of plans){
     // Europe PMC ordena por RELEVÂNCIA por padrão: sort=RELEVANCE não é válido.
     const params=new URLSearchParams({
-      query:terms,format:'json',resultType:'core',pageSize:'12'
+      query:terms+' AND SRC:MED',format:'json',resultType:'core',pageSize:'12'
     });
     const url='https://www.ebi.ac.uk/europepmc/webservices/rest/search?'+params.toString();
     try{
