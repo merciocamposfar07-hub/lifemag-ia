@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** protótipo demonstrativo v0.2.0 • 02/11/2026
+**Status:** protótipo de interface v0.3.0 • 02/11/2026; integração de IA preparada em código, não implantada
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -16,6 +16,7 @@ Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas 
 - `docs/ESTADO_E_TESTES.md`: funcionalidades, testes, falhas e pendências.
 - `testes/testar_logica.js`: 17 testes de lógica, datas e armazenamento fictício.
 - `testes/testar_clinica.js`: 12 testes do cadastro manual, da ficha clínica e do histórico.
+- `testes/testar_ia.js`: 12 testes do serviço de IA com autenticação e fontes.
 - `database/schema-inicial.sql`: proposta de modelo PostgreSQL independente com isolamento por farmacêutico; NÃO implantado.
 - `testes/testar_interface.js`: 39 verificações estáticas de interface, legibilidade e navegação.
 - `.github/workflows/validacao.yml`: verificação automatizada de sintaxe e testes.
@@ -46,6 +47,16 @@ Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas 
 - Modelo de banco isolado em `database/schema-inicial.sql`, **ainda não executado e sem backend/autenticação/armazenamento seguro**.
 - Não cadastrar pacientes reais nesta versão. O `localStorage` não é prontuário protegido.
 
+
+## Nova etapa v0.3.0 — Motor de consulta científica preparado (SEM implantação)
+- Código de backend Cloudflare Worker em worker/index.js; requer Cloudflare Access, JWT RS256 válido, domínio da equipe, audiência e e-mails autorizados.
+- Serviço Worker AI preparado para modelo Llama 3.3 70B fp8 fast, com resumos científicos recuperados do PubMed por meio da API Europe PMC.
+- A interface Conversa Inteligente identifica o Worker autenticado no MESMO domínio. Quando ativo, envia somente a pergunta anônima e apresenta resposta + referências PubMed; o texto jamais passa automaticamente ao receituário.
+- A Central Científica agora contém links separados para Farmacopeia Brasileira (8ª), Formulário Nacional (3ª), Fitoterápicos (3ª) e página oficial dos compêndios Anvisa de 2026. Essas monografias não foram indexadas nem lidas automaticamente.
+- Workers static assets com builder scripts/build-worker.mjs e configuração wrangler.json. A URL GitHub Pages continua sem conexão IA.
+- Teste novo testes/testar_ia.js para autenticação, ausência de evidência, dados pessoais e consulta.
+- **Sem conta Cloudflare vinculada/configurada, NÃO há IA operante no endereço publicado.** Uso com pacientes reais segue vedado até autenticação, banco clínico protegido, controle LGPD e validação clínica. Ver docs/INTEGRACAO_IA_CLOUDFLARE.md.
+
 ## Status funcional
 Cadastro e histórico **fictícios**, registro de conversa sem IA, editor e revisão de fórmulas, comparação de versões, cálculo do lembrete de três dias, documentos demonstrativos e links a fontes científicas. **Não** inclui IA clínica real, checagem automatizada de interações, monitoramento científico em tempo real, banco seguro, assinatura ou notificações push.
 
@@ -57,6 +68,6 @@ Para executar localmente: `python -m http.server 8000` na pasta do repositório 
 **Publicação web:** GitHub Pages foi habilitado pelo proprietário do repositório e a primeira publicação foi confirmada com sucesso na gravação fornecida. O repositório foi tornado público pelo proprietário para habilitar Pages gratuitamente. O fluxo de Pages passa a publicar automaticamente ao enviar alterações para `main`, com execução manual opcional. O fluxo envia somente `index.html`, arquivos do aplicativo em `src/` e o ícone oficial (sem publicar documentação e testes como parte do artefato do site). O código do repositório público continua visível a terceiros.
 
 ## Testes
-17 testes de lógica, 39 verificações de interface e 12 testes do fluxo clínico estão versionados e incluídos na validação GitHub Actions (total: 68). A execução local de verificação passou; a publicação e a execução remota pelo GitHub Actions ainda precisam ser conferidas. A abertura da versão anterior no iPhone foi confirmada pelo proprietário, mas as mudanças visuais da v0.1.3 ainda exigem validação no aparelho.
+17 testes de lógica, 39 verificações de interface, 12 testes clínicos e 12 verificações do Worker de IA estão versionados em GitHub Actions (total previsto: 80). A execução local de verificação passou; a publicação e a execução remota pelo GitHub Actions ainda precisam ser conferidas. A abertura da versão anterior no iPhone foi confirmada pelo proprietário, mas as mudanças visuais da v0.1.3 ainda exigem validação no aparelho.
 
 O histórico do planejamento original permanece nos documentos anteriores desta conversa; esta versão do repositório é a base inicial versionada no GitHub.
