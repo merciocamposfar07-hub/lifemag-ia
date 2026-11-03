@@ -30,6 +30,19 @@ Comandos:
 
 A implantação não ocorre automaticamente a partir do GitHub Pages. O endereço Cloudflare será distinto até eventual migração aprovada.
 
+## Alternativa sem terminal: ativação diretamente pelo GitHub
+A implantação manual pode ser disparada por GitHub Actions, inclusive no iPhone. Antes de executá-la:
+1. Criar a conta Cloudflare e configurar o serviço Workers AI e a autenticação Zero Trust Access.
+2. No GitHub, abrir o repositório LifeMag IA > Settings > Secrets and variables > Actions > New repository secret.
+3. Cadastrar CINCO segredos: CLOUDFLARE_API_TOKEN (permissão mínima de implantação Workers), CLOUDFLARE_ACCOUNT_ID, CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD e CF_ALLOWED_EMAILS.
+4. Abrir Actions > LifeMag IA — implantar IA protegida no Cloudflare > Run workflow.
+5. Confirmar no Cloudflare em Workers & Pages > LifeMag IA > Access > Protect this Worker behind Access > All traffic. Restringir à identidade profissional explicitamente autorizada.
+6. Testar GET /api/capabilities na sessão autenticada e recusa ao acesso anônimo. Não utilizar o app com dados reais antes dos controles de produção.
+
+Não enviar os segredos a nenhum chat. GitHub Actions usa os valores protegidos nos Secrets; eles não devem constar em arquivos públicos.
+
+
+
 ## Validação antes de atendimento real
 - Node 22: executar testes/testar_ia.js, testes/testar_clinica.js, testes/testar_logica.js e testes/testar_interface.js.
 - Confirmar dados pessoais ausentes do payload, de logs e de respostas de erro; proteger sessões, dados em repouso e em trânsito.
