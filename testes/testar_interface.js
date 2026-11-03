@@ -15,6 +15,12 @@ const cases = [
   ['cabeçalho e card em um único conjunto', () => assert.match(js, /class="home-intro"[\s\S]*class="welcome-panel"[\s\S]*class="home-brand-banner"/)],
 
   ['balão branco inclui os quatro cartões', () => assert.match(js, /class="home-brand-banner"[\s\S]*class="tilegrid" aria-label="Acesso rápido"/)],
+
+  ['balão branco chega até as bordas da tela', () => assert.match(css, /v0\.1\.8[\s\S]*\.app-shell\.is-home \.home-brand-banner\{[\s\S]*margin:-25px 0 0;/)],
+  ['curva apenas nos cantos superiores', () => assert.match(css, /v0\.1\.8[\s\S]*border-radius:42px 42px 0 0;/)],
+  ['fundo azul não continua sob o balão inteiro', () => assert.match(css, /v0\.1\.8[\s\S]*\.home-intro\{[\s\S]*background:#fff;/)],
+  ['azul desenhado somente atrás do arco', () => assert.match(css, /v0\.1\.8[\s\S]*\.home-intro::before\{[\s\S]*height:145px;/)],
+  ['balão sem borda nem sombra lateral', () => assert.match(css, /v0\.1\.8[\s\S]*border:0;[\s\S]*border-radius:42px 42px 0 0;[\s\S]*box-shadow:none;/)],
   ['balão branco contém também a faixa de evidências', () => assert.match(js, /class="science-banner"[\s\S]*<\/section><\/div>\s*<div class="section-heading"><h2>Seu acompanhamento/)],
   ['sem título Acesso rápido separado do balão', () => assert.equal(js.includes('<h2>Acesso rápido</h2>'), false)],
   ['descrição inicial em fonte 18px', () => assert.match(css, /\.home-brand-banner p\{font-size:18px/)],
