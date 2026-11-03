@@ -471,5 +471,17 @@ body{color:#122e49}
   .clinical-start .btn{min-height:50px;font-size:17px}
 }
 
+
+/* v0.3.0 — Assistente científico na Conversa B, sem alterar a Home aprovada. */
+.chat-bubble .chat-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px;line-height:1.58}
+.chat-sources{display:flex;flex-direction:column;gap:9px;margin-top:16px;padding-top:12px;border-top:1px solid #b8d2e3}
+.chat-sources strong{font-size:15px;color:#193d5c}
+.chat-sources a{font-size:15px;line-height:1.4;text-decoration:underline;overflow-wrap:anywhere;color:#075a96}
+.chat-bubble.assistant{border:1px solid #bed9e6;background:#f2f9fc;color:#153853}
+@media(max-width:760px){
+  .chat-bubble .chat-text{font-size:17px;line-height:1.6}
+  .chat-sources a{font-size:16px;line-height:1.5}
+}
+
 @media print{ @page{size:A4;margin:13mm 13mm 14mm}body{background:#fff;color:#142b47}.app-shell,.bottomnav,.toast{display:none!important}#print-root{display:block!important}.print-page{font:11pt/1.45 Arial,sans-serif;color:#182a43}.print-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #10b6b0;padding-bottom:14px;margin-bottom:20px}.print-head img{width:67px;height:67px;object-fit:contain;border-radius:12px}.print-head strong{font-size:18pt;display:block;color:#0b315a}.print-head small{display:block;font-size:9pt;color:#50657c}.print-institution{font-size:9pt;margin-top:4px}.print-h{font-size:16pt;color:#0e365a;text-align:center;border-bottom:1px solid #dae9ee;padding-bottom:12px;margin-bottom:17px}.print-section{padding:8px 0;border-bottom:1px solid #e2eaf2}.print-label{font-weight:700;color:#174568}.print-table{width:100%;border-collapse:collapse;margin:14px 0}.print-table td,.print-table th{border-bottom:1px solid #dce7ef;padding:8px;text-align:left}.print-foot{margin-top:55px;text-align:center}.print-sign{border-top:1px solid #52687d;display:inline-block;padding:6px 35px 0}.print-note{font-size:9pt;color:#a45324;margin:8px 0}}
 
