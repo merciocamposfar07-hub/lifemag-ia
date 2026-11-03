@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** protótipo de interface v0.3.0 • 02/11/2026; integração de IA preparada em código, não implantada
+**Status:** interface v0.3.0 • integração Cloudflare Access corrigida no GitHub em 03/11/2026; nova implantação e execução real da IA ainda dependem de confirmação.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -16,7 +16,7 @@ Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas 
 - `docs/ESTADO_E_TESTES.md`: funcionalidades, testes, falhas e pendências.
 - `testes/testar_logica.js`: 17 testes de lógica, datas e armazenamento fictício.
 - `testes/testar_clinica.js`: 12 testes do cadastro manual, da ficha clínica e do histórico.
-- `testes/testar_ia.js`: 12 testes do serviço de IA com autenticação e fontes.
+- `testes/testar_ia.js`: 16 testes do serviço de IA com autenticação contextual e fontes.
 - `database/schema-inicial.sql`: proposta de modelo PostgreSQL independente com isolamento por farmacêutico; NÃO implantado.
 - `testes/testar_interface.js`: 39 verificações estáticas de interface, legibilidade e navegação.
 - `.github/workflows/validacao.yml`: verificação automatizada de sintaxe e testes.
@@ -68,6 +68,14 @@ Para executar localmente: `python -m http.server 8000` na pasta do repositório 
 **Publicação web:** GitHub Pages foi habilitado pelo proprietário do repositório e a primeira publicação foi confirmada com sucesso na gravação fornecida. O repositório foi tornado público pelo proprietário para habilitar Pages gratuitamente. O fluxo de Pages passa a publicar automaticamente ao enviar alterações para `main`, com execução manual opcional. O fluxo envia somente `index.html`, arquivos do aplicativo em `src/` e o ícone oficial (sem publicar documentação e testes como parte do artefato do site). O código do repositório público continua visível a terceiros.
 
 ## Testes
-17 testes de lógica, 39 verificações de interface, 12 testes clínicos e 12 verificações do Worker de IA estão versionados em GitHub Actions (total previsto: 80). A execução local de verificação passou; a publicação e a execução remota pelo GitHub Actions ainda precisam ser conferidas. A abertura da versão anterior no iPhone foi confirmada pelo proprietário, mas as mudanças visuais da v0.1.3 ainda exigem validação no aparelho.
+17 testes de lógica, 39 verificações de interface, 12 testes clínicos e 16 verificações do Worker de IA estão versionados em GitHub Actions (total previsto: 84). A execução local de verificação passou; a publicação e a execução remota pelo GitHub Actions ainda precisam ser conferidas. A abertura da versão anterior no iPhone foi confirmada pelo proprietário, mas as mudanças visuais da v0.1.3 ainda exigem validação no aparelho.
 
 O histórico do planejamento original permanece nos documentos anteriores desta conversa; esta versão do repositório é a base inicial versionada no GitHub.
+
+## Autenticação simplificada na Cloudflare (03/11/2026)
+- O proprietário ativou a política Zero Trust Free **LifeMag IA - Acesso Farmacêutico** para o Worker exclusivamente.
+- Em 03/11, login One-time PIN funcionou mas servidor retornou 401 por falta dos três segredos exigidos na implementação anterior.
+- Corrigido: Worker utiliza `ctx.access.getIdentity()` do runtime Cloudflare depois de autenticação. Nenhum campo `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` ou `ALLOWED_EMAILS` é obrigatório.
+- O modelo antigo de `assets` no Wrangler não repassava a identidade ao Worker; por isso a interface passa a ser empacotada pelo script `scripts/build-worker.mjs` e servida diretamente pelo Worker autenticado.
+- Código no GitHub foi alterado; a publicação automática na Cloudflare e o funcionamento em navegador devem ser confirmados. **Não usar prontuários reais**.
+- Consulte `docs/INTEGRACAO_IA_CLOUDFLARE.md`.
