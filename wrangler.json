@@ -1,0 +1,13 @@
+{
+  "name": "lifemag-ia-clinico",
+  "main": "./worker/index.js",
+  "compatibility_date": "2026-11-02",
+  "ai": {
+    "binding": "AI"
+  },
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  }
+}
