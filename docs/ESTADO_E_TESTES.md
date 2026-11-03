@@ -42,3 +42,16 @@
 - Legibilidade: textos principais de 17–18px, títulos dos cartões 18px, descrições de 16px, cores escuras de alto contraste; textos de formulários e avisos aumentados para uso no iPhone. O menu inferior agora tem fundo branco opaco para não deixar transparecer textos da página por trás.
 - Preservados nome **LifeMag IA**, ícone oficial, foto profissional, botão IA central, navegação e funcionalidades preexistentes.
 - Validação de código: 17 testes de lógica e 34 testes de interface executados sem erros no ambiente de verificação. A inspeção visual real no Safari pelo proprietário ainda é necessária antes de declarar identidade com o mockup.
+
+## Etapa clínica concluída em código — v0.2.0 (02/11/2026)
+- O layout Home v0.1.8 aprovado e a barra IA central **não foram alterados**.
+- Cadastro permanece 100% **manual**, iniciado sem pacientes, sem CSV e sem comunicação com o CSC.
+- Pesquisa por nome/telefone e bloqueio conservador de cadastro possivelmente duplicado por nome + data de nascimento ou nome + telefone; telefone isolado não vincula pessoas.
+- Ação **Iniciar avaliação clínica** após selecionar/criar cadastro.
+- Avaliação própria por atendimento: motivo/objetivo, sintomas, histórico, medicamentos, alergias, exames, riscos, plano de reavaliação, com botão Salvar avaliação.
+- Novos atendimentos não herdam a ficha anterior; o histórico pode reabrir avaliação ou editor.
+- Editor apresenta resumo da avaliação, sem considerar dados ausentes como ausências clínicas confirmadas; ficha clínica demonstrativa para impressão inclui o registro de cada atendimento.
+- Modelo `database/schema-inicial.sql` documenta tabelas isoladas por farmacêutico e políticas RLS propostas, **sem banco implantado**.
+- Fluxo testado com **17 testes de lógica + 39 de interface + 12 de fluxo clínico = 68 verificações**, todas aprovadas na execução de verificação; a verificação automática remota precisa ser conferida.
+- **Bloqueios para uso clínico real:** autenticação, API protegida, banco implantado com permissões verificadas, backups, gerenciamento de segredos, controles de LGPD, integração de IA validada, testes reais no iPhone e emissão/assinatura documental.
+- Próximo ciclo técnico: selecionar/implantar infraestrutura e autenticação, migrar do localStorage de demonstração, testar isolamento entre profissionais, depois integrar IA científica com revisão humana.
