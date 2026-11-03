@@ -79,3 +79,11 @@ O histórico do planejamento original permanece nos documentos anteriores desta 
 - O modelo antigo de `assets` no Wrangler não repassava a identidade ao Worker; por isso a interface passa a ser empacotada pelo script `scripts/build-worker.mjs` e servida diretamente pelo Worker autenticado.
 - Código no GitHub foi alterado; a publicação automática na Cloudflare e o funcionamento em navegador devem ser confirmados. **Não usar prontuários reais**.
 - Consulte `docs/INTEGRACAO_IA_CLOUDFLARE.md`.
+
+## Pesquisa científica anônima — 03/11/2026
+- Na Conversa Inteligente, quando não há atendimento selecionado, o LifeMag IA agora oferece **pesquisa científica anônima**, sem exigir cadastro de paciente.
+- A pesquisa utiliza a API autenticada no mesmo domínio, com referências PubMed por Europe PMC e revisão farmacêutica obrigatória.
+- Mensagens dessa área são transitórias na memória da página e **não são gravadas** como pacientes, consultas ou prontuários.
+- Após registrar pacientes reais de maneira segura em fase futura, o módulo poderá ser conectado ao fluxo clínico formal. Não usar dados reais até implantar controles LGPD e banco seguro.
+- Validação das três suítes pré-existentes adaptadas: 17 testes de lógica, 42 de interface e 12 clínicos (71 no total), além de 16 testes dedicados do Worker versionados no CI.
+- Revisão do cache `v0.3.2` para que a interface atualizada apareça no Worker quando o build automático da Cloudflare concluir.
