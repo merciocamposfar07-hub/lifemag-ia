@@ -55,3 +55,15 @@
 - Fluxo testado com **17 testes de lógica + 39 de interface + 12 de fluxo clínico = 68 verificações**, todas aprovadas na execução de verificação; a verificação automática remota precisa ser conferida.
 - **Bloqueios para uso clínico real:** autenticação, API protegida, banco implantado com permissões verificadas, backups, gerenciamento de segredos, controles de LGPD, integração de IA validada, testes reais no iPhone e emissão/assinatura documental.
 - Próximo ciclo técnico: selecionar/implantar infraestrutura e autenticação, migrar do localStorage de demonstração, testar isolamento entre profissionais, depois integrar IA científica com revisão humana.
+
+## Nova integração de IA — v0.3.0 (02/11/2026)
+- Código do serviço Worker AI escrito e versionado em worker/index.js. Ainda NÃO foi implantado na conta Cloudflare do proprietário.
+- Frontend da Conversa B preparado para descobrir o serviço autenticado no mesmo domínio; registra resposta e referências PubMed verificáveis no histórico demonstrativo.
+- JWT Cloudflare Access RS256 obrigatório: issuer, audience, expiração, assinatura e e-mail autorizado. Sem configuração, a API recusa todo acesso.
+- Resumos PubMed via Europe PMC REST são recuperados por questão e enviados ao modelo junto com títulos, datas e PMID. Se não encontrar resumos, a resposta científica é bloqueada.
+- Farmacopeia Brasileira 8ª, Formulário Nacional 3ª e Fitoterápicos 3ª têm links oficiais separados; documentos ainda não estão indexados como fonte automática e não devem ser apresentados como se tivessem sido lidos.
+- O payload da API inicial aceita somente uma pergunta anônima, sem cadastro, nome, telefone ou prontuário. Bloqueio parcial para CPF/e-mail não substitui anonimização real.
+- A URL atual do GitHub Pages permanece um protótipo sem backend de IA. Para usar o serviço após autenticação, hospedar a aplicação junto ao Worker com assets protegidos.
+- Workflow de validação e publicação foi ampliado para incluir testes/testar_ia.js. A confirmação de execução remota e a implantação da Cloudflare ainda são pendentes.
+- Home v0.1.8 e o ícone oficial permaneceram inalterados. Não há qualquer dependência do Portal CSC.
+- Próximo bloqueio: ativação na conta Cloudflare, validação de isolamento e consentimento profissional, autenticação e banco clínico seguro, indexação específica Anvisa, comprovação de desempenho e validação farmacêutica antes de consultas reais.
