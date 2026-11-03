@@ -133,7 +133,7 @@ async function analyze(request,env){
   try{const raw=await request.text();if(raw.length>12000)return reply({error:'Mensagem muito longa'},413);args=JSON.parse(raw)}
   catch(_){return reply({error:'JSON inválido'},400)}
   // Apenas questão anônima. O frontend não envia dados pessoais/cadastro/avaliação clínica.
-  if(!args||typeof args.question!=='string'||Object.keys(args).some(x=>x!=='question'&&x!=='searchTerms')){
+  if(!args||typeof args.question!=='string'||Object.keys(args).some(x=>x!=='question')){
     return reply({error:'A API inicial recebe apenas questão clínica sem identificação pessoal e termos de pesquisa.'},400)
   }
   const question=args.question.trim();
@@ -143,8 +143,7 @@ async function analyze(request,env){
     return reply({error:'Remova CPF, e-mail e qualquer identificação pessoal antes de consultar a IA.'},400)
   }
   if(question.length<8||question.length>2500)return reply({error:'Descreva a pergunta entre 8 e 2.500 caracteres'},400);
-  const terms=typeof args.searchTerms==='string'?args.searchTerms:question;
-  if(terms.length>200)return reply({error:'Termos de pesquisa excessivos'},400);
+  const terms=question;
   const evidence=await searchEvidence(terms);
   // FALHA FECHADA para qualquer resposta com pretensão de evidência: IA só roda com resumo recuperado.
   if(!evidence.items.some(x=>x.abstract)){
