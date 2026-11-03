@@ -1,0 +1,52 @@
+name: LifeMag IA — implantar IA protegida no Cloudflare
+# Manual: NÃO ativa serviço sem conta e segredos do proprietário.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  implantar:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CF_ACCESS_TEAM_DOMAIN: ${{ secrets.CF_ACCESS_TEAM_DOMAIN }}
+      CF_ACCESS_AUD: ${{ secrets.CF_ACCESS_AUD }}
+      CF_ALLOWED_EMAILS: ${{ secrets.CF_ALLOWED_EMAILS }}
+    steps:
+      - name: Obter projeto isolado LifeMag IA
+        uses: actions/checkout@v4
+      - name: Preparar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exigir configuração e segurança antes da implantação
+        shell: bash
+        run: |
+          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CF_ACCESS_TEAM_DOMAIN CF_ACCESS_AUD CF_ALLOWED_EMAILS; do
+            if [[ -z "${!key:-}" ]]; then
+              echo "::error::Configuração ausente em GitHub Actions Secrets: $key"
+              exit 1
+            fi
+          done
+      - name: Verificar código e testes
+        run: |
+          node --check worker/index.js
+          node testes/testar_logica.js
+          node testes/testar_interface.js
+          node testes/testar_clinica.js
+          node testes/testar_ia.js
+      - name: Preparar assets com a Home aprovada
+        run: node scripts/build-worker.mjs
+      - name: Enviar Worker e assets à conta Cloudflare
+        run: npx --yes wrangler@4 deploy
+      - name: Vincular parâmetros de Access de modo protegido
+        shell: bash
+        run: |
+          printf "%s" "$CF_ACCESS_TEAM_DOMAIN" | npx --yes wrangler@4 secret put ACCESS_TEAM_DOMAIN
+          printf "%s" "$CF_ACCESS_AUD" | npx --yes wrangler@4 secret put ACCESS_AUD
+          printf "%s" "$CF_ALLOWED_EMAILS" | npx --yes wrangler@4 secret put ALLOWED_EMAILS
+      - name: Observação de segurança
+        run: |
+          echo "O Worker continua a exigir validação criptográfica de Cloudflare Access."
+          echo "Confirme Access > Protect this Worker > All traffic e teste autorização antes de uso clínico."
