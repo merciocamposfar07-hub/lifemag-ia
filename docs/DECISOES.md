@@ -3,7 +3,16 @@
 - Nome atual: **LifeMag IA — Prescrição Magistral Inteligente**. Nomes históricos: PrescriMag IA e StudioMagistral IA.
 - Manter o **ícone oficial escuro azul profundo/turquesa com almofariz/pistilo e pixels**, e versão clara equivalente, sem substituições não aprovadas.
 - Visual A (Home Clínico Premium) + B (Conversa Inteligente) + C (Studio Magistral/editor).
-- Barra inferior com destinos próprios **Acompanhar, Simulador, Ciência, Documentos**, sem duplicar Nova formulação, Pacientes, Minhas fórmulas e Receituário.
+- Barra inferior aprovada: **Início, Acompanhar, IA (central), Ciência, Documentos**. Simulador continua no editor e na navegação lateral do desktop.
+
+
+## Deliberação de 02/11/2026 — independência e cadastro
+- **LifeMag IA é exclusivo para farmacêuticos**. Não misturar conceitos de operação, dados, cadastros, integrações, marcas ou usuários do Portal CSC.
+- **Base começa vazia**; os pacientes são cadastrados manualmente pelo profissional durante cada atendimento. Não importar CSV nem pré-carregar nomes, moradores ou dados clínicos.
+- Um paciente pode ter várias consultas; cada atendimento recebe avaliação clínica própria, com histórico preservado e sem sobrescrever os anteriores.
+- Somente reutilizar padrões técnicos genéricos quando apropriados, mantendo infraestrutura, banco e permissões independentes.
+- O fluxo público atual é **protótipo fictício**; uso de pacientes reais depende de autenticação, banco e proteção de dados verificados previamente.
+- Não alterar o layout da Home v0.1.8 aprovado sem solicitação expressa.
 
 ## Fluxo clínico
 1. Cadastrar paciente: nome, nascimento, telefone, peso, altura, alergias, medicamentos e condições relevantes.
