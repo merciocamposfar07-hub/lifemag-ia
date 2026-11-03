@@ -1,64 +1,37 @@
+# LifeMag IA — Cloudflare Access + IA (v0.3.1)
 
-# LifeMag IA — ativação da IA no Cloudflare Workers (v0.3.0)
+## Configuração atual (03/11/2026)
+- O projeto `lifemag-ia-clinico` já foi implantado na conta Cloudflare do proprietário.
+- Foi habilitada no dashboard a proteção **All traffic**, com política específica **LifeMag IA – Acesso Farmacêutico**, permitindo um único endereço de e-mail (validado em captura do painel).
+- O login por One-time PIN funcionou; o erro posterior de acesso era causado pelo código antigo que exigia `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` e `ALLOWED_EMAILS`.
+- **Correção versionada no GitHub:** o Worker passa a consumir `ctx.access` e `getIdentity()`, dados de autenticação produzidos pela própria plataforma após a aplicação da política. Não precisa cadastrar manualmente essas três variáveis.
+- A Cloudflare documenta limitação importante: **Static Assets** utiliza roteador que não transmite `ctx.access`. Para preservar a segurança, o script `scripts/build-worker.mjs` empacota os cinco arquivos permitidos da interface no próprio Worker (gerando `worker/assets.generated.mjs`), e `wrangler.json` deixou de declarar `assets`. Assim, toda requisição à página e à API é validada no Worker.
+- Sem `ctx.access`, com audience ausente ou identidade inválida, o Worker responde 401. Cabeçalhos JWT inseridos pelo cliente não autorizam acesso sem a identidade do runtime. Uma lista `ALLOWED_EMAILS` continua opcional como camada adicional; a autorização principal é a política do Cloudflare Access.
 
-**Estado:** código do serviço e integração ao chat presentes no GitHub, ainda NÃO implantados no Cloudflare. O GitHub Pages permanece protótipo sem IA externa ativa.
+## Implantação automática
+O proprietário conectou o repositório `merciocamposfar07-hub/lifemag-ia` diretamente ao Workers & Pages, com:
+- Build command: `node scripts/build-worker.mjs`
+- Deploy command: `npx wrangler deploy`
+- Worker name: `lifemag-ia-clinico`
 
-## Arquitetura independente do CSC
-- Interface: arquivos públicos do LifeMag IA, com Home v0.1.8 aprovada.
-- Backend: worker/index.js, usando o MESMO domínio do site e da API.
-- Segurança: Cloudflare Zero Trust Access no domínio completo e verificação independente de JWT RS256, emissão, audiência, validade e e-mail autorizado dentro do Worker.
-- IA: Cloudflare Workers AI, modelo Meta Llama 3.3 70B fp8 fast, plano gratuito sujeito a cotas e disponibilidade.
-- Ciência: consulta online ao Europe PMC (resumos publicados indexados no PubMed), com PMID, data, título e URL verificável.
-- Anvisa: Farmacopeia Brasileira 8ª, Formulário Nacional 3ª e Formulário de Fitoterápicos 3ª somente como LINKS no catálogo. Monografias ainda não estão indexadas nem são consultadas automaticamente.
-- Dados do paciente: API recebe apenas pergunta anônima digitada manualmente, nunca o cadastro/ficha clínica. NÃO usar dados clínicos reais nesta fase.
+A atualização no GitHub **deve** disparar um novo build conforme a integração. Precisamos confirmar no painel **Deployments** que a última revisão foi publicada com sucesso. Não há conexão Cloudflare direta para conferir a implantação por esta conversa.
 
-## Passo a passo de implantação (requer conta Cloudflare do proprietário)
-1. Criar/acessar a conta Cloudflare gratuita, ativar Workers AI e configurar Zero Trust Access.
-2. Em Access > Applications, proteger o endereço do Worker com uma política de acesso EXCLUSIVA para e-mails dos farmacêuticos autorizados. Proteger também os assets.
-3. Anotar o domínio da equipe Cloudflare (exemplo: clinica.cloudflareaccess.com), o Application AUD tag e o e-mail autorizado.
-4. No computador, com terminal autenticado na conta: executar os comandos abaixo, sem copiar senhas ou tokens para o código.
-5. Conferir que acesso sem login ou com JWT adulterado é recusado com código HTTP 401; verificar acesso autorizado.
-6. Na hospedagem privada, a Conversa Inteligente ativa IA apenas quando /api/capabilities retorna authenticated=true e ready=true.
+## Verificação após atualização
+1. Na Cloudflare, confirmar versão nova em Deployments. Não alterar os serviços do Portal CSC.
+2. Entrar no endereço protegido `https://lifemag-ia-clinico.merciocamposfar07.workers.dev` com e-mail autorizado e código One-time PIN.
+3. A interface do LifeMag IA deve abrir. No domínio Cloudflare protegido, a Conversa Inteligente verifica `GET /api/capabilities`.
+4. Em caso de erro, conferir Deployments/Build logs e AI binding. Não desabilitar Access para contornar problemas.
+5. Executar `node scripts/build-worker.mjs` antes de `node testes/testar_ia.js`; demais testes: testar_logica.js, testar_interface.js, testar_clinica.js.
 
-Comandos:
-- node scripts/build-worker.mjs
-- npx wrangler login
-- npx wrangler secret put ACCESS_TEAM_DOMAIN
-- npx wrangler secret put ACCESS_AUD
-- npx wrangler secret put ALLOWED_EMAILS
-- npx wrangler deploy
+## Limitações para uso clínico
+- O login pode ficar funcional antes de validar o serviço IA e a pesquisa científica; não afirmar que tudo já funciona sem verificação de execução.
+- O backend não recebe cadastro/ficha clínica; só perguntas anônimas. O cadastro demonstrativo ainda está em localStorage, sem banco clínico protegido; **não usar dados reais de pacientes**.
+- A consulta de resumos PubMed pelo Europe PMC não substitui texto integral, avaliação de qualidade científica ou revisão profissional.
+- Farmacopeia Brasileira e formulários Anvisa têm apenas links oficiais; suas monografias ainda não estão indexadas nem consultadas automaticamente.
+- Sem integração Consensus nesta etapa.
+- Sem checagem clínica automatizada de doses, incompatibilidades ou interações validada para prescrição real.
+- O LifeMag IA permanece independente do Portal CSC e preserva a Home v0.1.8.
 
-A implantação não ocorre automaticamente a partir do GitHub Pages. O endereço Cloudflare será distinto até eventual migração aprovada.
-
-## Alternativa sem terminal: ativação diretamente pelo GitHub
-A implantação manual pode ser disparada por GitHub Actions, inclusive no iPhone. Antes de executá-la:
-1. Criar a conta Cloudflare e configurar o serviço Workers AI e a autenticação Zero Trust Access.
-2. No GitHub, abrir o repositório LifeMag IA > Settings > Secrets and variables > Actions > New repository secret.
-3. Cadastrar CINCO segredos: CLOUDFLARE_API_TOKEN (permissão mínima de implantação Workers), CLOUDFLARE_ACCOUNT_ID, CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD e CF_ALLOWED_EMAILS.
-4. Abrir Actions > LifeMag IA — implantar IA protegida no Cloudflare > Run workflow.
-5. Confirmar no Cloudflare em Workers & Pages > LifeMag IA > Access > Protect this Worker behind Access > All traffic. Restringir à identidade profissional explicitamente autorizada.
-6. Testar GET /api/capabilities na sessão autenticada e recusa ao acesso anônimo. Não utilizar o app com dados reais antes dos controles de produção.
-
-Não enviar os segredos a nenhum chat. GitHub Actions usa os valores protegidos nos Secrets; eles não devem constar em arquivos públicos.
-
-
-
-## Validação antes de atendimento real
-- Node 22: executar testes/testar_ia.js, testes/testar_clinica.js, testes/testar_logica.js e testes/testar_interface.js.
-- Confirmar dados pessoais ausentes do payload, de logs e de respostas de erro; proteger sessões, dados em repouso e em trânsito.
-- Implantar e auditar banco clínico protegido, autenticação completa, políticas de acesso por profissional, logs, backups e resposta a incidentes.
-- Fazer revisão técnico-científica dos outputs (posologia, evidência, contraindicação, interação), auditoria clínica e documentação de LGPD.
-- Não aprovar automaticamente formulários ou receitas derivados do texto da IA.
-- Se PubMed/Europe PMC não retornar evidência acessível, o assistente não produz recomendação baseada em fonte não lida.
-
-## Limitações atuais
-- Serviço e autenticação ainda não implantados na conta Cloudflare.
-- O modelo consulta resumos PubMed/Europe PMC somente após ativação; não lê o texto integral automaticamente.
-- Os compêndios da Anvisa constam como referências oficiais, mas suas monografias ainda não estão disponíveis no motor de recuperação.
-- Não há checagem automática validada de doses, incompatibilidades ou interações.
-- Não existe banco clínico seguro em produção; consultas reais ainda não estão liberadas.
-
-Documentação: https://developers.cloudflare.com/workers-ai/configuration/bindings/
-Assets: https://developers.cloudflare.com/workers/static-assets/binding/
-Europe PMC: https://dev.europepmc.org/RestfulWebService
-Anvisa: https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/formulario-nacional
+## Documentação Cloudflare (fonte da mudança)
+- https://developers.cloudflare.com/workers/configuration/cloudflare-access/#read-authenticated-user-identity-with-ctxaccess
+- https://developers.cloudflare.com/workers/configuration/cloudflare-access/#ctxaccess-limitations
