@@ -484,6 +484,13 @@ body{color:#122e49}
 }
 
 
+/* Chat da IA em atendimentos: elimina altura artificial sem afetar outras telas. */
+.clinical-chat{min-height:0;height:auto;gap:11px}
+.clinical-chat .chat-input{margin-top:0}
+@media(max-width:760px){
+  .clinical-chat{min-height:0}
+  .clinical-chat .chat-input textarea{min-height:75px;font-size:17px}
+}
 /* v0.3.3 — SOMENTE Conversa Inteligente sem atendimento: layout compacto mobile.
    Não altera Home (v0.1.8), Cadastro, Editor nem outras telas. */
 .research-page{display:block}
