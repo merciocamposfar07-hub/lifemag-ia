@@ -76,6 +76,32 @@ async function tests(){
     assert.ok(q.includes('migraine'));assert.ok(q.includes('prevention'));
     assert.ok(q.includes('riboflavin'));assert.ok(q.includes('magnesium'));
   }],
+  ['Europe PMC usa consulta PubMed sem ordenação inválida',async()=>{
+    let recorded='';
+    const out=await searchEvidence('Riboflavina para prevenir enxaqueca',async url=>{
+      recorded=String(url);return Response.json(mockArticles);
+    });
+    const params=new URL(recorded).searchParams;
+    assert.ok(params.get('query').includes('SRC:MED'));
+    assert.equal(params.has('sort'),false);
+    assert.equal(params.get('resultType'),'core');
+    assert.equal(out.items.length,1);
+  }],
+  ['busca repete termos mais específicos quando não há resumos',async()=>{
+    let requests=0;
+    const out=await searchEvidence('Riboflavina para prevenção de enxaqueca em adultos',async()=>{
+      requests++;
+      return Response.json(requests===1?{resultList:{result:[]}}:mockArticles);
+    });
+    assert.equal(requests,2);
+    assert.equal(out.status,'ok');
+    assert.equal(out.items.length,1);
+  }],
+  ['falha HTTP na fonte é informada, não tratada como evidência',async()=>{
+    const out=await searchEvidence('riboflavin migraine',async()=>new Response('{}',{status:503}));
+    assert.equal(out.status,'source_error');
+    assert.equal(out.items.length,0);
+  }],
   ['busca retorna PMID de artigo indexado',async()=>{
     const out=await searchEvidence('migraine prevention');
     assert.equal(out.items.length,1);
