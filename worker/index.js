@@ -1,7 +1,5 @@
-/* LifeMag IA: API clínica (implantação pendente).
- * Exige Cloudflare Access no domínio INTEIRO + validação JWT no Worker.
- * Nenhum endpoint de IA é público e nenhum texto clínico é registrado em logs.
- */
+import {STATIC_ASSETS} from './assets.generated.mjs';
+/* LifeMag IA: assistente científico, protegido pelo Cloudflare Access.\n * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.\n * Nenhum texto clínico é registrado em logs.\n */
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -14,44 +12,23 @@ const reply=(data,status=200,extra={})=>new Response(JSON.stringify(data),{
   status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store',
   'x-content-type-options':'nosniff','referrer-policy':'no-referrer',...extra}
 });
-function fromB64url(value){
-  if(typeof value!=='string'||!/^[\w-]+$/.test(value))throw Error('JWT malformado');
-  const raw=atob(value.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-value.length%4)%4));
-  return Uint8Array.from(raw,ch=>ch.charCodeAt(0));
-}
-function decodePayload(value){
-  return JSON.parse(new TextDecoder().decode(fromB64url(value)));
-}
-function allowedTeamDomain(value){
-  return typeof value==='string'&&/^[a-z0-9-]+\.cloudflareaccess\.com$/.test(value);
-}
-async function verifyAccess(request,env){
-  // FALHA FECHADA: configuração incompleta impede até abrir os assets.
-  if(!allowedTeamDomain(env.ACCESS_TEAM_DOMAIN)||!env.ACCESS_AUD||!env.ALLOWED_EMAILS)return null;
-  const bearer=request.headers.get('Cf-Access-Jwt-Assertion');
-  if(!bearer||bearer.length>16000)return null;
-  const segments=bearer.split('.');
-  if(segments.length!==3)return null;
+// A Cloudflare valida o login na camada Zero Trust antes de invocar o Worker.
+// ctx.access é fornecido pelo runtime, não pelos cabeçalhos enviados pelo usuário.
+// Não use Cloudflare Static Assets neste Worker: o roteador interno NÃO propaga ctx.access.
+async function verifyAccess(request,env,ctx){
+  if(!ctx?.access || typeof ctx.access.getIdentity!=='function')return null;
+  if(typeof ctx.access.aud!=='string'||!ctx.access.aud.trim())return null;
   try{
-    const [h,p,sig]=segments;
-    const hdr=decodePayload(h),claims=decodePayload(p);
-    const now=Math.floor(Date.now()/1000);
-    if(hdr.alg!=='RS256'||!hdr.kid||typeof claims.exp!=='number'||claims.exp<=now||
-      (typeof claims.nbf==='number'&&claims.nbf>now)||
-      claims.iss!==('https://'+env.ACCESS_TEAM_DOMAIN)||
-      !(Array.isArray(claims.aud)?claims.aud.includes(env.ACCESS_AUD):claims.aud===env.ACCESS_AUD))return null;
-    const emails=env.ALLOWED_EMAILS.split(',').map(x=>x.trim().toLowerCase()).filter(Boolean);
-    if(!emails.length||!emails.includes(String(claims.email||'').toLowerCase()))return null;
-    const url='https://'+env.ACCESS_TEAM_DOMAIN+'/cdn-cgi/access/certs';
-    const certs=await fetch(url,{cf:{cacheTtl:1800,cacheEverything:true}});
-    if(!certs.ok)return null;
-    const data=await certs.json();
-    const jwk=(data.keys||[]).find(k=>k.kid===hdr.kid&&k.kty==='RSA');
-    if(!jwk)return null;
-    const key=await crypto.subtle.importKey('jwk',jwk,{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['verify']);
-    const valid=await crypto.subtle.verify('RSASSA-PKCS1-v1_5',key,fromB64url(sig),
-      new TextEncoder().encode(h+'.'+p));
-    return valid?{email:claims.email,sub:claims.sub}:null;
+    const identity=await ctx.access.getIdentity();
+    const email=String(identity?.email||'').trim().toLowerCase();
+    if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))return null;
+    // A política 'LifeMag IA - Acesso Farmacêutico' no Cloudflare Access
+    // é a fonte de autorização; lista extra é opcional e nunca requerida.
+    if(env.ALLOWED_EMAILS){
+      const allowed=String(env.ALLOWED_EMAILS).split(',').map(x=>x.trim().toLowerCase());
+      if(!allowed.includes(email))return null;
+    }
+    return {email,aud:ctx.access.aud};
   }catch(_){return null}
 }
 function stripMarkup(s){
@@ -165,19 +142,40 @@ async function analyze(request,env){
       model:MODEL,requiresProfessionalReview:true});
   }catch(_){return reply({error:'A IA não respondeu; nenhuma recomendação foi produzida'},502)}
 }
+function serveStatic(request){
+  const url=new URL(request.url);
+  const pathname=url.pathname==='/'?'/index.html':url.pathname;
+  if(request.method!=='GET'&&request.method!=='HEAD')return reply({error:'Método não permitido'},405);
+  if(!Object.prototype.hasOwnProperty.call(STATIC_ASSETS,pathname))
+    return reply({error:'Arquivo não encontrado'},404);
+  const asset=STATIC_ASSETS[pathname];
+  let data;
+  if(asset.encoding==='base64'){
+    const bytes=atob(asset.body);
+    data=Uint8Array.from(bytes,ch=>ch.charCodeAt(0));
+  }else data=asset.body;
+  const headers={
+    'content-type':asset.type,
+    'cache-control':'private, no-store',
+    'x-content-type-options':'nosniff',
+    'referrer-policy':'no-referrer',
+    'x-frame-options':'DENY',
+    'content-security-policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+  };
+  return new Response(request.method==='HEAD'?null:data,{status:200,headers});
+}
 export default {
-  async fetch(request,env){
+  async fetch(request,env,ctx){
     const url=new URL(request.url);
-    const identity=await verifyAccess(request,env);
-    if(!identity)return reply({error:'Acesso profissional não autorizado ou Cloudflare Access não configurado'},401);
+    const identity=await verifyAccess(request,env,ctx);
+    if(!identity)return reply({error:'Acesso profissional não autenticado pelo Cloudflare Access'},401);
     if(url.pathname==='/api/capabilities'&&request.method==='GET'){
       return reply({ready:!!env.AI,science:'Europe PMC (resumos indexados no PubMed)',
         official:OFFICIAL,model:MODEL,clinicalRecordStorage:false,authenticated:true})
     }
     if(url.pathname==='/api/assist'&&request.method==='POST')return analyze(request,env);
     if(url.pathname.startsWith('/api/'))return reply({error:'Rota desconhecida'},404);
-    if(!env.ASSETS||typeof env.ASSETS.fetch!=='function')return reply({error:'Arquivos estáticos não configurados'},503);
-    return env.ASSETS.fetch(request);
+    return serveStatic(request);
   }
 };
-export {verifyAccess,searchEvidence,buildEuropePmcQuery,assistantPrompt};
+export {verifyAccess,searchEvidence,buildEuropePmcQuery,assistantPrompt,serveStatic};
