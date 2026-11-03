@@ -130,7 +130,8 @@ async function analyze(request,env){
   const size=Number(request.headers.get('content-length')||0);
   if(size>12000)return reply({error:'Mensagem muito longa'},413);
   let args;
-  try{args=await request.json()}catch(_){return reply({error:'JSON inválido'},400)}
+  try{const raw=await request.text();if(raw.length>12000)return reply({error:'Mensagem muito longa'},413);args=JSON.parse(raw)}
+  catch(_){return reply({error:'JSON inválido'},400)}
   // Apenas questão anônima. O frontend não envia dados pessoais/cadastro/avaliação clínica.
   if(!args||typeof args.question!=='string'||Object.keys(args).some(x=>x!=='question'&&x!=='searchTerms')){
     return reply({error:'A API inicial recebe apenas questão clínica sem identificação pessoal e termos de pesquisa.'},400)
