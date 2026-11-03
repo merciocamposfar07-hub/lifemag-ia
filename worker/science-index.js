@@ -18,8 +18,8 @@ export async function searchIndexedEvidence(question,db){
   try{
     const result=await db.prepare(
       'SELECT p.heading,p.body,d.title,d.edition,d.official_url,d.verified_at,s.name '+ 
-      'FROM scientific_passages_fts f '+
-      'JOIN scientific_passages p ON p.id=f.passage_id '+
+      'FROM scientific_passages_fts '+
+      'JOIN scientific_passages p ON p.id=scientific_passages_fts.passage_id '+
       'JOIN scientific_documents d ON d.id=p.document_id '+
       'JOIN scientific_sources s ON s.id=d.source_id '+
       "WHERE scientific_passages_fts MATCH ? AND d.review_status='approved' "+
