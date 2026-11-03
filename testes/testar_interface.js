@@ -43,6 +43,21 @@ const cases = [
   ['pesquisa anônima disponível sem cadastrar paciente', () => assert.match(js, /if\(!v\)return scientificOnly\(\)/)],
   ['pesquisa avulsa não grava prontuário no navegador', () => assert.match(js, /if\(v!==anonymousResearch\)persist\(\)/)],
   ['questionamento científico usa API no mesmo domínio', () => assert.match(js, /fetch\('\/api\/assist'/)],
+
+  ['campo de pergunta da IA vem antes do histórico', () => {
+    const isolated=js.slice(js.indexOf('function scientificOnly()'),js.indexOf('function conversation(){'));
+    assert.ok(isolated.indexOf('<form id="research-form"')<isolated.indexOf('research-history'));
+  }],
+  ['tela IA não usa altura forçada do chat antigo', () => {
+    const isolated=js.slice(js.indexOf('function scientificOnly()'),js.indexOf('function conversation(){'));
+    assert.doesNotMatch(isolated,/chat-shell/);
+    assert.match(css,/\.research-page \.research-input\{[\s\S]*?margin-top:0;/);
+  }],
+  ['estilos do modo científico só atingem a Conversa Inteligente', () => {
+    assert.match(css,/\.research-page \.research-panel\{/);
+    assert.match(css,/v0\.1\.8 — geometria final do topo/);
+  }],
+
   ['barreiras contra rotas desconhecidas', () => assert.match(js, /VALID_PAGES\.includes\(next\)/)],
   ['navegação do Safari usa histórico', () => assert.match(js, /popstate/)],
   ['seletor de foto profissional', () => assert.match(js, /id="professional-photo-input"/)],
