@@ -91,7 +91,8 @@ test('reabrir atendimento escolhe avaliação original',()=>{
 test('editor mostra contexto e dados não informados sem inferi-los',()=>{
   const html=api.editor();
   assert.ok(html.includes('Objetivo fictício'));
-  assert.ok(html.includes('Não informado'));
+  assert.ok(html.includes('Restrição fictícia'));
+  assert.ok(!html.includes('Sem alergias'));
 });
 test('ficha clínica demonstrativa inclui avaliação do atendimento',()=>{
   const html=api.renderPaper('clinical',api.data.visits[0],api.data.patients[0]);
