@@ -235,7 +235,7 @@ function saveAnonymousCase(messageId){
   const count=(data.anonymousDrafts||[]).length+1;
   const label=prompt('Código do rascunho sem nome real (ex.: Caso 01):','Caso '+String(count).padStart(2,'0'));
   if(label===null)return;
-  if(!/^Caso(?:\s|-)[A-Za-z0-9_-]{1,24}$/i.test(String(label).trim())){
+  if(!/^Caso(?:\s|-)[0-9]{1,6}(?:-[A-Z])?$/i.test(String(label).trim())){
     toast('Use um código como Caso 01, sem nome ou identificação de paciente.');return
   }
   const d=createAnonymousFormulaDraft(data,message.draft,label);
