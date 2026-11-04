@@ -44,8 +44,24 @@ const check=async(name,fn)=>{await fn();ok++;console.log('PASSOU:',name)};
 await check('SQLite criou biblioteca científica e catálogo de 8 fontes',async()=>{
  const result=await store.status();
  assert.equal(result.approvedDocuments,0);
+ assert.equal(result.overviewSections,13);
+ assert.equal(result.status,'official_overviews_available');
+ assert.ok(result.sources.filter(x=>x.status==='official_overview_available').length>=7);
  assert.ok(result.sources.length>=8);
  assert.equal(result.storage,'SQLite Durable Object');
+});
+await check('busca FTS5 recupera sínteses oficiais reais, não monografias fictícias',async()=>{
+ const result=await store.search('fitoterapicos formulacoes');
+ assert.ok(result.items.length>0);
+ assert.ok(result.items.some(x=>x.evidenceTier==='official_overview'));
+ assert.ok(result.items.every(x=>x.source.includes('Sinopse')||x.evidenceTier==='reviewed_document'));
+ assert.equal((await store.status()).approvedDocuments,0);
+});
+await check('farmacopeia e Formulário Nacional permanecem com contagem de monografias zero',async()=>{
+ const statuses=(await store.status()).sources;
+ const formularies=statuses.filter(x=>['anvisa-fb','anvisa-fn','anvisa-fitoterapicos'].includes(x.id));
+ assert.equal(formularies.length,3);
+ assert.ok(formularies.every(x=>x.overviewSections>=2&&x.approvedDocuments===0));
 });
 await check('documento com hash falso não entra no SQLite',async()=>{
  const result=await store.importReviewed({...source,sha256:'0'.repeat(64)});
@@ -74,5 +90,5 @@ await check('não retorna trecho quando a pergunta é alheia ao documento',async
  const result=await store.search('riboflavina enxaqueca');
  assert.equal(result.items.length,0);
 });
-console.log('SQLite REAL: '+ok+'/6 verificações concluídas, sem simulação do banco.');
+console.log('SQLite REAL: '+ok+'/8 verificações concluídas, sem simulação do banco.');
 db.close();
