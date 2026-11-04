@@ -28,6 +28,11 @@ jobs:
           node --check testes/testar_clinica.js
           node --check worker/index.js
           node --check worker/science-index.js
+          node --check worker/clinical-draft.js
+          node --check worker/consensus.js
+          node --check testes/testar_formula.js
+          node --check testes/testar_consensus.js
+          node --check scripts/preparar-indice-cientifico.mjs
           node --check testes/testar_fontes.js
           node --check testes/testar_ia.js
       - name: Executar testes
@@ -38,3 +43,5 @@ jobs:
           node scripts/build-worker.mjs
           node testes/testar_ia.js
           node testes/testar_fontes.js
+          node testes/testar_formula.js
+          node testes/testar_consensus.js
