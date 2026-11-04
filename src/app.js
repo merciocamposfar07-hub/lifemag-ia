@@ -60,7 +60,7 @@ function allowedScientificReference(item){
     const hosts=new Set(['pubmed.ncbi.nlm.nih.gov','www.ncbi.nlm.nih.gov',
       'www.gov.br','gov.br','www.who.int','who.int','www.anvisa.gov.br','anvisa.gov.br',
       'consensus.app','www.consensus.app','doi.org','www.doi.org',
-      'bibliotecadigital.anvisa.gov.br']);
+      'bibliotecadigital.anvisa.gov.br','bvsms.saude.gov.br']);
     return url.protocol==='https:'&&hosts.has(url.hostname);
   }catch(_){return false}
 }
