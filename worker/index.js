@@ -126,7 +126,7 @@ async function searchEvidence(question,fetcher=fetch){
 function assistantPrompt(evidence){
  return [
   'Você é o motor magistral LifeMag IA para apoio à avaliação de um farmacêutico habilitado no Brasil.',
-  'ENTREGUE PRIMEIRO UMA PROPOSTA ESTRUTURADA: quando houver informações clínicas e evidências suficientes, descreva substâncias, forma química, doses em mg/mcg/g/UI, classificação MOTOR/COADJUVANTE/OPCIONAL, forma farmacêutica, via, posologia, horários, relação com refeições, duração inicial, reavaliação, critérios de extensão, contraindicações, interações e monitoramento.',
+  'ENTREGUE PRIMEIRO UMA PROPOSTA ESTRUTURADA: quando houver informações clínicas e evidências suficientes, descreva substâncias, forma química, doses em mg/mcg/g/UI, classificação MOTOR/COADJUVANTE/OPCIONAL, forma farmacêutica, via, quantidade para manipular, posologia, horários, relação com refeições, duração inicial, reavaliação, critérios de extensão, contraindicações, interações e monitoramento.',
   'Não comece debatendo opções; depois de entregar o quadro, o farmacêutico poderá solicitar revisões.',
   'Porém, diante de sintomas isolados, idade, alergias, condições clínicas, tratamentos concomitantes, estado gestacional quando relevante ou evidência de dose ausentes, classifique decision=insufficient_info ou insufficient_evidence e liste as lacunas. NÃO apresente como receita individual segura.',
   'NUNCA presuma que tolerância inicial autoriza repetir por 6-12 meses; pausa 15 dias a cada 30 dias ou qualquer esquema cíclico carece de comprovação específica por ingrediente e reavaliação.',
@@ -194,8 +194,8 @@ async function analyze(request,env){
       try{candidate=JSON.parse(candidate)}catch(_){}
     }
     const draft=normalizeDraft(candidate,verifiedSources,question);
-    const answer=draft?draftAsText(draft):String(result?.response||'').trim();
-    if(!answer)return reply({error:'O modelo não produziu resposta estruturada utilizável'},502);
+    if(!draft)return reply({error:'O modelo não retornou uma proposta estruturada válida; nenhuma formulação foi gerada.'},502);
+    const answer=draftAsText(draft);
     return reply({answer:answer.slice(0,16000),draft,
       sources:verifiedSources.map(({abstract,...citation})=>citation),
       evidenceStatus:'Fontes recuperadas nesta consulta; análise automatizada ainda requer revisão técnica.',
