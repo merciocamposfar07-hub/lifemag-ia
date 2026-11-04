@@ -3,6 +3,7 @@
 // Documentos oficiais só se tornam pesquisáveis depois de revisão e aprovação.
 import {DurableObject} from 'cloudflare:workers';
 import {buildIndexQuery} from './science-index.js';
+import {OFFICIAL_OVERVIEWS} from './official-overviews.js';
 
 const SEEDS=[
  ['anvisa-fb','Farmacopeia Brasileira 8ª edição','compendio_oficial',
@@ -40,8 +41,10 @@ async function sha256Hex(input){
 const verifiedSource=(row)=>({
  id:String(row.id),name:String(row.name),
  status:row.status==='active'&&Number(row.approved_documents)>0?
-  'content_retrievable':'catalog_only',
- approvedDocuments:Number(row.approved_documents)||0
+  'content_retrievable':Number(row.overview_sections)>0?'official_overview_available':
+  row.status==='live_api'?'external_api_registered':'catalog_only',
+ approvedDocuments:Number(row.approved_documents)||0,
+ overviewSections:Number(row.overview_sections)||0
 });
 
 export class LifeMagScientificStore extends DurableObject{
@@ -60,11 +63,24 @@ export class LifeMagScientificStore extends DurableObject{
    'CREATE TABLE IF NOT EXISTS passages ('+
    'id TEXT PRIMARY KEY,document_id TEXT NOT NULL,heading TEXT NOT NULL,'+
    'body TEXT NOT NULL,content_sha256 TEXT NOT NULL);'+
-   "CREATE VIRTUAL TABLE IF NOT EXISTS passages_fts USING fts5(passage_id UNINDEXED,body,tokenize='unicode61 remove_diacritics 2');"
+   "CREATE VIRTUAL TABLE IF NOT EXISTS passages_fts USING fts5(passage_id UNINDEXED,body,tokenize='unicode61 remove_diacritics 2');"+
+   'CREATE TABLE IF NOT EXISTS source_overviews ('+
+   'id TEXT PRIMARY KEY,source_id TEXT NOT NULL,title TEXT NOT NULL,'+
+   'edition TEXT NOT NULL,official_url TEXT NOT NULL,heading TEXT NOT NULL,'+
+   'body TEXT NOT NULL,verified_at TEXT NOT NULL);'+
+   "CREATE VIRTUAL TABLE IF NOT EXISTS source_overviews_fts USING fts5(body,tokenize='unicode61 remove_diacritics 2');"
   );
   for(const [id,name,kind,url] of SEEDS){
    this.sql.exec('INSERT OR IGNORE INTO sources(id,name,kind,url,status) VALUES(?,?,?,?,?)',
     id,name,kind,url,id==='pubmed'?'live_api':'awaiting_review');
+  }
+  for(const item of OFFICIAL_OVERVIEWS){
+   if(this.sql.exec('SELECT id FROM source_overviews WHERE id=?',item.id).toArray().length)continue;
+   this.sql.exec('INSERT OR IGNORE INTO source_overviews'+
+    '(id,source_id,title,edition,official_url,heading,body,verified_at) VALUES(?,?,?,?,?,?,?,?)',
+    item.id,item.sourceId,item.title,item.edition,item.officialUrl,item.heading,item.body,'2026-11-04');
+   this.sql.exec('INSERT INTO source_overviews_fts(rowid,body) '+
+    'SELECT rowid,body FROM source_overviews WHERE id=?',item.id);
   }
  }
  async status(){
@@ -75,14 +91,19 @@ export class LifeMagScientificStore extends DurableObject{
    "WHERE d.status='approved' AND s.status='active'"
   ).one();
   const sources=this.sql.exec(
-   "SELECT s.id,s.name,s.status,COUNT(DISTINCT CASE WHEN d.status='approved' THEN d.id END) AS approved_documents "+
+   "SELECT s.id,s.name,s.status,COUNT(DISTINCT CASE WHEN d.status='approved' THEN d.id END) AS approved_documents, "+
+   "COUNT(DISTINCT o.id) AS overview_sections "+
    'FROM sources s LEFT JOIN documents d ON d.source_id=s.id '+
+   'LEFT JOIN source_overviews o ON o.source_id=s.id '+
    'GROUP BY s.id,s.name,s.status ORDER BY s.name'
   ).toArray().map(verifiedSource);
   const documents=Number(counts?.documents)||0;
   const passages=Number(counts?.passages)||0;
-  return {status:documents&&passages?'approved_content_available':'configured_empty_or_unverified',
-   approvedDocuments:documents,approvedPassages:passages,sources,storage:'SQLite Durable Object'};
+  const overviewSections=Number(this.sql.exec('SELECT COUNT(*) AS n FROM source_overviews').one()?.n)||0;
+  return {status:documents&&passages?'approved_content_available':
+   overviewSections?'official_overviews_available':'configured_empty_or_unverified',
+   approvedDocuments:documents,approvedPassages:passages,overviewSections,sources,
+   storage:'SQLite Durable Object'};
  }
  async search(question){
   const query=buildIndexQuery(question);
@@ -95,15 +116,32 @@ export class LifeMagScientificStore extends DurableObject{
     "WHERE passages_fts MATCH ? AND d.status='approved' AND s.status='active' "+
     'ORDER BY passages_fts.rank LIMIT 5',query
    ).toArray();
-   const items=rows.filter(x=>allowedOfficialUrl(x.official_url)&&
+   const verified=rows.filter(x=>allowedOfficialUrl(x.official_url)&&
     typeof x.body==='string'&&x.body.length>=40).map((x,i)=>({
-    id:'C'+String(i+1),
-    title:str(x.title,180)+' — '+str(x.edition,70),
+    id:'C'+String(i+1),title:str(x.title,180)+' — '+str(x.edition,70),
     abstract:str(x.heading,90)+': '+str(x.body,2000),
     journal:str(x.name,150),date:str(x.verified_at,15),
-    url:x.official_url,source:'Biblioteca científica oficial revisada'
+    url:x.official_url,source:'Documento oficial revisado',
+    evidenceTier:'reviewed_document'
    }));
-   return {status:items.length?'ok':'no_approved_documents',items};
+   const overviewRows=this.sql.exec(
+    'SELECT o.title,o.edition,o.official_url,o.verified_at,o.heading,o.body,s.name '+
+    'FROM source_overviews_fts JOIN source_overviews o ON o.rowid=source_overviews_fts.rowid '+
+    'JOIN sources s ON s.id=o.source_id '+
+    'WHERE source_overviews_fts MATCH ? ORDER BY bm25(source_overviews_fts) LIMIT 6',query
+   ).toArray();
+   const overviews=overviewRows.filter(x=>allowedOfficialUrl(x.official_url)&&
+     typeof x.body==='string'&&x.body.length>=40).map((x,i)=>({
+     id:'O'+String(i+1),title:str(x.title,180)+' — '+str(x.edition,70),
+     abstract:str(x.heading,90)+': '+str(x.body,1500),
+     journal:str(x.name,150),date:str(x.verified_at,15),
+     url:x.official_url,source:'Sinopse institucional, não monografia completa',
+     evidenceTier:'official_overview'
+   }));
+   const items=[...verified,...overviews].slice(0,10);
+   return {status:verified.length?'ok_reviewed_document':
+      overviews.length?'ok_official_overview':'no_approved_documents',
+     items,reviewedCount:verified.length,overviewCount:overviews.length};
   }catch(_){return {status:'library_search_error',items:[]}}
  }
  // Ainda NÃO exposto como rota pública: documentos têm de ser conferidos pelo
