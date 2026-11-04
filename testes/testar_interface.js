@@ -85,7 +85,7 @@ const cases = [
   ['rascunho anônimo pode ser salvo e reaberto na IA', () => {
     assert.match(js,/data-save-anon-draft/);
     assert.match(js,/data-open-anon-draft/);
-    assert.match(js,/createAnonymousFormulaDraft\(data,message\.draft,label\)/);
+    assert.match(js,/createAnonymousFormulaDraft\(data,message\.draft,label,message\.sources\)/);
   }],
   ['rascunho anônimo pode ser vinculado a paciente após cadastro', () => {
     assert.match(js,/data-link-anon-draft/);
