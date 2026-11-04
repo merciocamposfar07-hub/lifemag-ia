@@ -128,6 +128,47 @@ async function tests(){
     assert.equal(x.sources[0].url,'https://pubmed.ncbi.nlm.nih.gov/12345678/');
     assert.ok(!('abstract' in x.sources[0]));
   }],
+  ['modelo entrega primeiro quadro estruturado com posologia, refeições e duração',async()=>{
+    const formula={decision:'draft',objective:'profilaxia da enxaqueca',
+      formula_name:'Riboflavina em avaliação',pharmaceutical_form:'cápsulas',
+      route:'oral',
+      ingredients:[{name:'Riboflavina',chemical_form:'Riboflavina',dose_value:'400',
+        dose_unit:'mg',role:'MOTOR',rationale:'Estudo de profilaxia',references:['1']}],
+      posology:'Uma tomada diária (revisar)',meal_relation:'após refeição (revisar)',
+      daily_schedule:'manhã (revisar)',initial_duration_days:30,reassessment_days:15,
+      extension_criteria:'revisão clínica',monitoring:[],interactions:[],contraindications:[],
+      missing_information:[],red_flags:[],limitations:['resumo']
+    };
+    const e={...env,AI:{run:async()=>({response:formula})}};
+    const r=await worker.fetch(request('/api/assist',{method:'POST',body:{
+      question:'Adulto 35 anos, sem medicamentos, sem alergias, sem doenças, enxaqueca e riboflavina.'
+    }}),e,access);
+    assert.equal(r.status,200);
+    const d=await r.json();
+    assert.ok(d.answer.includes('COMPOSIÇÃO'));assert.ok(d.answer.includes('REFEIÇÕES'));
+    assert.ok(d.answer.includes('HORÁRIOS'));assert.ok(d.answer.includes('REAVALIAÇÃO'));
+    assert.equal(d.draft.requiresProfessionalReview,true);
+    assert.equal(d.draft.canIssuePrescription,false);
+  }],
+  ['sintomas isolados não liberam receita individual',async()=>{
+    const formula={decision:'draft',objective:'enxaqueca',formula_name:'Em avaliação',
+      pharmaceutical_form:'cápsulas',route:'oral',
+      ingredients:[{name:'Riboflavina',chemical_form:'riboflavina',dose_value:'400',
+        dose_unit:'mg',role:'MOTOR',rationale:'estudo',references:['1']}],
+      posology:'tomar diariamente',meal_relation:'após almoço',
+      daily_schedule:'manhã',initial_duration_days:30,reassessment_days:15,
+      extension_criteria:'reavaliar',monitoring:[],interactions:[],
+      contraindications:[],missing_information:[],red_flags:[],limitations:[]
+    };
+    const e={...env,AI:{run:async()=>({response:formula})}};
+    const r=await worker.fetch(request('/api/assist',{method:'POST',body:{
+      question:'Paciente apresenta enxaqueca e deseja formulação de riboflavina'
+    }}),e,access);
+    const out=await r.json();
+    assert.equal(out.draft.decision,'insufficient_info');
+    assert.ok(out.draft.missing_information.length>=3);
+    assert.ok(!out.answer.includes('POSOLOGIA: tomar diariamente'));
+  }],
   ['ausência de estudos impede resposta não fundamentada',async()=>{
     noArticles=true;
     const r=await worker.fetch(request('/api/assist',{method:'POST',
