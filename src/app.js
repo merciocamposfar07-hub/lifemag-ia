@@ -260,6 +260,7 @@ function science(){
       '<div class="listline"><strong>Índice oficial: '+E(x.officialIndex?.status||'desconhecido')+
       '</strong><p>'+E(String(x.officialIndex?.approvedDocuments||0))+' documentos e '+
       E(String(x.officialIndex?.approvedPassages||0))+' trechos aprovados</p></div>'+
+      (Array.isArray(x.officialIndex?.sources)?x.officialIndex.sources.map(src=>'<div class="listline"><strong>'+E(src.name)+'</strong><p>'+E(src.status)+' · '+E(String(src.approvedDocuments||0))+' documentos aprovados</p></div>').join(''):'')+
       '<div class="listline"><strong>Consensus: '+E(x.consensus?.status||'indisponível')+
       '</strong><p>Não são consumidas chamadas do Consensus neste diagnóstico.</p></div>'+
       '<div class="listline"><strong>Workers AI: '+E(x.workersAI?.status||'indisponível')+
