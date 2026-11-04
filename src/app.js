@@ -257,7 +257,8 @@ function science(){
  if(result){
    const x=result;
    if(x.pubmed){
-     checkResult='<div class="listline"><strong>PubMed: '+E(x.pubmed.status)+
+     checkResult='<div class="listline"><strong>Versão do servidor: '+E(x.version||'não identificada')+'</strong></div>'+
+      '<div class="listline"><strong>PubMed: '+E(x.pubmed.status)+
       '</strong><p>'+E(String(x.pubmed.articles||0))+' artigos com resumo recuperados'+
       (x.pubmed.sample?': '+E(x.pubmed.sample.title):'')+'</p></div>'+
       '<div class="listline"><strong>Índice oficial: '+E(x.officialIndex?.status||'desconhecido')+
@@ -278,7 +279,7 @@ function science(){
    }
  }
  const busy=scienceCheck.busy?'disabled':'';
- return pageHeader('Central de Atualização Científica','Conexões verificáveis do motor magistral.')+
+ return pageHeader('Central de Atualização Científica','Conexões verificáveis do motor magistral · v0.4.2.')+
  '<div class="notice blue">Uma fonte só é considerada consultada quando o sistema consegue recuperar seus artigos ou trechos aprovados. O teste do motor usa um caso fictício e não envia prontuários.</div>'+
  '<div class="panel"><h3>Diagnóstico de conexão</h3>'+
  '<p class="muted small">Verifique a recuperação de artigos gratuitamente. O autoteste completo também executa o modelo de IA e consome parte da franquia Workers AI.</p>'+
