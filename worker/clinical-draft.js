@@ -39,7 +39,22 @@ function doseSupported(x,sources){
   return source&&pattern.test(String(source.abstract||''));
  });
 }
-export function normalizeDraft(raw,sources=[]){
+export function missingClinicalBasics(question){
+  const normalized=String(question||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase();
+  const missing=[];
+  if(!/\b(?:\d{1,3}\s*anos?|adult[oa]s?|idos[oa]s?|crianc[as]|adolescente)\b/.test(normalized))
+    missing.push('Faixa etária ou idade');
+  if(!/\b(?:medicament|remedi|farmac|em uso|sem medicac|nao usa medicac|nao toma remedi)/.test(normalized))
+    missing.push('Medicamentos e suplementos em uso, ou confirmação de ausência');
+  if(!/\b(?:alergi|hipersensibil|sem alergi|nega alergi)/.test(normalized))
+    missing.push('Alergias e reações anteriores');
+  if(!/\b(?:comorb|doenc|antecedent|historico clin|sem doenc|saudavel|patolog)/.test(normalized))
+    missing.push('Comorbidades, antecedentes e fatores de risco');
+  return missing;
+}
+export function normalizeDraft(raw,sources=[],question=''){
+
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
  let decision=['draft','insufficient_info','insufficient_evidence','red_flags']
    .includes(raw.decision)?raw.decision:'insufficient_info';
@@ -53,6 +68,13 @@ export function normalizeDraft(raw,sources=[]){
   return {...item,dose_supported:doseSupported(item,sources)};
  }).filter(x=>x.name&&x.references.length);
  const missing=list(raw.missing_information),redFlags=list(raw.red_flags);
+ // Uma pergunta sobre sintomas isolados não autoriza prescrever doses individualizadas.
+ if(question&&decision==='draft'){
+   for(const required of missingClinicalBasics(question)){
+     if(!missing.includes(required))missing.push(required);
+   }
+ }
+
  const unverified=ingredients.filter(x=>!x.dose_supported).map(x=>x.name);
  if(redFlags.length)decision='red_flags';
  else if(missing.length&&decision==='draft')decision='insufficient_info';
@@ -90,11 +112,11 @@ export function draftAsText(d){
     dose+' ['+item.role+']. '+item.rationale+
     ' Fontes: '+item.references.map(r=>'['+r+']').join(', '));
  }
- lines.push('POSOLOGIA SUGERIDA (pendente de validação): '+(d.posology||'a definir'));
- lines.push('REFEIÇÕES: '+(d.meal_relation||'a definir'));
- lines.push('HORÁRIOS: '+(d.daily_schedule||'a definir'));
- lines.push('DURAÇÃO INICIAL: '+(d.initial_duration_days?d.initial_duration_days+' dias':'a definir'));
- lines.push('REAVALIAÇÃO: '+(d.reassessment_days?d.reassessment_days+' dias':'a definir'));
+ lines.push('POSOLOGIA: '+(d.decision==='draft'?(d.posology||'a definir'):'NÃO DEFINIDA — confirmar dados clínicos e evidências'));
+ lines.push('REFEIÇÕES: '+(d.decision==='draft'?(d.meal_relation||'a definir'):'a definir'));
+ lines.push('HORÁRIOS: '+(d.decision==='draft'?(d.daily_schedule||'a definir'):'a definir'));
+ lines.push('DURAÇÃO INICIAL: '+(d.decision==='draft'&&d.initial_duration_days?d.initial_duration_days+' dias':'a definir'));
+ lines.push('REAVALIAÇÃO: '+(d.decision==='draft'&&d.reassessment_days?d.reassessment_days+' dias':'a definir'));
  lines.push('CRITÉRIOS DE PRORROGAÇÃO: '+(d.extension_criteria||'a definir'));
  const section=(title,values)=>{if(values.length)lines.push(title+': '+values.join('; '));};
  section('MONITORAMENTO',d.monitoring);section('INTERAÇÕES A AVALIAR',d.interactions);
