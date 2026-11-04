@@ -193,7 +193,7 @@ async function analyze(request,env){
     if(typeof candidate==='string'){
       try{candidate=JSON.parse(candidate)}catch(_){}
     }
-    const draft=normalizeDraft(candidate,verifiedSources);
+    const draft=normalizeDraft(candidate,verifiedSources,question);
     const answer=draft?draftAsText(draft):String(result?.response||'').trim();
     if(!answer)return reply({error:'O modelo não produziu resposta estruturada utilizável'},502);
     return reply({answer:answer.slice(0,16000),draft,
