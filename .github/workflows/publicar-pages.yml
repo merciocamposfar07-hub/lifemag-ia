@@ -39,6 +39,7 @@ jobs:
           node --check worker/index.js
           node --check worker/science-index.js
           node --check worker/science-do.js
+          node --check testes/testar_sqlite_real.mjs
           node --check worker/clinical-draft.js
           node --check worker/consensus.js
           node --check testes/testar_formula.js
@@ -57,6 +58,7 @@ jobs:
           node testes/testar_formula.js
           node testes/testar_consensus.js
           node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_diagnostico.js
+          node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_sqlite_real.mjs
           node testes/testar_preparo_d1.js
       - name: Preparar somente arquivos públicos do site
         run: |
