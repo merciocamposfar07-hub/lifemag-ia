@@ -5,6 +5,8 @@ const initialState = () => ({
   schema: 1,
   patients: [],
   visits: [],
+  // Apenas rascunhos ANÔNIMOS de formulações; sem cadastro ou exames reais.
+  anonymousDrafts: [],
   settings: {
     professional: 'Dr. Mércio Campos', role: 'Farmacêutico Clínico', crf: 'CRF-PE 07880',
     workplace: 'Farmácia Barata do Trabalhador', address: 'Av. São José, 44 — Centro — Chã Grande/PE',
@@ -39,6 +41,70 @@ function findPotentialDuplicatePatient(patients,candidate,excludedId=''){
     const samePhone=phone && digits(p.phone)===phone;
     return Boolean(sameBirth||samePhone);
   })||null;
+}
+
+// Exclusão definitiva do cadastro demonstrativo com atendimentos associados.
+function deletePatientRecord(state,patientId){
+  const found=(state.patients||[]).find(p=>p.id===patientId);
+  if(!found)return {deleted:false,visitCount:0};
+  const count=(state.visits||[]).filter(v=>v.patientId===patientId).length;
+  state.patients=state.patients.filter(p=>p.id!==patientId);
+  state.visits=state.visits.filter(v=>v.patientId!==patientId);
+  return {deleted:true,visitCount:count};
+}
+function createAnonymousFormulaDraft(state,source,label){
+  const title=String(label||'').trim().slice(0,75);
+  if(!title||!source||typeof source!=='object'||!Array.isArray(source.ingredients))
+    return null;
+  // Não persistir conversa, nome de paciente, CPF, exame, nem dados clínicos.
+  const safe={id:uid('draft'),label:title,
+    createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
+    formulaName:String(source.formula_name||'Proposta em revisão').slice(0,140),
+    quantity:String(source.quantity||'').slice(0,120),
+    presentation:String(source.pharmaceutical_form||'').slice(0,100),
+    route:String(source.route||'').slice(0,100),
+    posology:String(source.posology||'').slice(0,600),
+    schedules:String(source.daily_schedule||'').slice(0,240),
+    meals:String(source.meal_relation||'').slice(0,240),
+    duration:Number.isInteger(source.initial_duration_days)?source.initial_duration_days:0,
+    ingredients:source.ingredients.slice(0,16).map(x=>({
+      name:String(x.name||'').slice(0,140),
+      dose:String(x.dose_value||'').slice(0,50),
+      unit:String(x.dose_unit||'mg').slice(0,12),
+      role:String(x.role||'OPCIONAL').slice(0,24),
+      target:String(x.rationale||'').slice(0,300),
+      evidence:(x.references||[]).slice(0,8).join(', ').slice(0,150),
+      doseSupported:x.dose_supported===true
+    })),
+    draftStatus:String(source.decision||'draft').slice(0,40),
+    linkedPatientId:null
+  };
+  if(!Array.isArray(state.anonymousDrafts))state.anonymousDrafts=[];
+  state.anonymousDrafts.push(safe);
+  return safe;
+}
+function linkAnonymousDraftToPatient(state,draftId,patientId){
+  const draft=(state.anonymousDrafts||[]).find(x=>x.id===draftId);
+  const person=(state.patients||[]).find(x=>x.id===patientId);
+  if(!draft||!person||draft.linkedPatientId)return null;
+  const today=yyyyMmDd();
+  const v={id:uid('at'),patientId:person.id,date:today,startDate:today,
+    assessment:emptyClinicalAssessment(),duration:draft.duration||15,
+    status:'em acompanhamento',formulaName:draft.formulaName,
+    presentation:draft.presentation,route:draft.route,quantity:draft.quantity,
+    posology:draft.posology,schedules:draft.schedules,meals:draft.meals,
+    observations:'Rascunho importado de discussão anônima — revisão farmacêutica obrigatória.',
+    protocol:'',ingredients:draft.ingredients.map(x=>({
+      id:uid('ing'),name:x.name,dose:x.dose,unit:x.unit,role:x.role,
+      target:x.target,evidence:x.evidence
+    })),chat:[],revisions:[],
+    aiDraftImportedAt:new Date().toISOString(),aiDraftPendingReview:true,
+    originDraftId:draft.id};
+  state.visits.push(v);
+  draft.linkedPatientId=person.id;
+  draft.linkedVisitId=v.id;
+  draft.updatedAt=new Date().toISOString();
+  return v;
 }
 
 function readStore() {
