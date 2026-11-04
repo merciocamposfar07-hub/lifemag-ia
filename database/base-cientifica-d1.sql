@@ -3,7 +3,7 @@
 -- SCHEMA apenas: NÃO conectado nem populado no Worker de produção.
 -- Importar somente publicações oficiais cuja reprodução/uso sejam permitidos,
 -- identificar edição, autoria, endereço original, licença e revisão profissional.
-PRAGMA foreign_keys = ON;
+-- D1 mantém foreign keys habilitadas; evitar PRAGMA não suportada no deploy.
 
 CREATE TABLE IF NOT EXISTS scientific_sources (
   id TEXT PRIMARY KEY,
