@@ -45,7 +45,7 @@ async function initializeScientificAssistant(){
     const res=await fetch('/api/capabilities',{credentials:'same-origin',headers:{accept:'application/json'}});
     const info=await res.json();
     aiSession.ready=Boolean(res.ok&&info.authenticated&&info.ready);
-    aiSession.consensusReady=Boolean(res.ok&&info.consensus==='ready');
+    aiSession.consensusReady=Boolean(res.ok&&info.consensus==='key_configured');
     aiSession.indexReady=Boolean(res.ok&&info.internalScienceIndex==='binding_configured');
     aiSession.message=aiSession.ready?'Motor habilitado. A recuperação das fontes e a geração serão verificadas a cada consulta.':'Serviço de IA ainda indisponível.';
   }catch(_){aiSession.message='Não foi possível verificar a conexão com a IA.'}
