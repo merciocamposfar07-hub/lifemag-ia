@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** v0.4.0 • estrutura de proposta magistral e adaptador Consensus em 04/11/2026; integração dos compêndios no banco D1 e validação clínica ainda não concluídas.
+**Status:** v0.4.1 • diagnóstico científico acionável e transferência revisável da proposta ao Studio Magistral; banco científico D1 ainda não provisionado/carregado na Cloudflare.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -113,3 +113,14 @@ O histórico do planejamento original permanece nos documentos anteriores desta 
 - A chave \`CONSENSUS_API_KEY\` precisa estar nos Secrets do Cloudflare Worker para ligar a API oficial. O conector Consensus do ChatGPT não é credencial exportável para este aplicativo.
 - Bloqueio técnico não resolvido: sem acesso delegado à conta Cloudflare, não foi possível confirmar que o último build foi publicado ou ativar D1/API Secret pelo ChatGPT. O login Zero Trust permanece configurado; Portal CSC não foi alterado.
 - Dados clínicos reais continuam proibidos no protótipo que usa localStorage e não dispõe de backend seguro.
+
+## v0.4.1 — verificação científica sem paciente real
+- `GET /api/source-status` executa pesquisa real em Europe PMC, verifica bindings, quantidade de documentos e trechos aprovados do D1 e sinaliza Consensus como `key_configured`, sem alegar que a chave foi testada.
+- A Central Científica dispara automaticamente a verificação de fontes ao abrir pela primeira vez na sessão e oferece botão para atualizar; **não consome inferência nem chamadas Consensus nessa verificação**.
+- `POST /api/selftest` usa apenas informações clínicas fictícias para buscar PubMed e chamar o modelo JSON da Cloudflare. É uma ação explícita e consome apenas franquia Workers AI; nenhum paciente é enviado.
+- Na Conversa Inteligente de um atendimento demonstrativo, proposta estruturada com doses apontadas nos trechos pode ser importada mediante clique para o Studio Magistral. A impressão da receita é bloqueada até confirmação de revisão farmacêutica, e alterações posteriores reabrem essa exigência. Não é assinatura digital.
+- Novos fluxos de GitHub Actions: `ativar-ciencia-d1.yml` cria/vincula D1 científico **isolado de CSC** depois de autorizados Secrets Cloudflare; `importar-documento-cientifico.yml` importa exclusivamente manifestos validados e aprovados; nenhuma publicação é aprovada automaticamente.
+- Corrigido gerador SQL: D1 não aceita `BEGIN TRANSACTION`/`COMMIT` explícitos. Testes de regressão incluídos.
+- Sem acesso administrativo autorizado à Cloudflare nesta conversa, **não foi possível executar o provisionamento remoto nem comprovar teste real de IA**. O modelo do Worker está pronto para o teste de ponta a ponta, mas sua execução real ainda precisa ser comprovada.
+- A base científica ainda não contém monografias indexadas nem revisão das fontes oficiais. Consensus exige chave API própria, guardada em Secret, e não é ativado pelo plugin Consensus do ChatGPT.
+- Cadastro clínico permanece demonstrativo em `localStorage`: não utilizar pacientes reais até autenticação do backend, persistência segura, LGPD e validação farmacêutica.
