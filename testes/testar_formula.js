@@ -4,7 +4,7 @@ async function main(){
   const {normalizeDraft,draftAsText,FORMULA_SCHEMA}=await import('../worker/clinical-draft.js');
   const evidence=[{id:'1',abstract:'In adults with migraine, riboflavin 400 mg per day was evaluated for prophylaxis.',url:'https://pubmed.ncbi.nlm.nih.gov/12345678/'}];
   const basic=()=>({
-    decision:'draft',objective:'Profilaxia da enxaqueca',formula_name:'Riboflavina',
+    decision:'draft',objective:'Profilaxia da enxaqueca',formula_name:'Riboflavina',quantity:'30 cápsulas',
     pharmaceutical_form:'Cápsula',route:'oral',
     ingredients:[{name:'Riboflavina',chemical_form:'riboflavina',dose_value:'400',
       dose_unit:'mg',role:'MOTOR',rationale:'Investigada em adultos',references:['1']}],
@@ -23,6 +23,19 @@ async function main(){
     const d=normalizeDraft(basic(),evidence);
     assert.equal(d.decision,'draft');assert.equal(d.ingredients[0].dose_supported,true);
     assert.equal(d.canIssuePrescription,false);
+  });
+  await check('quantidade para manipular integra o relatório e schema',async()=>{
+    const d=normalizeDraft(basic(),evidence);
+    assert.ok(FORMULA_SCHEMA.required.includes('quantity'));
+    assert.equal(d.quantity,'30 cápsulas');
+    assert.ok(draftAsText(d).includes('QUANTIDADE PARA MANIPULAR'));
+  });
+  await check('dose de outra substância não valida ingrediente diferente',async()=>{
+    const unrelated=[{id:'1',title:'Magnesium clinical trial',
+      abstract:'Magnesium 400 mg daily was evaluated for migraine prophylaxis.'}];
+    const d=normalizeDraft(basic(),unrelated);
+    assert.equal(d.ingredients[0].dose_supported,false);
+    assert.equal(d.decision,'insufficient_evidence');
   });
   await check('dose não encontrada é marcada como não confirmada',async()=>{
     const raw=basic();raw.ingredients[0].dose_value='700';
