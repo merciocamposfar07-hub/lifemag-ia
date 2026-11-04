@@ -37,6 +37,16 @@ async function main(){
     assert.equal(d.ingredients[0].dose_supported,false);
     assert.equal(d.decision,'insufficient_evidence');
   });
+  await check('sinopse oficial não pode fundamentar dose terapêutica',async()=>{
+    const overview=[{id:'O1',title:'Formulário de Fitoterápicos',
+      abstract:'Resumo institucional menciona cafeína 400 mg apenas como exemplo, não é ensaio clínico.',
+      evidenceTier:'official_overview',
+      url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/formulario-fitoterapico'}];
+    const raw=basic();raw.ingredients[0].name='Cafeína';raw.ingredients[0].references=['O1'];
+    const d=normalizeDraft(raw,overview);
+    assert.equal(d.ingredients[0].dose_supported,false);
+    assert.equal(d.decision,'insufficient_evidence');
+  });
   await check('dose não encontrada é marcada como não confirmada',async()=>{
     const raw=basic();raw.ingredients[0].dose_value='700';
     const d=normalizeDraft(raw,evidence);
