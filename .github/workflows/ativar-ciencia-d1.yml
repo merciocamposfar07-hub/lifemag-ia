@@ -1,0 +1,85 @@
+name: LifeMag IA — provisionar indice cientifico D1
+# Ação opcional e explícita: exige credenciais Cloudflare cadastradas em GitHub Secrets.
+# Não importa prontuários, não publica dados clínicos e não modifica o Portal CSC.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lifemag-science-d1-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  ativar:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CONSENSUS_API_KEY: ${{ secrets.CONSENSUS_API_KEY }}
+    steps:
+      - name: Obter repositório LifeMag IA isolado
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificar autorização Cloudflare sem expor segredos
+        shell: bash
+        run: |
+          for key in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [[ -z "${!key:-}" ]]; then
+              echo "::error::Cadastre o Secret $key no GitHub para ativar D1."
+              exit 1
+            fi
+          done
+      - name: Conferir sintaxe e testes antes de implantar
+        run: |
+          node --check scripts/configurar-binding-cientifico.mjs
+          node --check worker/index.js
+          node scripts/build-worker.mjs
+          node testes/testar_ia.js
+          node testes/testar_diagnostico.js
+          node testes/testar_fontes.js
+          node testes/testar_formula.js
+      - name: Criar somente o D1 do LifeMag IA, caso ainda não exista
+        shell: bash
+        run: |
+          npx --yes wrangler@4 d1 list --json > /tmp/lifemag-d1-list.json
+          if ! node -e 'const d=require(process.argv[1]);const l=Array.isArray(d)?d:(d.result||d.databases||[]);process.exit(l.some(x=>x.name==="lifemag-ia-science")?0:1)' /tmp/lifemag-d1-list.json; then
+            npx --yes wrangler@4 d1 create lifemag-ia-science --binding SCIENCE_DB
+            npx --yes wrangler@4 d1 list --json > /tmp/lifemag-d1-list.json
+          fi
+          node scripts/configurar-binding-cientifico.mjs /tmp/lifemag-d1-list.json
+      - name: Instalar schema e catálogo, ainda sem declarar monografias indexadas
+        run: |
+          npx --yes wrangler@4 d1 execute SCIENCE_DB --remote --yes --file=database/base-cientifica-d1.sql
+          npx --yes wrangler@4 d1 execute SCIENCE_DB --remote --yes --file=database/migracao-fontes-adicionais.sql
+      - name: Publicar Worker e indexação opcional
+        run: npx --yes wrangler@4 deploy
+      - name: Ativar integração Consensus apenas se houver chave privada
+        shell: bash
+        run: |
+          if [[ -n "$CONSENSUS_API_KEY" ]]; then
+            printf '%s' "$CONSENSUS_API_KEY" | npx --yes wrangler@4 secret put CONSENSUS_API_KEY
+            echo "Consensus: chave configurada (não será mostrada)."
+          else
+            echo "Consensus: aguardando chave privada. Nenhuma chamada será feita."
+          fi
+      - name: Persistir binding D1 para as futuras publicações GitHub-Cloudflare
+        shell: bash
+        run: |
+          if [[ -n "$(git status --porcelain wrangler.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add wrangler.json
+            git commit -m "chore(lifemag): conectar D1 cientifico isolado"
+            git push origin HEAD:main
+          fi
+      - name: Resultado
+        run: |
+          echo "Banco D1 inicializado e ligado ao Worker; nenhuma monografia aprovada foi importada."
+          echo "Verifique no LifeMag IA > Ciência > Verificar fontes."
