@@ -33,6 +33,17 @@ async function main(){
    assert.equal(r.status,'ok');
    assert.ok(r.items[0].abstract.includes('400 mg'));
  });
+ await check('URL da revista substituída por DOI seguro quando válido',async()=>{
+   const r=await searchConsensus('riboflavin migraine',{CONSENSUS_API_KEY:'ficticia'},
+     async()=>Response.json({results:[{
+       title:'Ensaio farmacológico',doi:'10.1234/example.2026.12',
+       url:'https://revista-exemplo.org/publicacao',
+       abstract:'An academic abstract suitable for clinical review.',
+       publish_year:2026
+     }]}));
+   assert.equal(r.status,'ok');
+   assert.equal(r.items[0].url,'https://doi.org/10.1234/example.2026.12');
+ });
  await check('rejeita fontes em URLs não confiáveis',async()=>{
    const r=await searchConsensus(q,{CONSENSUS_API_KEY:'ficticia'},async()=>Response.json({
      results:[{title:'Falso',url:'https://unknown.example.com/data',takeaway:'Não'}]
