@@ -305,7 +305,7 @@ export default {
     if(url.pathname==='/api/capabilities'&&request.method==='GET'){
       return reply({ready:!!env.AI,science:'Europe PMC (resumos indexados no PubMed)',
         official:OFFICIAL,model:MODEL,clinicalRecordStorage:false,authenticated:true,
-        internalScienceIndex:env.SCIENCE_DB?'binding_configured':'not_configured',consensus:env.CONSENSUS_API_KEY?'ready':'not_configured',
+        internalScienceIndex:env.SCIENCE_DB?'binding_configured':'not_configured',consensus:env.CONSENSUS_API_KEY?'key_configured':'not_configured',
         formulaDraft:'structured_review_only'})
     }
     if(url.pathname==='/api/source-status'&&request.method==='GET')return reply(await scientificConnectivity(env));
