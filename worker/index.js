@@ -187,7 +187,7 @@ async function analyze(request,env){
         {role:'user',content:'DESCRIÇÃO CLÍNICA ANÔNIMA / OBJETIVO DO FARMACÊUTICO:\n'+question}
       ],
       response_format:{type:'json_schema',json_schema:FORMULA_SCHEMA},
-      max_tokens:1900,temperature:0.15
+      max_tokens:2600,temperature:0.15
     });
     let candidate=result?.response;
     if(typeof candidate==='string'){
