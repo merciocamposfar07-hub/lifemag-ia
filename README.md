@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** v0.4.2 • biblioteca científica Durable Objects SQLite configurada para provisionamento no deploy; importação autenticada de documentos oficiais revisados e pesquisa PubMed real preparada; implantação remota ainda não comprovada.
+**Status:** v0.4.3 • caixa de IA horizontal responsiva, edição/exclusão de cadastros de demonstração, rascunhos anônimos vinculáveis e seletores temporários de exames; armazenamento clínico real ainda pendente.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -134,3 +134,11 @@ O histórico do planejamento original permanece nos documentos anteriores desta 
 - **Limitações:** as monografias completas da Farmacopeia, Formulários, PCDT e diretrizes ainda não foram importadas. O Consensus depende de chave de API própria em Cloudflare Secrets. A versão de produção precisa ser confirmada por diagnóstico autenticado.
 - **Dados reais de pacientes:** o app ainda não dispõe de banco clínico seguro, auditoria e integração LGPD completos; não inserir dados pessoais reais.
 - Leia `docs/SQLITE_CIENTIFICO_AUTOMATICO.md` para arquitetura, fonte e processo de atualização.
+
+## v0.4.3 — conversa, rascunhos anônimos, cadastros e exames opcionais
+- **Layout corrigido:** textarea da Conversa Inteligente em grade horizontal responsiva e botão de envio separado. O checkbox Consensus ocupa linha própria, não comprime o campo no Safari do iPhone.
+- **Cadastro demonstrativo:** edição explícita, exclusão confirmada com remoção dos atendimentos locais relacionados; rascunhos independentes preservados.
+- **Formulações sem cadastro:** uma proposta estruturada da IA pode ser salva como rascunho com código não identificável (Caso 01), sem dados pessoais ou transcrição da conversa. Pode ser reaberta para continuar uma análise farmacêutica e vinculada mais tarde a um paciente **fictício** já cadastrado. Ao vincular, entra no Studio Magistral com revisão obrigatória e preservação das referências.
+- **Exames opcionais:** a interface oferece escolha de arquivo e câmera do iPhone, porém **somente pré-seleção temporária de metadados**. Nenhum exame clínico é armazenado, enviado ou permanentemente vinculado enquanto não existir backend protegido. A ausência de exame não bloqueia consulta.
+- A tela Home e o Portal CSC não sofreram alterações. A versão final precisa ser confirmada no Worker protegido após o build automático.
+- Revisão de fluxo e armazenamento: `docs/FLUXO_CADASTROS_RASCUNHOS_EXAMES.md`.
