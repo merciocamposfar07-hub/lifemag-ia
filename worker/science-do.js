@@ -1,0 +1,144 @@
+// Biblioteca científica persistente do LifeMag IA, sem informações de pacientes.
+// SQLite-backed Durable Object: Cloudflare a cria quando o Worker é implantado.
+// Documentos oficiais só se tornam pesquisáveis depois de revisão e aprovação.
+import {DurableObject} from 'cloudflare:workers';
+import {buildIndexQuery} from './science-index.js';
+
+const SEEDS=[
+ ['anvisa-fb','Farmacopeia Brasileira 8ª edição','compendio_oficial',
+  'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira'],
+ ['anvisa-fn','Formulário Nacional 3ª edição','compendio_oficial',
+  'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/formulario-nacional'],
+ ['anvisa-fitoterapicos','Formulário de Fitoterápicos 3ª edição','compendio_oficial',
+  'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/formulario-fitoterapico'],
+ ['conitec-pcdt','Conitec / Protocolos Clínicos e Diretrizes Terapêuticas','diretriz',
+  'https://www.gov.br/conitec/pt-br'],
+ ['who','Organização Mundial da Saúde','diretriz','https://www.who.int/publications'],
+ ['atividade-br','Guia de Atividade Física da População Brasileira','diretriz',
+  'https://www.gov.br/saude/pt-br'],
+ ['alimentar-br','Guia Alimentar para a População Brasileira','diretriz',
+  'https://www.gov.br/saude/pt-br'],
+ ['pubmed','PubMed via Europe PMC (consulta em tempo real)','literatura',
+  'https://europepmc.org/']
+];
+
+const allowedOfficialUrl=value=>{
+ try{
+  const u=new URL(String(value||''));
+  return u.protocol==='https:'&&[
+   'www.gov.br','gov.br','bibliotecadigital.anvisa.gov.br',
+   'www.who.int','who.int','bvsms.saude.gov.br'
+  ].includes(u.hostname);
+ }catch(_){return false}
+};
+const str=(value,max=300)=>String(value??'').trim().slice(0,max);
+const verifiedSource=(row)=>({
+ id:String(row.id),name:String(row.name),
+ status:row.status==='active'&&Number(row.approved_documents)>0?
+  'content_retrievable':'catalog_only',
+ approvedDocuments:Number(row.approved_documents)||0
+});
+
+export class LifeMagScientificStore extends DurableObject{
+ constructor(ctx,env){
+  super(ctx,env);
+  this.sql=ctx.storage.sql;
+  this.sql.exec(
+   'CREATE TABLE IF NOT EXISTS sources ('+
+   'id TEXT PRIMARY KEY,name TEXT NOT NULL,kind TEXT NOT NULL,url TEXT NOT NULL,'+
+   "status TEXT NOT NULL DEFAULT 'awaiting_review');"+
+   'CREATE TABLE IF NOT EXISTS documents ('+
+   'id TEXT PRIMARY KEY,source_id TEXT NOT NULL,title TEXT NOT NULL,edition TEXT NOT NULL,'+
+   'official_url TEXT NOT NULL,license TEXT NOT NULL,sha256 TEXT NOT NULL,'+
+   'reviewer TEXT NOT NULL,verified_at TEXT NOT NULL,'+
+   "status TEXT NOT NULL DEFAULT 'draft');"+
+   'CREATE TABLE IF NOT EXISTS passages ('+
+   'id TEXT PRIMARY KEY,document_id TEXT NOT NULL,heading TEXT NOT NULL,'+
+   'body TEXT NOT NULL,content_sha256 TEXT NOT NULL);'+
+   "CREATE VIRTUAL TABLE IF NOT EXISTS passages_fts USING fts5(passage_id UNINDEXED,body,tokenize='unicode61 remove_diacritics 2');"
+  );
+  for(const [id,name,kind,url] of SEEDS){
+   this.sql.exec('INSERT OR IGNORE INTO sources(id,name,kind,url,status) VALUES(?,?,?,?,?)',
+    id,name,kind,url,id==='pubmed'?'live_api':'awaiting_review');
+  }
+ }
+ async status(){
+  const counts=this.sql.exec(
+   "SELECT COUNT(DISTINCT d.id) AS documents,COUNT(p.id) AS passages "+
+   "FROM documents d JOIN sources s ON s.id=d.source_id "+
+   "JOIN passages p ON p.document_id=d.id "+
+   "WHERE d.status='approved' AND s.status='active'"
+  ).one();
+  const sources=this.sql.exec(
+   "SELECT s.id,s.name,s.status,COUNT(DISTINCT CASE WHEN d.status='approved' THEN d.id END) AS approved_documents "+
+   'FROM sources s LEFT JOIN documents d ON d.source_id=s.id '+
+   'GROUP BY s.id,s.name,s.status ORDER BY s.name'
+  ).toArray().map(verifiedSource);
+  const documents=Number(counts?.documents)||0;
+  const passages=Number(counts?.passages)||0;
+  return {status:documents&&passages?'approved_content_available':'configured_empty_or_unverified',
+   approvedDocuments:documents,approvedPassages:passages,sources,storage:'SQLite Durable Object'};
+ }
+ async search(question){
+  const query=buildIndexQuery(question);
+  if(!query)return {status:'empty_query',items:[]};
+  try{
+   const rows=this.sql.exec(
+    "SELECT d.title,d.edition,d.official_url,d.verified_at,s.name,p.heading,p.body "+
+    'FROM passages_fts f JOIN passages p ON p.id=f.passage_id '+
+    'JOIN documents d ON d.id=p.document_id JOIN sources s ON s.id=d.source_id '+
+    "WHERE passages_fts MATCH ? AND d.status='approved' AND s.status='active' "+
+    'ORDER BY passages_fts.rank LIMIT 5',query
+   ).toArray();
+   const items=rows.filter(x=>allowedOfficialUrl(x.official_url)&&
+    typeof x.body==='string'&&x.body.length>=40).map((x,i)=>({
+    id:'C'+String(i+1),
+    title:str(x.title,180)+' — '+str(x.edition,70),
+    abstract:str(x.heading,90)+': '+str(x.body,2000),
+    journal:str(x.name,150),date:str(x.verified_at,15),
+    url:x.official_url,source:'Biblioteca científica oficial revisada'
+   }));
+   return {status:items.length?'ok':'no_approved_documents',items};
+  }catch(_){return {status:'library_search_error',items:[]}}
+ }
+ // Ainda NÃO exposto como rota pública: documentos têm de ser conferidos pelo
+ // farmacêutico e enviados por importador autenticado com auditoria.
+ async importReviewed(manifest){
+  if(!manifest||manifest.reviewStatus!=='approved'||
+    !allowedOfficialUrl(manifest.officialUrl)||
+    !/^[a-z0-9-]{4,80}$/.test(str(manifest.id,100))||
+    !Array.isArray(manifest.sections)||!manifest.sections.length||
+    !str(manifest.reviewer,120)||!str(manifest.license,200)||
+    !/^[a-f0-9]{64}$/i.test(str(manifest.sha256,64)))
+   return {ok:false,error:'Origem, licença, hash ou revisão documental inválidos'};
+  const source=this.sql.exec('SELECT id FROM sources WHERE id=?',str(manifest.sourceId,100)).toArray();
+  if(!source.length)return {ok:false,error:'Fonte não cadastrada'};
+  for(const part of manifest.sections){
+   if(!str(part.heading,250)||str(part.body,4501).length<40||
+     String(part.body||'').length>4500||
+     !/^[a-f0-9]{64}$/i.test(str(part.sha256,64)))
+    return {ok:false,error:'Trecho sem verificação ou tamanho fora do permitido'};
+  }
+  this.sql.exec('DELETE FROM passages_fts WHERE passage_id IN ('+
+   "SELECT id FROM passages WHERE document_id=?)",str(manifest.id,80));
+  this.sql.exec('DELETE FROM passages WHERE document_id=?',str(manifest.id,80));
+  this.sql.exec('DELETE FROM documents WHERE id=?',str(manifest.id,80));
+  this.sql.exec(
+   'INSERT INTO documents(id,source_id,title,edition,official_url,license,sha256,reviewer,verified_at,status) '+
+   "VALUES(?,?,?,?,?,?,?,?,?,'approved')",
+   str(manifest.id,80),str(manifest.sourceId,100),str(manifest.title,300),
+   str(manifest.edition,100),str(manifest.officialUrl,600),str(manifest.license,200),
+   str(manifest.sha256,64),str(manifest.reviewer,120),str(manifest.verifiedAt,15)
+  );
+  for(let i=0;i<manifest.sections.length;i++){
+   const part=manifest.sections[i],id=str(manifest.id,80)+'-'+(i+1);
+   this.sql.exec(
+    'INSERT INTO passages(id,document_id,heading,body,content_sha256) VALUES(?,?,?,?,?)',
+    id,str(manifest.id,80),str(part.heading,250),str(part.body,4500),str(part.sha256,64)
+   );
+   this.sql.exec('INSERT INTO passages_fts(passage_id,body) VALUES(?,?)',id,str(part.body,4500));
+  }
+  this.sql.exec("UPDATE sources SET status='active' WHERE id=?",str(manifest.sourceId,100));
+  return {ok:true,sections:manifest.sections.length};
+ }
+}
