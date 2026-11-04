@@ -300,6 +300,33 @@ async function scientificSelftest(request,env){
     reason:result.ok?null:String(data.error||'Verificação não concluída').slice(0,160)
   },result.ok?200:result.status);
 }
+// Importação de documento revisado somente pelo profissional já autorizado em Access.
+// Não aceita PDF bruto ou texto sem edição, licença, identificação e SHA-256 verificados.
+async function importOfficialDocument(request,env,identity){
+ if(!env.SCIENCE_LIBRARY)return reply({error:'Biblioteca SQLite não configurada'},503);
+ const requestOrigin=request.headers.get('origin');
+ if(!requestOrigin||requestOrigin!==new URL(request.url).origin)
+  return reply({error:'Origem de importação inválida'},403);
+ if(!String(request.headers.get('content-type')||'').includes('application/json'))
+  return reply({error:'Envie manifesto JSON revisado'},415);
+ const len=Number(request.headers.get('content-length')||0);
+ if(len>500000)return reply({error:'Documento muito grande para esta operação'},413);
+ let input;
+ try{
+  const raw=await request.text();
+  if(raw.length>500000)return reply({error:'Documento excede limite de tamanho'},413);
+  input=JSON.parse(raw);
+ }catch(_){return reply({error:'Manifesto JSON inválido'},400)}
+ if(input?.attestation!==true||typeof input.manifest!=='object')
+  return reply({error:'A revisão documental precisa ser confirmada expressamente'},400);
+ const manifest={...input.manifest,
+  reviewer:String(identity.email||'').toLowerCase()};
+ try{
+  const library=env.SCIENCE_LIBRARY.getByName('lifemag-main');
+  const result=await library.importReviewed(manifest);
+  return reply(result,result.ok?200:422);
+ }catch(_){return reply({error:'A biblioteca não aceitou a importação'},503)}
+}
 function serveStatic(request){
   const url=new URL(request.url);
   const pathname=url.pathname==='/'?'/index.html':url.pathname;
@@ -334,6 +361,7 @@ export default {
         formulaDraft:'structured_review_only'})
     }
     if(url.pathname==='/api/source-status'&&request.method==='GET')return reply(await scientificConnectivity(env));
+    if(url.pathname==='/api/science/import-reviewed'&&request.method==='POST')return importOfficialDocument(request,env,identity);
     if(url.pathname==='/api/selftest'&&request.method==='POST')return scientificSelftest(request,env);
     if(url.pathname==='/api/assist'&&request.method==='POST')return analyze(request,env);
     if(url.pathname.startsWith('/api/'))return reply({error:'Rota desconhecida'},404);
