@@ -27,7 +27,7 @@ export async function searchIndexedEvidence(question,db){
     ).bind(keywords).all();
     const items=(result?.results||[])
       .filter(x=>typeof x.body==='string'&&x.body.trim().length>=40 &&
-        /^https:\/\/(?:www\.)?(?:gov\.br|anvisa\.gov\.br|who\.int|ncbi\.nlm\.nih\.gov)\//.test(String(x.official_url||'')))
+        /^https:\/\/(?:www\.gov\.br|gov\.br|www\.anvisa\.gov\.br|anvisa\.gov\.br|bibliotecadigital\.anvisa\.gov\.br|www\.who\.int|who\.int|www\.ncbi\.nlm\.nih\.gov|ncbi\.nlm\.nih\.gov)\//.test(String(x.official_url||'')))
       .slice(0,5).map((x,i)=>({
         id:'C'+String(i+1),
         title:String(x.title||'Documento oficial').slice(0,200)+
