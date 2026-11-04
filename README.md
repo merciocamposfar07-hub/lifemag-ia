@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** v0.4.1 • diagnóstico científico acionável e transferência revisável da proposta ao Studio Magistral; banco científico D1 ainda não provisionado/carregado na Cloudflare.
+**Status:** v0.4.2 • biblioteca científica Durable Objects SQLite configurada para provisionamento no deploy; importação autenticada de documentos oficiais revisados e pesquisa PubMed real preparada; implantação remota ainda não comprovada.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -124,3 +124,13 @@ O histórico do planejamento original permanece nos documentos anteriores desta 
 - Sem acesso administrativo autorizado à Cloudflare nesta conversa, **não foi possível executar o provisionamento remoto nem comprovar teste real de IA**. O modelo do Worker está pronto para o teste de ponta a ponta, mas sua execução real ainda precisa ser comprovada.
 - A base científica ainda não contém monografias indexadas nem revisão das fontes oficiais. Consensus exige chave API própria, guardada em Secret, e não é ativado pelo plugin Consensus do ChatGPT.
 - Cadastro clínico permanece demonstrativo em `localStorage`: não utilizar pacientes reais até autenticação do backend, persistência segura, LGPD e validação farmacêutica.
+
+## v0.4.2 — biblioteca SQLite sem provisionamento manual de D1
+- O Worker LifeMag IA agora exporta `LifeMagScientificStore` (Durable Object com SQLite + índice FTS5), com binding `SCIENCE_LIBRARY` declarado em `wrangler.json`. A Cloudflare provisiona a classe no deploy normal do repositório, sem chave de API D1 e sem modificar o Portal CSC.
+- Ao abrir a Central Científica, o aplicativo consulta **PubMed/Europe PMC pela internet de verdade** e verifica o estado da biblioteca persistente. O diagnóstico expõe a versão real do servidor.
+- A IA pesquisa o PubMed online e os **trechos efetivamente aprovados e encontrados** no SQLite; a ausência de monografias não é ocultada. O D1 anterior permanece como mecanismo opcional e separado, sem necessidade de ativá-lo para a nova biblioteca.
+- O profissional pode importar manifestos JSON revisados pelo app, com **Cloudflare Access, checagem de origem, identificação de edição, licença, data e hashes SHA-256 reais de todos os trechos**. O conteúdo somente se torna pesquisável após aprovação e inserção transacional.
+- O GitHub Actions passou a executar uma **chamada externa real ao PubMed via Europe PMC** em cada push e testar FTS5 em SQLite real, além dos testes locais de interface, lógica e fluxos clínicos.
+- **Limitações:** as monografias completas da Farmacopeia, Formulários, PCDT e diretrizes ainda não foram importadas. O Consensus depende de chave de API própria em Cloudflare Secrets. A versão de produção precisa ser confirmada por diagnóstico autenticado.
+- **Dados reais de pacientes:** o app ainda não dispõe de banco clínico seguro, auditoria e integração LGPD completos; não inserir dados pessoais reais.
+- Leia `docs/SQLITE_CIENTIFICO_AUTOMATICO.md` para arquitetura, fonte e processo de atualização.
