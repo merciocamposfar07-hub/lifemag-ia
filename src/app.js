@@ -1,5 +1,5 @@
 
-/* LifeMag IA v0.3.0 — Protótipo funcional sem serviços de IA conectados. */
+/* LifeMag IA v0.4.2 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
 'use strict';
 const IMG = 'assets/icone-oficial-escuro.png';
 const iconPaths = {
@@ -220,7 +220,7 @@ function scientificOnly(){
     '<span class="research-indicator '+(online?'connected':'offline')+'">'+E(indicator)+'</span></div>'+
     '<p class="research-intro">Descreva o objetivo terapêutico e os dados clínicos anônimos disponíveis. A IA entregará primeiro uma proposta magistral estruturada, sujeita à revisão profissional.</p>'+
     '<form id="research-form" class="chat-input research-input">'+
-    '<textarea name="message" maxlength="2500" rows="3" required placeholder="Ex.: Quais evidências existem para riboflavina na prevenção da enxaqueca?"></textarea>'+
+    '<textarea name="message" maxlength="2500" rows="3" required placeholder="Ex.: Adulto de 35 anos, sem medicamentos e sem alergias conhecidas, com enxaqueca. Quais opções magistrais têm evidências e doses estudadas?"></textarea>'+
     '<button type="submit" class="btn primary" '+disabled+' aria-label="Gerar proposta de formulação baseada em evidências">'+submitLabel+'</button>'+
     '<label class="consensus-option"><input type="checkbox" name="useConsensus" value="on" '+(aiSession.consensusReady?'':'disabled')+'/> Incluir Consensus nesta consulta'+(aiSession.consensusReady?' (consome chamadas da cota)':' (API ainda não configurada)')+'</label></form>'+
     '<p class="research-privacy">Somente perguntas anônimas. Sem idade, medicamentos, alergias ou evidência suficiente, a IA deve indicar o que falta antes de liberar doses.</p>'+
