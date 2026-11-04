@@ -1,5 +1,6 @@
 import {STATIC_ASSETS} from './assets.generated.mjs';
 import {searchIndexedEvidence} from './science-index.js';
+export {LifeMagScientificStore} from './science-do.js';
 import {searchConsensus} from './consensus.js';
 import {FORMULA_SCHEMA,normalizeDraft,draftAsText} from './clinical-draft.js';
 /* LifeMag IA: assistente científico, protegido pelo Cloudflare Access.
@@ -143,6 +144,16 @@ function assistantPrompt(evidence){
  ].join('\n\n');
 }
 
+async function searchOfficialSources(question,env){
+  if(env.SCIENCE_LIBRARY){
+    try{
+      const library=env.SCIENCE_LIBRARY.getByName('lifemag-main');
+      const result=await library.search(question);
+      if(result&&Array.isArray(result.items))return result;
+    }catch(_){return {status:'library_error',items:[]}}
+  }
+  return searchIndexedEvidence(question,env.SCIENCE_DB);
+}
 async function analyze(request,env){
   const type=request.headers.get('content-type')||'';
   if(!type.toLowerCase().includes('application/json'))return reply({error:'Envie JSON válido'},415);
@@ -164,7 +175,7 @@ async function analyze(request,env){
   if(question.length<8||question.length>2500)return reply({error:'Descreva a pergunta entre 8 e 2.500 caracteres'},400);
   const terms=question;
   const evidence=await searchEvidence(terms);
-  const indexed=await searchIndexedEvidence(question,env.SCIENCE_DB);
+  const indexed=await searchOfficialSources(question,env);
   // Consensus NÃO é acionado automaticamente para preservar a cota mensal.
   // É consultado somente quando o usuário ativa useConsensus=true.
   const consensus=args.useConsensus===true?
@@ -200,7 +211,7 @@ async function analyze(request,env){
       sources:verifiedSources.map(({abstract,...citation})=>citation),
       evidenceStatus:'Fontes recuperadas nesta consulta; análise automatizada ainda requer revisão técnica.',
       sourceStatus:{pubmed:evidence.status,internal:indexed.status,consensus:consensus.status},
-      catalogStatus:indexed.items.length?'Trechos de compêndios oficiais revisados recuperados do índice interno':
+      catalogStatus:indexed.items.length?'Trechos de documentos oficiais aprovados recuperados da biblioteca interna':
         'Compêndios Anvisa ainda não disponíveis no índice científico interno',
       model:MODEL,requiresProfessionalReview:true});
   }catch(_){return reply({error:'A IA não respondeu; nenhuma recomendação foi produzida'},502)}
@@ -208,6 +219,20 @@ async function analyze(request,env){
 // Verificação real solicitada pelo farmacêutico. Sem dados de pacientes e sem gasto de IA em GET.
 async function scientificConnectivity(env){
   const pubmed=await searchEvidence('riboflavin migraine');
+  if(env.SCIENCE_LIBRARY){
+    let docStatus={status:'library_error',approvedDocuments:0,
+      approvedPassages:0,sources:[],storage:'SQLite Durable Object'};
+    try{docStatus=await env.SCIENCE_LIBRARY.getByName('lifemag-main').status()}catch(_){}
+    return {
+      pubmed:{status:pubmed.status,articles:pubmed.items.length,
+        sample:pubmed.items[0]?{title:pubmed.items[0].title,url:pubmed.items[0].url}:null},
+      officialIndex:docStatus,
+      consensus:{status:env.CONSENSUS_API_KEY?'key_configured_not_tested':'not_configured'},
+      workersAI:{status:env.AI&&typeof env.AI.run==='function'?'binding_configured_not_tested':'not_configured'},
+      clinicalRecords:{status:'not_ready_do_not_enter_real_patients'},
+      serverTime:new Date().toISOString()
+    };
+  }
   let documents=0,passages=0,indexStatus=env.SCIENCE_DB?'configured_empty_or_unverified':'not_configured';
   let sources=[];
   if(env.SCIENCE_DB&&typeof env.SCIENCE_DB.prepare==='function'){
@@ -305,7 +330,7 @@ export default {
     if(url.pathname==='/api/capabilities'&&request.method==='GET'){
       return reply({ready:!!env.AI,science:'Europe PMC (resumos indexados no PubMed)',
         official:OFFICIAL,model:MODEL,clinicalRecordStorage:false,authenticated:true,
-        internalScienceIndex:env.SCIENCE_DB?'binding_configured':'not_configured',consensus:env.CONSENSUS_API_KEY?'key_configured':'not_configured',
+        internalScienceIndex:env.SCIENCE_LIBRARY?'durable_sqlite_configured':env.SCIENCE_DB?'binding_configured':'not_configured',consensus:env.CONSENSUS_API_KEY?'key_configured':'not_configured',
         formulaDraft:'structured_review_only'})
     }
     if(url.pathname==='/api/source-status'&&request.method==='GET')return reply(await scientificConnectivity(env));
