@@ -53,3 +53,16 @@ Sem uma conexão autorizada à conta Cloudflare nesta conversa, o GitHub não po
 - Conitec PCDT: https://www.gov.br/conitec/pt-br/assuntos/avaliacao-de-tecnologias-em-saude/protocolos-clinicos-e-diretrizes-terapeuticas/pcdt
 - Workers AI JSON Mode: https://developers.cloudflare.com/workers-ai/features/json-mode/
 - Consensus API: https://docs.consensus.app/api-get-started
+
+## Etapa v0.4.1 — diagnóstico real e preparação de provisionamento (04/11/2026)
+- Novos endpoints protegidos pelo Zero Trust, implementados em `worker/index.js`:
+  - `GET /api/source-status`: executa uma busca real no Europe PMC, retorna número de artigos com resumos, número de documentos/trechos aprovados no D1 e informa se AI/Consensus possuem binding/segredo. **Não invoca o modelo nem consome chamadas Consensus**.
+  - `POST /api/selftest`: usa um caso exclusivamente fictício e sem dados pessoais, busca um artigo e invoca o Workers AI com JSON Schema, para verificar se o mecanismo realmente retorna proposta estruturada. Consome franquia Workers AI apenas após ação explícita.
+- A Central Científica apresenta **Verificar fontes** e **Testar IA com caso fictício**, além de identificar quais documentos indexados estão realmente aprovados por fonte.
+- Na Conversa Inteligente, uma proposta com `decision=draft`, referências e doses textualmente identificadas pode ser **importada por clique** ao Studio Magistral como rascunho. O receituário permanece bloqueado até confirmação expressa de revisão farmacêutica; qualquer edição posterior reabre a revisão. A aprovação é ato no app, não uma assinatura digital.
+- Arquivos de automação preparados:
+  - `scripts/configurar-binding-cientifico.mjs`: encontra somente o banco D1 **lifemag-ia-science**, nunca um banco compartilhado com CSC.
+  - `.github/workflows/ativar-ciencia-d1.yml`: se o titular autorizar credenciais Cloudflare em GitHub Actions Secrets, cria ou reutiliza o banco científico, instala as tabelas, conecta `SCIENCE_DB` e publica o Worker. O segredo Consensus é facultativo. **Não foi executado na conta Cloudflare durante esta conversa.**
+- O esquema D1 inicial continua sem trechos científicos aprovados; a ação de bootstrap cria a infraestrutura, mas não importa automaticamente PDFs ou monografias não revisados.
+- Não foi possível acionar a conta Cloudflare a partir das ferramentas conectadas: portanto não há comprovação de build publicado, conexão real D1, funcionamento LLM/Europe PMC de ponta a ponta ou uso Consensus neste momento.
+- Não utilizar fichas de pacientes reais enquanto o armazenamento clínico permanecer localStorage sem segurança de backend, trilhas de auditoria e política LGPD.
