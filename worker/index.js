@@ -365,6 +365,16 @@ export default {
         internalScienceIndex:env.SCIENCE_LIBRARY?'durable_sqlite_configured':env.SCIENCE_DB?'binding_configured':'not_configured',consensus:env.CONSENSUS_API_KEY?'key_configured':'not_configured',
         formulaDraft:'structured_review_only'})
     }
+    if(url.pathname==='/api/science/search'&&request.method==='GET'){
+      const q=String(url.searchParams.get('q')||'').trim();
+      if(q.length<4||q.length>120)return reply({error:'Use um tema científico de 4 a 120 caracteres'},400);
+      if(/\b\d{3}[. ]?\d{3}[. ]?\d{3}[- ]?\d{2}\b/.test(q)||/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/.test(q))
+        return reply({error:'Não envie dados pessoais para a pesquisa científica'},400);
+      const results=await searchOfficialSources(q,env);
+      return reply({status:results.status,results:(results.items||[]).slice(0,10),
+        reviewedCount:Number(results.reviewedCount)||0,overviewCount:Number(results.overviewCount)||0,
+        searchType:'biblioteca_cientifica_nao_pacientes'});
+    }
     if(url.pathname==='/api/source-status'&&request.method==='GET')return reply(await scientificConnectivity(env));
     if(url.pathname==='/api/science/import-reviewed'&&request.method==='POST')return importOfficialDocument(request,env,identity);
     if(url.pathname==='/api/selftest'&&request.method==='POST')return scientificSelftest(request,env);
