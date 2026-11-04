@@ -85,7 +85,7 @@ export class LifeMagScientificStore extends DurableObject{
   try{
    const rows=this.sql.exec(
     "SELECT d.title,d.edition,d.official_url,d.verified_at,s.name,p.heading,p.body "+
-    'FROM passages_fts f JOIN passages p ON p.id=f.passage_id '+
+    'FROM passages_fts JOIN passages p ON p.id=passages_fts.passage_id '+
     'JOIN documents d ON d.id=p.document_id JOIN sources s ON s.id=d.source_id '+
     "WHERE passages_fts MATCH ? AND d.status='approved' AND s.status='active' "+
     'ORDER BY passages_fts.rank LIMIT 5',query
