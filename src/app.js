@@ -37,6 +37,7 @@ const pageFromUrl = () => { const page = decodeURIComponent(location.hash.replac
 const ui = { page:pageFromUrl(), patientId:null, visitId:null, notices:[], search:'', toastTimer:0, doc:'prescription' };
 const anonymousResearch={chat:[]};
 const aiSession={ready:false,checked:false,busy:false,consensusReady:false,indexReady:false,message:'Servidor de IA ainda não conectado.'};
+const scienceCheck={busy:false,diagnostics:null,error:null,lastCheck:null};
 async function initializeScientificAssistant(){
   // A versão GitHub Pages não possui backend: nunca envia dados para uma URL externa.
   if(location.protocol!=='https:'||!location.hostname||location.hostname.endsWith('.github.io'))return;
@@ -193,27 +194,70 @@ function simulator(){const v=visit();return pageHeader('Simulador de Formulaçõ
 function diffVersions(v){const old=v.revisions.at(-2),newer=v.revisions.at(-1);if(!old||!newer)return '';const fmt=i=>`${E(i.name||'—')} ${E(i.dose||'')} ${E(i.unit||'')}`;const ia=old.ingredients||[],ib=newer.ingredients||[];let a=new Map(ia.map(x=>[x.id,x])),b=new Map(ib.map(x=>[x.id,x]));let diffs=[];for(const [id,item] of b){if(!a.has(id))diffs.push(`Adicionada: ${fmt(item)}`);else if(JSON.stringify([item.name,item.dose,item.unit])!==JSON.stringify([a.get(id).name,a.get(id).dose,a.get(id).unit]))diffs.push(`Alterada: ${fmt(a.get(id))} → ${fmt(item)}`);}for(const [id,item]of a){if(!b.has(id))diffs.push(`Removida: ${fmt(item)}`);}return `<div class="row-between"><h3>Últimas versões</h3><span class="badge">${v.revisions.length} revisões</span></div><p class="muted small">${fmtDate(old.savedAt?.slice(0,10))} → ${fmtDate(newer.savedAt?.slice(0,10))}</p>${diffs.length?diffs.map(d=>`<div class="source">${d}</div>`).join(''):'<p class="muted">Não houve mudança de substâncias e doses entre estas versões.</p>'}<div class="notice">Comparações de eficácia, interações e benefício incremental ainda exigem o motor científico a ser implementado.</div>`;}
 const sources=[['PubMed / NCBI','Pesquisa clínica, doses, mecanismos, segurança e estudos','https://pubmed.ncbi.nlm.nih.gov/','Farmacologia'],['Farmacopeia Brasileira (8ª)','Padrões oficiais de qualidade; monografias ainda não indexadas automaticamente','https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira','Farmacologia'],['Formulário Nacional (3ª)','Fórmulas oficinais, bases e preparo; acesso ao documento oficial','https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/formulario-nacional','Farmacologia'],['Formulário de Fitoterápicos (3ª)','Preparações fitoterápicas oficiais e advertências','https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/formulario-fitoterapico','Farmacologia'],['Compêndios Anvisa 2026','Página oficial de acesso às novas edições, incluindo Farmacopeia Homeopática (4ª)','https://www.gov.br/anvisa/pt-br/assuntos/noticias-anvisa/2026/entram-em-vigor-os-novos-compendios-da-farmacopeia-brasileira','Farmacologia'],['Conitec / PCDT','Protocolos clínicos e diretrizes','https://www.gov.br/conitec/pt-br','Farmacologia'],['OMS / WHO','Diretrizes de atividade física e saúde','https://www.who.int/','Atividade física'],['ACSM','Treinamento resistido, força e condicionamento','https://acsm.org/','Atividade física'],['Guia de Atividade Física do Brasil','Ministério da Saúde — recomendações nacionais','https://www.gov.br/saude/pt-br','Atividade física'],['Guia Alimentar do Brasil','Ministério da Saúde — educação alimentar','https://www.gov.br/saude/pt-br','Alimentação']];
 function science(){
- const statuses=[
-  ['PubMed / Europe PMC',
-   aiSession.ready?'Busca online disponível; a recuperação de artigos é confirmada em cada pergunta.':'Depende do serviço autenticado Cloudflare.'],
-  ['Farmacopeia Brasileira, Formulário Nacional e Fitoterápicos',
-   aiSession.indexReady?'Banco D1 conectado, mas confirmar monografias aprovadas e indexadas.':'Catálogo oficial apenas: monografias ainda não foram carregadas na IA.'],
-  ['Conitec / PCDT, OMS, Atividade Física e Nutrição',
-   'Fontes catalogadas. Ingestão e revisão de diretrizes ainda pendentes.'],
-  ['Consensus',
-   aiSession.consensusReady?'API configurada; consulta opcional para preservar a cota de chamadas.':
-   'API ainda sem chave na Cloudflare; uso no ChatGPT não ativa o LifeMag IA.']
+ const statusRows=[
+  ['PubMed / Europe PMC',aiSession.ready?
+   'Busca científica online configurada; teste a recuperação para confirmar o resultado atual.':
+   'Serviço ainda não identificado como disponível neste domínio.'],
+  ['Farmacopeia, Formulário Nacional e Fitoterápicos',
+   aiSession.indexReady?'Vínculo D1 presente; conteúdo aprovado precisa ser confirmado no diagnóstico.':
+    'Documentos apenas catalogados: índice interno ainda não conectado.'],
+  ['Conitec / PCDT, OMS e guias brasileiros','Referências catalogadas, sem conteúdo indexado e aprovado.'],
+  ['Consensus',aiSession.consensusReady?'Chave configurada; pesquisa opcional e sujeita à cota.':
+   'Chave da API ainda não configurada; o Consensus conectado ao ChatGPT é independente.']
  ];
- return pageHeader('Central de Atualização Científica','Situação real das conexões e documentos oficiais.')+
- '<div class="notice blue">A IA não usa automaticamente um documento apenas porque há um link nesta página. Cada análise deve citar somente fontes efetivamente recuperadas, com edição e origem verificáveis.</div>'+
- '<div class="panel"><h3>Conexões científicas</h3>'+
- statuses.map(([name,status])=>'<div class="listline"><div><strong>'+E(name)+'</strong><p>'+E(status)+'</p></div></div>').join('')+
+ const result=scienceCheck.diagnostics;
+ let checkResult='';
+ if(result){
+   const x=result;
+   if(x.pubmed){
+     checkResult='<div class="listline"><strong>PubMed: '+E(x.pubmed.status)+
+      '</strong><p>'+E(String(x.pubmed.articles||0))+' artigos com resumo recuperados'+
+      (x.pubmed.sample?': '+E(x.pubmed.sample.title):'')+'</p></div>'+
+      '<div class="listline"><strong>Índice oficial: '+E(x.officialIndex?.status||'desconhecido')+
+      '</strong><p>'+E(String(x.officialIndex?.approvedDocuments||0))+' documentos e '+
+      E(String(x.officialIndex?.approvedPassages||0))+' trechos aprovados</p></div>'+
+      '<div class="listline"><strong>Consensus: '+E(x.consensus?.status||'indisponível')+
+      '</strong><p>Não são consumidas chamadas do Consensus neste diagnóstico.</p></div>'+
+      '<div class="listline"><strong>Workers AI: '+E(x.workersAI?.status||'indisponível')+
+      '</strong><p>Binding identificado; a execução real é verificada no teste do motor.</p></div>';
+   }else if(x.stages){
+     checkResult='<div class="listline"><strong>Autoteste completo: '+(x.passed?'concluído':'não concluído')+
+      '</strong><p>PubMed: '+E(x.stages.pubmed)+
+      ' · Workers AI: '+E(x.stages.workersAI)+
+      ' · Fontes: '+E(String(x.sourceCount||0))+
+      ' · Resultado: '+E(x.draftDecision||'sem estrutura')+
+      (x.reason?' · '+E(x.reason):'')+'</p></div>';
+   }
+ }
+ const busy=scienceCheck.busy?'disabled':'';
+ return pageHeader('Central de Atualização Científica','Conexões verificáveis do motor magistral.')+
+ '<div class="notice blue">Uma fonte só é considerada consultada quando o sistema consegue recuperar seus artigos ou trechos aprovados. O teste do motor usa um caso fictício e não envia prontuários.</div>'+
+ '<div class="panel"><h3>Diagnóstico de conexão</h3>'+
+ '<p class="muted small">Verifique a recuperação de artigos gratuitamente. O autoteste completo também executa o modelo de IA e consome parte da franquia Workers AI.</p>'+
+ '<div class="btnrow"><button type="button" class="btn primary" data-science-check="sources" '+busy+'>Verificar fontes</button>'+
+ '<button type="button" class="btn" data-science-check="model" '+busy+'>Testar IA com caso fictício</button></div>'+
+ (scienceCheck.busy?'<p class="muted small">Consultando serviços...</p>':'')+
+ (scienceCheck.error?'<div class="notice">'+E(scienceCheck.error)+'</div>':'')+
+ (checkResult?'<div class="science-check-result" aria-live="polite">'+checkResult+'</div>':'')+
  '</div>'+
- '<div class="panel" style="margin-top:14px"><h3>Catálogo de sites oficiais</h3>'+
- sources.map(([name,desc,url,area])=>'<div class="listline"><div><strong>'+E(name)+'</strong><p>'+E(desc)+' · '+E(area)+'</p></div><a class="btn compact" href="'+url+'" target="_blank" rel="noopener noreferrer">Abrir fonte oficial '+I('arrow',14)+'</a></div>').join('')+
- '</div>';
+ '<div class="panel" style="margin-top:14px"><h3>Conexões científicas</h3>'+
+ statusRows.map(([name,status])=>'<div class="listline"><div><strong>'+E(name)+'</strong><p>'+E(status)+'</p></div></div>').join('')+'</div>'+
+ '<div class="panel" style="margin-top:14px"><h3>Catálogo de fontes oficiais</h3>'+
+ sources.map(([name,desc,url,area])=>'<div class="listline"><div><strong>'+E(name)+'</strong><p>'+E(desc)+' · '+E(area)+'</p></div><a class="btn compact" href="'+url+'" target="_blank" rel="noopener noreferrer">Abrir fonte '+I('arrow',14)+'</a></div>').join('')+'</div>';
 }
-
+async function checkScientificServices(kind){
+ if(scienceCheck.busy)return;
+ if(!aiSession.ready){toast('Serviço protegido da IA não está disponível neste domínio.');return}
+ scienceCheck.busy=true;scienceCheck.error=null;scienceCheck.diagnostics=null;render();
+ try{
+   const res=await fetch(kind==='model'?'/api/selftest':'/api/source-status',{
+     method:kind==='model'?'POST':'GET',credentials:'same-origin',headers:{accept:'application/json'}});
+   const json=await res.json();
+   scienceCheck.diagnostics=json;
+   if(!res.ok)scienceCheck.error=String(json.reason||json.error||'Falha ao verificar serviço científico');
+ }catch(_){scienceCheck.error='Não foi possível consultar o diagnóstico da Cloudflare.'}
+ finally{scienceCheck.busy=false;scienceCheck.lastCheck=new Date().toISOString();render()}
+}
 function docs(){const v=visit();return pageHeader('Documentos Clínicos','Modelos clean, com ícone oficial, farmácia e profissional identificados.')+`<div class="panel"><div class="field"><label>Atendimento para o documento</label><select id="doc-visit"><option value="">Selecione...</option>${data.visits.map(x=>`<option value="${x.id}" ${v?.id===x.id?'selected':''}>${E(patientFor(x)?.name||'Paciente')} · ${fmtDate(x.date)}</option>`).join('')}</select></div><div class="notice blue">Documentos desta fase são rascunhos demonstrativos. A declaração de comparecimento não valida presença real sem conferência.</div><div class="tilegrid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:15px">${[['clinical','Ficha clínica','Cadastro e avaliação'],['prescription','Receituário','Um documento para paciente e manipulação'],['attendance','Comparecimento','Data e horários efetivos'],['service','Serviço farmacêutico','Declaração do serviço executado'],['protocol','Protocolo complementar','Atividade física e alimentação educativa']].map(([doc,title,desc])=>`<button class="tile" data-doc="${doc}" style="min-height:130px"><span class="icon-bg">${I('files')}</span><strong>${title}</strong><span>${desc}</span></button>`).join('')}</div></div>`;}
 function settings() {
   const s=data.settings;
@@ -259,7 +303,7 @@ function trimForm(obj){for(const k of Object.keys(obj))if(typeof obj[k]==='strin
 function saveFormula(form){const v=visit();if(!v)return;const next=trimForm(readForm(form));if(Number(next.duration)<1||Number(next.duration)>3650){toast('A duração deve ser maior que zero.');return;}Object.assign(v,next);v.duration=Number(next.duration)||15;v.revisions.push({ savedAt:new Date().toISOString(), ingredients:JSON.parse(JSON.stringify(v.ingredients)), formulaName:v.formulaName, posology:v.posology });persist();toast('Formulação salva com versão registrada.');render();}
 function preview(doc,chosen=visit()){const v=chosen,p=v&&patientFor(v);if(!v||!p){toast('Selecione primeiro um atendimento.');return;}if(doc==='service'&&(!data.settings.cnpj||!data.settings.businessPhone)){toast('Preencha CNPJ e telefone institucional confirmados antes deste modelo.');setPage('settings');return;}if(doc==='prescription'&&(!v.ingredients.length||!v.posology||!v.quantity)){toast('Complete substâncias, quantidade e posologia antes do receituário.');setPage('editor');return;}ui.doc=doc;document.getElementById('print-root').innerHTML=renderPaper(doc,v,p);window.print();}
 function renderPaper(doc,v,p){const s=data.settings, names={clinical:'FICHA CLÍNICA / CADASTRO',prescription:'RECEITUÁRIO MAGISTRAL',attendance:'DECLARAÇÃO DE COMPARECIMENTO',service:'DECLARAÇÃO DE SERVIÇO FARMACÊUTICO',protocol:'PROTOCOLO COMPLEMENTAR'};const line=(label,value)=>`<div class="print-section"><span class="print-label">${label}:</span> ${E(value||'—')}</div>`;const header=`<div class="print-head"><img src="${IMG}" alt="Logo oficial LifeMag IA"/><div><strong>LifeMag IA</strong><small>Prescrição Magistral Inteligente</small><div class="print-institution"><b>${E(s.workplace)}</b><br>${E(s.address)}<br>${E(s.professional)} — ${E(s.role)} — ${E(s.crf)}</div></div></div>`;const common=line('Paciente',p.name)+line('Data do atendimento',fmtDate(v.date))+line('Telefone',p.phone);let body='';if(doc==='prescription'){body=common+line('Endereço do paciente',p.address)+`<table class="print-table"><thead><tr><th>Substância</th><th>Dose</th></tr></thead><tbody>${v.ingredients.map(i=>`<tr><td>${E(i.name)}</td><td>${E(i.dose)} ${E(i.unit||'mg')}</td></tr>`).join('')}</tbody></table>`+line('Apresentação',v.presentation)+line('Via de administração',v.route)+line('Quantidade para manipular',v.quantity)+line('Posologia',v.posology)+line('Horários',v.schedules)+line('Relação com refeições',v.meals)+line('Duração',v.duration+' dias')+line('Orientações',v.observations);}else if(doc==='clinical'){body=common+line('Nascimento',fmtDate(p.dob))+line('Endereço',p.address)+line('Peso (kg)',p.weight)+line('Altura (cm)',p.height)+line('Observações gerais do cadastro',p.notes)+line('Motivo da consulta e objetivo clínico',normalizeClinicalAssessment(v.assessment).chiefComplaint)+line('Sintomas e evolução',normalizeClinicalAssessment(v.assessment).symptoms)+line('Histórico clínico',normalizeClinicalAssessment(v.assessment).clinicalHistory)+line('Medicamentos em uso',normalizeClinicalAssessment(v.assessment).medications)+line('Alergias e reações',normalizeClinicalAssessment(v.assessment).allergies)+line('Exames e resultados',normalizeClinicalAssessment(v.assessment).labResults)+line('Restrições e riscos',normalizeClinicalAssessment(v.assessment).riskFactors)+line('Plano de acompanhamento',normalizeClinicalAssessment(v.assessment).followUpPlan);}else if(doc==='attendance'){body=common+line('Horário de entrada','_________')+line('Horário de saída','_________')+`<p>Declaramos, para fins de comprovação, que a pessoa identificada compareceu ao atendimento farmacêutico no período efetivamente confirmado.</p>`;}else if(doc==='service'){body=common+line('CNPJ',s.cnpj)+line('Telefone institucional',s.businessPhone)+line('Serviço efetivamente realizado','_____________________________________________')+line('Resultado/observações','_____________________________________________');}else{body=common+line('Formulação vinculada',v.formulaName)+line('Orientações educativas complementares',v.protocol||'Não informado')+`<p>Intensidade progressiva, iniciando leve e evoluindo gradualmente conforme condicionamento e tolerância, se aplicável.</p>`;}return `<article class="print-page">${header}<h1 class="print-h">${names[doc]}</h1><p class="print-note"><b>RASCUNHO DE TESTE — NÃO ASSINADO — NÃO VÁLIDO PARA USO CLÍNICO</b></p>${body}<div class="print-foot"><div class="print-sign"><b>${E(s.professional)}</b><br>${E(s.role)} — ${E(s.crf)}<br><small>Campo reservado à assinatura válida</small></div></div></article>`;}
-function handleClick(event){const b=event.target.closest('[data-page],[data-action],[data-select-patient],[data-review-visit],[data-open-visit],[data-add-ingredient],[data-remove-ingredient],[data-print-visit],[data-complete],[data-doc]');if(!b)return;if(b.dataset.page){setPage(b.dataset.page);return;}if(b.dataset.selectPatient){ui.patientId=b.dataset.selectPatient;render();return;}if(b.dataset.reviewVisit){const v=data.visits.find(x=>x.id===b.dataset.reviewVisit);if(v){useVisit(v);setPage('conversation');}return;}if(b.dataset.openVisit){const v=data.visits.find(x=>x.id===b.dataset.openVisit);if(v){useVisit(v);setPage('editor');}return;}if(b.dataset.printVisit){const v=data.visits.find(x=>x.id===b.dataset.printVisit);if(v){useVisit(v);preview('prescription',v);}return;}if(b.dataset.doc){preview(b.dataset.doc);return;}if(b.dataset.removeIngredient){const v=visit();if(!v)return;v.ingredients=v.ingredients.filter(i=>i.id!==b.dataset.removeIngredient);persist();render();return;}if(b.dataset.complete){const v=data.visits.find(x=>x.id===b.dataset.complete);if(v){v.status=v.status==='finalizado'?'em acompanhamento':'finalizado';persist();render();}return;}
+function handleClick(event){const b=event.target.closest('[data-page],[data-action],[data-select-patient],[data-review-visit],[data-open-visit],[data-add-ingredient],[data-remove-ingredient],[data-print-visit],[data-complete],[data-doc],[data-science-check]');if(!b)return;if(b.dataset.scienceCheck){void checkScientificServices(b.dataset.scienceCheck);return;}if(b.dataset.page){setPage(b.dataset.page);return;}if(b.dataset.selectPatient){ui.patientId=b.dataset.selectPatient;render();return;}if(b.dataset.reviewVisit){const v=data.visits.find(x=>x.id===b.dataset.reviewVisit);if(v){useVisit(v);setPage('conversation');}return;}if(b.dataset.openVisit){const v=data.visits.find(x=>x.id===b.dataset.openVisit);if(v){useVisit(v);setPage('editor');}return;}if(b.dataset.printVisit){const v=data.visits.find(x=>x.id===b.dataset.printVisit);if(v){useVisit(v);preview('prescription',v);}return;}if(b.dataset.doc){preview(b.dataset.doc);return;}if(b.dataset.removeIngredient){const v=visit();if(!v)return;v.ingredients=v.ingredients.filter(i=>i.id!==b.dataset.removeIngredient);persist();render();return;}if(b.dataset.complete){const v=data.visits.find(x=>x.id===b.dataset.complete);if(v){v.status=v.status==='finalizado'?'em acompanhamento':'finalizado';persist();render();}return;}
 const a=b.dataset.action;if(a==='new-visit')startVisit(ui.patientId||(data.patients.length===1?data.patients[0]?.id:null));if(a==='clear-patient'){ui.patientId=null;render();}if(a==='add-ingredient'){const v=visit();if(v){v.ingredients.push({id:uid('ing'),name:'',dose:'',unit:'mg',role:'',target:'',evidence:''});persist();render();}}if(a==='save-protocol'){const v=visit();if(v){v.protocol=document.getElementById('protocol-text')?.value||'';persist();toast('Protocolo educativo salvo.');}}if(a==='test-sound'){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error();const c=new AC(),o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=660;g.gain.setValueAtTime(.10,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.25);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.25);o.onended=()=>c.close();toast('Som de demonstração reproduzido.');}catch(e){toast('Som indisponível neste navegador.');}}if(a==='remove-photo'){delete data.settings.photoData;persist();render();toast('Foto removida.');}if(a==='clear-demo'){if(confirm('Apagar os dados locais desta demonstração?')){localStorage.removeItem(STORAGE_KEY);Object.assign(data,initialState());ui.patientId=null;ui.visitId=null;setPage('home');toast('Demonstração limpa.');}}}
 function handleSubmit(event){
   const f=event.target;
