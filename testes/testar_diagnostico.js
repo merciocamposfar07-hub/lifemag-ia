@@ -33,6 +33,27 @@ async function tests(){
   ['sem Access, endpoint de diagnóstico não é público',async()=>{
    assert.equal((await worker.fetch(createRequest('/api/source-status'),env,{})).status,401);
   }],
+  ['pesquisa científica exige login e não chama Workers AI',async()=>{
+   const route='/api/science/search?q=fitoterapicos';
+   assert.equal((await worker.fetch(createRequest(route),env,{})).status,401);
+   aiCalls=0;
+   const withLibrary={...env,SCIENCE_LIBRARY:{
+     getByName:()=>({search:async()=>({status:'ok_official_overview',
+       reviewedCount:0,overviewCount:1,items:[{
+        id:'O1',title:'Formulário de Fitoterápicos 3ª edição',
+        abstract:'Sinopse institucional de formulações oficiais, sem doses clínicas individuais.',
+        url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/formulario-fitoterapico',
+        source:'Sinopse institucional',evidenceTier:'official_overview'
+       }]})})
+   }};
+   const response=await worker.fetch(createRequest(route),withLibrary,verified);
+   assert.equal(response.status,200);
+   const data=await response.json();
+   assert.equal(data.results[0].evidenceTier,'official_overview');
+   assert.equal(data.overviewCount,1);
+   assert.equal(data.reviewedCount,0);
+   assert.equal(aiCalls,0);
+  }],
   ['diagnóstico não executa nem cobra IA automaticamente',async()=>{
    aiCalls=0;
    const response=await worker.fetch(createRequest('/api/source-status'),env,verified);
