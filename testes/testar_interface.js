@@ -49,7 +49,7 @@ const cases = [
   }],
 
   ['autoteste da IA exige acionamento explícito', () => assert.match(js, /data-science-check="model"/)],
-  ['diagnóstico não é confundido com liberação de prontuário', () => assert.match(js, /not_ready_do_not_enter_real_patients|O teste do motor usa um caso fictício/)],
+  ['diagnóstico não é confundido com liberação de prontuário', () => assert.match(js, /not_ready_do_not_enter_real_patients|O teste do motor usa somente caso fictício/)],
   ['pesquisa avulsa não grava prontuário no navegador', () => assert.match(js, /if\(v!==anonymousResearch\)persist\(\)/)],
   ['questionamento científico usa API no mesmo domínio', () => assert.match(js, /fetch\('\/api\/assist'/)],
 
