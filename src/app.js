@@ -77,6 +77,7 @@ async function sendScientificQuestion(v,question,useConsensus=false){
       throw Error('Resposta incompleta. A análise não será registrada.');
     v.chat.push({id:uid('msg'),role:'assistant',text:result.answer.slice(0,16000),
       sources:result.sources.filter(allowedScientificReference).slice(0,8),
+      draft:result.draft&&typeof result.draft==='object'?result.draft:null,
       createdAt:new Date().toISOString(),requiresProfessionalReview:true});
     if(v!==anonymousResearch)persist();
     toast('Resposta recebida. Verifique as fontes e revise clinicamente.');
@@ -87,6 +88,49 @@ async function sendScientificQuestion(v,question,useConsensus=false){
     toast(reason);return false;
   }
   finally{aiSession.busy=false;render()}
+}
+
+// A IA não assina nem libera prescrições. O farmacêutico escolhe importar um
+// rascunho rastreável para revisão manual no Studio Magistral.
+function importFormulaDraft(message){
+  const v=visit(),d=message?.draft;
+  if(!v||!d||d.decision!=='draft'||!Array.isArray(d.ingredients)||!d.ingredients.length||
+      d.ingredients.some(x=>!x.dose_supported)||d.missing_information?.length||d.red_flags?.length){
+    toast('Rascunho não elegível: confirme dados clínicos e doses antes de importar.');
+    return;
+  }
+  if(v.ingredients.length&&!confirm('Substituir a composição atual por este rascunho da IA? A versão anterior será preservada no histórico.'))return;
+  v.revisions.push({savedAt:new Date().toISOString(),origin:'before_ai_draft_import',
+    ingredients:JSON.parse(JSON.stringify(v.ingredients)),formulaName:v.formulaName,posology:v.posology});
+  v.formulaName=String(d.formula_name||'Proposta magistral');
+  v.presentation=String(d.pharmaceutical_form||'');
+  v.quantity=String(d.quantity||'');
+  v.route=String(d.route||'');
+  v.posology=String(d.posology||'');
+  v.schedules=String(d.daily_schedule||'');
+  v.meals=String(d.meal_relation||'');
+  if(Number.isInteger(d.initial_duration_days)&&d.initial_duration_days>0)
+    v.duration=d.initial_duration_days;
+  v.observations=[
+    'Rascunho para revisão — não é receita emitida.',
+    d.extension_criteria?'Critérios de extensão: '+d.extension_criteria:'',
+    (d.monitoring||[]).length?'Monitoramento: '+d.monitoring.join('; '):'',
+    (d.interactions||[]).length?'Interações a verificar: '+d.interactions.join('; '):'',
+    (d.contraindications||[]).length?'Contraindicações a verificar: '+d.contraindications.join('; '):''
+  ].filter(Boolean).join('\n');
+  v.ingredients=d.ingredients.map(x=>({
+    id:uid('ing'),name:String(x.name||''),
+    dose:String(x.dose_value||''),unit:String(x.dose_unit||'mg'),
+    role:String(x.role||'OPCIONAL'),
+    target:String(x.rationale||''),
+    evidence:'Trechos recuperados: '+(x.references||[]).map(ref=>'['+ref+']').join(', ')+
+      '. Dose textual encontrada, ainda requer verificação individual.'
+  }));
+  v.aiDraftPendingReview=true;
+  v.aiDraftImportedAt=new Date().toISOString();
+  persist();
+  setPage('editor');
+  toast('Rascunho importado. Revise composição, doses, posologia e interações.');
 }
 
 const persist = () => { try{writeStore(data);}catch(e){toast('Não foi possível salvar no navegador.');}};
