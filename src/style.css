@@ -491,6 +491,12 @@ body{color:#122e49}
   .clinical-chat{min-height:0}
   .clinical-chat .chat-input textarea{min-height:75px;font-size:17px}
 }
+/* v0.4 — opção Consentida de aprofundamento Consensus */
+.research-page .consensus-option{display:flex;gap:10px;align-items:center;margin:10px 0 7px;
+ font-size:15px;color:#21425e;line-height:1.4}
+.research-page .consensus-option input{width:19px;height:19px;flex:0 0 auto;accent-color:#087f92}
+.research-page .consensus-option input:disabled{opacity:.5}
+
 /* v0.3.3 — SOMENTE Conversa Inteligente sem atendimento: layout compacto mobile.
    Não altera Home (v0.1.8), Cadastro, Editor nem outras telas. */
 .research-page{display:block}
