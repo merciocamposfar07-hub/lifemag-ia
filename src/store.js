@@ -52,7 +52,7 @@ function deletePatientRecord(state,patientId){
   state.visits=state.visits.filter(v=>v.patientId!==patientId);
   return {deleted:true,visitCount:count};
 }
-function createAnonymousFormulaDraft(state,source,label){
+function createAnonymousFormulaDraft(state,source,label,references=[]){
   const title=String(label||'').trim().slice(0,75);
   if(!title||!source||typeof source!=='object'||!Array.isArray(source.ingredients))
     return null;
@@ -67,6 +67,10 @@ function createAnonymousFormulaDraft(state,source,label){
     schedules:String(source.daily_schedule||'').slice(0,240),
     meals:String(source.meal_relation||'').slice(0,240),
     duration:Number.isInteger(source.initial_duration_days)?source.initial_duration_days:0,
+    sources:(Array.isArray(references)?references:[]).slice(0,10)
+      .filter(x=>typeof x.url==='string'&&/^https:\/\/(?:pubmed\.ncbi\.nlm\.nih\.gov|(?:www\.)?gov\.br|(?:www\.)?who\.int|(?:www\.)?consensus\.app|(?:www\.)?doi\.org)\//.test(x.url))
+      .map(x=>({id:String(x.id||'').slice(0,15),title:String(x.title||'').slice(0,200),
+        date:String(x.date||'').slice(0,20),url:x.url.slice(0,500)})),
     ingredients:source.ingredients.slice(0,16).map(x=>({
       name:String(x.name||'').slice(0,140),
       dose:String(x.dose_value||'').slice(0,50),
@@ -96,7 +100,8 @@ function linkAnonymousDraftToPatient(state,draftId,patientId){
     observations:'Rascunho importado de discussão anônima — revisão farmacêutica obrigatória.',
     protocol:'',ingredients:draft.ingredients.map(x=>({
       id:uid('ing'),name:x.name,dose:x.dose,unit:x.unit,role:x.role,
-      target:x.target,evidence:x.evidence
+      target:x.target,evidence:x.evidence+
+        (draft.sources?.length?' | Fontes: '+draft.sources.map(ref=>ref.url).join(' ; ').slice(0,1200):'')
     })),chat:[],revisions:[],
     aiDraftImportedAt:new Date().toISOString(),aiDraftPendingReview:true,
     originDraftId:draft.id};
