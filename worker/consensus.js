@@ -22,7 +22,7 @@ export async function searchConsensus(query,env,fetcher=fetch){
       .map((x,i)=>({
         id:'K'+(i+1),
         title:String(x.title||'Pesquisa científica').slice(0,240),
-        abstract:String(x.takeaway||'').slice(0,1400),
+        abstract:String(x.abstract||x.takeaway||'').slice(0,1800),
         journal:String(x.journal_name||'').slice(0,100),
         date:String(x.publish_year||'').slice(0,10),
         url:x.url,source:'Consensus API'
