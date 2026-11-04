@@ -7,6 +7,7 @@ import {FORMULA_SCHEMA,normalizeDraft,draftAsText} from './clinical-draft.js';
  * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
  * Nenhum texto clínico é registrado em logs.
  */
+const RELEASE='0.4.2';
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -230,7 +231,8 @@ async function scientificConnectivity(env){
       consensus:{status:env.CONSENSUS_API_KEY?'key_configured_not_tested':'not_configured'},
       workersAI:{status:env.AI&&typeof env.AI.run==='function'?'binding_configured_not_tested':'not_configured'},
       clinicalRecords:{status:'not_ready_do_not_enter_real_patients'},
-      serverTime:new Date().toISOString()
+      version:RELEASE,
+    serverTime:new Date().toISOString()
     };
   }
   let documents=0,passages=0,indexStatus=env.SCIENCE_DB?'configured_empty_or_unverified':'not_configured';
@@ -271,6 +273,7 @@ async function scientificConnectivity(env){
     consensus:{status:env.CONSENSUS_API_KEY?'key_configured_not_tested':'not_configured'},
     workersAI:{status:env.AI&&typeof env.AI.run==='function'?'binding_configured_not_tested':'not_configured'},
     clinicalRecords:{status:'not_ready_do_not_enter_real_patients'},
+    version:RELEASE,
     serverTime:new Date().toISOString()
   };
 }
@@ -356,7 +359,7 @@ export default {
     if(!identity)return reply({error:'Acesso profissional não autenticado pelo Cloudflare Access'},401);
     if(url.pathname==='/api/capabilities'&&request.method==='GET'){
       return reply({ready:!!env.AI,science:'Europe PMC (resumos indexados no PubMed)',
-        official:OFFICIAL,model:MODEL,clinicalRecordStorage:false,authenticated:true,
+        official:OFFICIAL,model:MODEL,version:RELEASE,clinicalRecordStorage:false,authenticated:true,
         internalScienceIndex:env.SCIENCE_LIBRARY?'durable_sqlite_configured':env.SCIENCE_DB?'binding_configured':'not_configured',consensus:env.CONSENSUS_API_KEY?'key_configured':'not_configured',
         formulaDraft:'structured_review_only'})
     }
