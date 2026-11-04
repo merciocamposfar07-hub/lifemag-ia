@@ -35,7 +35,7 @@ for(const [i,part] of manifest.sections.entries()){
 const out=[
  '-- SQL gerado para índice do LifeMag IA; revisar antes de executar;',
  '-- URL '+verifiedUrl.toString(),
- 'BEGIN TRANSACTION;',
+ '-- D1 já executa em transação implícita: não incluir BEGIN/COMMIT.',
  'DELETE FROM scientific_documents WHERE id='+sql(manifest.id)+';',
  'INSERT INTO scientific_documents(id,source_id,title,edition,official_url,issued_at,verified_at,reviewed_by,copyright_or_license,sha256,review_status)',
  'VALUES('+[manifest.id,manifest.sourceId,manifest.title,manifest.edition,manifest.officialUrl,
@@ -47,5 +47,5 @@ for(const [i,part] of manifest.sections.entries()){
     .map((v,n)=>n===2?String(i+1):sql(v)).join(',')+');');
 }
 out.push("UPDATE scientific_sources SET status='active' WHERE id="+sql(manifest.sourceId)+';');
-out.push('COMMIT;');
+// Sem COMMIT: Wrangler D1 controla a transação automaticamente.
 process.stdout.write(out.join('\n')+'\n');
