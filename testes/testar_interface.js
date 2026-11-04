@@ -42,6 +42,12 @@ const cases = [
   ['IA só habilita após verificação autenticada', () => assert.match(js, /aiSession\.ready=Boolean\(res\.ok&&info\.authenticated&&info\.ready\)/)],
   ['pesquisa anônima disponível sem cadastrar paciente', () => assert.match(js, /if\(!v\)return scientificOnly\(\)/)],
   ['Central Científica permite diagnóstico sem cadastrar paciente', () => assert.match(js, /data-science-check="sources"/)],
+  ['Central Científica permite pesquisar textos oficiais recuperados', () => {
+    assert.match(js,/id="science-search-form"/);
+    assert.match(js,/\/api\/science\/search\?q=/);
+    assert.match(js,/Sinopse institucional \(não é dose clínica\)/);
+  }],
+
   ['autoteste da IA exige acionamento explícito', () => assert.match(js, /data-science-check="model"/)],
   ['diagnóstico não é confundido com liberação de prontuário', () => assert.match(js, /not_ready_do_not_enter_real_patients|O teste do motor usa um caso fictício/)],
   ['pesquisa avulsa não grava prontuário no navegador', () => assert.match(js, /if\(v!==anonymousResearch\)persist\(\)/)],
