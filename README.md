@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** v0.3.3 • tela de IA compactada e recuperação PubMed corrigida no GitHub em 03/11/2026; execução real após publicação Cloudflare ainda não confirmada.
+**Status:** v0.4.0 • estrutura de proposta magistral e adaptador Consensus em 04/11/2026; integração dos compêndios no banco D1 e validação clínica ainda não concluídas.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -95,3 +95,12 @@ O histórico do planejamento original permanece nos documentos anteriores desta 
 - **Situação explícita:** a base D1 de monografias ainda NÃO está implantada, preenchida ou revisada. As referências da Anvisa existentes na Central Científica continuam apenas links até ingestão e verificação de suas monografias. Consensus não integrado.
 - **Validação:** 17 testes de lógica + 45 de interface + 12 de fluxos clínicos (74 verificações locais); 19 testes do Worker e 6 da futura base indexada também versionados nos workflows. Execução remota e resposta científica de ponta a ponta devem ser verificadas após a publicação Cloudflare.
 - **Pacientes reais:** continuam proibidos até banco clínico seguro, LGPD e validação técnica das propostas magistrais.
+
+## v0.4.0 — proposta de formulação e ampliação de fontes
+- Servidor usa Cloudflare Workers AI com resposta JSON estruturada para **composição, doses e formas químicas, MOTOR/COADJUVANTE/OPCIONAL, via, posologia, horários, refeições, duração, revisão e monitoramento**. A IA apresenta primeiro o quadro com campos de formulação quando os dados/evidências permitem.
+- A validação automática verifica referências e presença da dose no conteúdo recuperado, mas NÃO substitui verificação clínica, farmacotécnica ou aprovação profissional.
+- Em caso de informações insuficientes, não libera uma posologia personalizada.
+- Consensus API preparado como opção explícita. O recurso fica indisponível até haver chave própria em Cloudflare Secrets; não consome chamadas automaticamente.
+- A indexação oficial D1 permanece **não implantada e não preenchida**. Os sites Anvisa, Conitec, OMS, atividade física e nutrição continuam catálogo até ingestão de textos revisados.
+- Documentação e procedimento: `docs/ATIVACAO_FONTES_E_FORMULACOES.md`.
+- A quantidade manipulada e o preenchimento automático do editor a partir do rascunho ainda exigem etapa complementar.
