@@ -17,7 +17,7 @@ globalThis.fetch=async url=>{
 async function tests(){
  const {default:worker,searchEvidence,buildEuropePmcQuery}=await import('../worker/index.js');
  const env={
-  AI:{run:async()=>({response:'Revisão bibliográfica preliminar [1]. Validação profissional necessária.'})}
+  AI:{run:async()=>({response:{decision:'insufficient_info',objective:'revisão bibliográfica',formula_name:'Em avaliação',quantity:'a definir',pharmaceutical_form:'a definir',route:'a definir',ingredients:[],posology:'a definir',meal_relation:'a definir',daily_schedule:'a definir',initial_duration_days:0,reassessment_days:0,extension_criteria:'revisão profissional',monitoring:[],interactions:[],contraindications:[],missing_information:['necessária avaliação clínica'],red_flags:[],limitations:['fontes resumidas']}})}
  };
  const access={
   access:{aud:'aud-exclusivo-lifemag',getIdentity:async()=>({email:'farmaceutico@example.org'})}
@@ -168,6 +168,12 @@ async function tests(){
     assert.equal(out.draft.decision,'insufficient_info');
     assert.ok(out.draft.missing_information.length>=3);
     assert.ok(!out.answer.includes('POSOLOGIA: tomar diariamente'));
+  }],
+  ['saída livre não é aceita como proposta magistral',async()=>{
+    const r=await worker.fetch(request('/api/assist',{method:'POST',body:{
+      question:'Evidências de riboflavina e prevenção de enxaqueca em adultos'
+    }}),{...env,AI:{run:async()=>({response:'Um texto solto sem composição.'})}},access);
+    assert.equal(r.status,502);
   }],
   ['ausência de estudos impede resposta não fundamentada',async()=>{
     noArticles=true;
