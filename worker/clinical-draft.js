@@ -2,7 +2,7 @@
 export const FORMULA_SCHEMA={
  type:'object',properties:{
   decision:{type:'string',enum:['draft','insufficient_info','insufficient_evidence','red_flags']},
-  objective:{type:'string'},formula_name:{type:'string'},
+  objective:{type:'string'},formula_name:{type:'string'},quantity:{type:'string'},
   pharmaceutical_form:{type:'string'},route:{type:'string'},
   ingredients:{type:'array',items:{type:'object',properties:{
    name:{type:'string'},chemical_form:{type:'string'},dose_value:{type:'string'},
@@ -18,7 +18,7 @@ export const FORMULA_SCHEMA={
   red_flags:{type:'array',items:{type:'string'}},
   limitations:{type:'array',items:{type:'string'}}
  },required:['decision','objective','formula_name','pharmaceutical_form','route','ingredients',
- 'posology','meal_relation','daily_schedule','initial_duration_days','reassessment_days',
+ 'quantity','posology','meal_relation','daily_schedule','initial_duration_days','reassessment_days',
  'extension_criteria','monitoring','interactions','contraindications',
  'missing_information','red_flags','limitations']
 };
@@ -36,7 +36,13 @@ function doseSupported(x,sources){
  const sourceMap=new Map(sources.map(z=>[String(z.id),z]));
  return list(x.references,6).some(ref=>{
   const source=sourceMap.get(ref.replace(/[\[\]]/g,''));
-  return source&&pattern.test(String(source.abstract||''));
+  if(!source)return false;
+  const topic=(String(source.title||'')+' '+String(source.abstract||'')).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const ingredient=String(x.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const synonyms={riboflavina:'riboflavin',magnesio:'magnesium',cafeina:'caffeine',berberina:'berberine',coenzima:'coenzyme',melatonina:'melatonin',cromo:'chromium',zinco:'zinc',tirosina:'tyrosine'};
+  const root=ingredient.split(/\s+/).filter(Boolean)[0]||'';
+  const associated=root.length>=4&&(topic.includes(root)||topic.includes(synonyms[root]||'#n/a'));
+  return associated&&pattern.test(String(source.abstract||''));
  });
 }
 export function missingClinicalBasics(question){
@@ -81,7 +87,7 @@ export function normalizeDraft(raw,sources=[],question=''){
  else if((!ingredients.length||unverified.length)&&decision==='draft')decision='insufficient_evidence';
  const positiveDays=x=>Number.isInteger(x)&&x>0&&x<=365?x:null;
  return {
-  decision,objective:plain(raw.objective),formula_name:plain(raw.formula_name),
+  decision,objective:plain(raw.objective),formula_name:plain(raw.formula_name),quantity:plain(raw.quantity),
   pharmaceutical_form:plain(raw.pharmaceutical_form),route:plain(raw.route),ingredients,
   posology:plain(raw.posology),meal_relation:plain(raw.meal_relation),
   daily_schedule:plain(raw.daily_schedule),
@@ -107,11 +113,12 @@ export function draftAsText(d){
     ' | Via: '+(d.route||'a definir'),'COMPOSIÇÃO:'];
  if(!d.ingredients.length)lines.push('Sem substâncias suficientemente fundamentadas.');
  for(const item of d.ingredients){
-  const dose=item.dose_supported?item.dose_value+' '+item.dose_unit:'DOSE NÃO CONFIRMADA NAS FONTES';
+  const dose=item.dose_supported?(d.decision==='draft'?item.dose_value+' '+item.dose_unit:'Dose estudada '+item.dose_value+' '+item.dose_unit+' — ainda não individualizada'):'DOSE NÃO CONFIRMADA NAS FONTES';
   lines.push('• '+item.name+' ('+(item.chemical_form||'forma química pendente')+') — '+
     dose+' ['+item.role+']. '+item.rationale+
     ' Fontes: '+item.references.map(r=>'['+r+']').join(', '));
  }
+ lines.push('QUANTIDADE PARA MANIPULAR: '+(d.decision==='draft'?(d.quantity||'a definir'):'a definir'));
  lines.push('POSOLOGIA: '+(d.decision==='draft'?(d.posology||'a definir'):'NÃO DEFINIDA — confirmar dados clínicos e evidências'));
  lines.push('REFEIÇÕES: '+(d.decision==='draft'?(d.meal_relation||'a definir'):'a definir'));
  lines.push('HORÁRIOS: '+(d.decision==='draft'?(d.daily_schedule||'a definir'):'a definir'));
