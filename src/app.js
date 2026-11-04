@@ -356,9 +356,10 @@ function science(){
       '</strong><p>'+E(String(x.pubmed.articles||0))+' artigos com resumo recuperados'+
       (x.pubmed.sample?': '+E(x.pubmed.sample.title):'')+'</p></div>'+
       '<div class="listline"><strong>Índice oficial: '+E(x.officialIndex?.status||'desconhecido')+
-      '</strong><p>'+E(String(x.officialIndex?.approvedDocuments||0))+' documentos e '+
-      E(String(x.officialIndex?.approvedPassages||0))+' trechos aprovados</p></div>'+
-      (Array.isArray(x.officialIndex?.sources)?x.officialIndex.sources.map(src=>'<div class="listline"><strong>'+E(src.name)+'</strong><p>'+E(src.status)+' · '+E(String(src.approvedDocuments||0))+' documentos aprovados</p></div>').join(''):'')+
+      '</strong><p>'+E(String(x.officialIndex?.approvedDocuments||0))+' monografias/documentos completos aprovados; '+
+      E(String(x.officialIndex?.approvedPassages||0))+' trechos revisados; '+
+      E(String(x.officialIndex?.overviewSections||0))+' sínteses institucionais pesquisáveis (não monografias completas)</p></div>'+
+      (Array.isArray(x.officialIndex?.sources)?x.officialIndex.sources.map(src=>'<div class="listline"><strong>'+E(src.name)+'</strong><p>'+E(src.status)+' · '+E(String(src.approvedDocuments||0))+' documentos aprovados · '+E(String(src.overviewSections||0))+' sínteses disponíveis</p></div>').join(''):'')+
       '<div class="listline"><strong>Consensus: '+E(x.consensus?.status||'indisponível')+
       '</strong><p>Não são consumidas chamadas do Consensus neste diagnóstico.</p></div>'+
       '<div class="listline"><strong>Workers AI: '+E(x.workersAI?.status||'indisponível')+
@@ -373,8 +374,8 @@ function science(){
    }
  }
  const busy=scienceCheck.busy?'disabled':'';
- return pageHeader('Central de Atualização Científica','Conexões verificáveis do motor magistral · v0.4.2.')+
- '<div class="notice blue">Uma fonte só é considerada consultada quando o sistema consegue recuperar seus artigos ou trechos aprovados. O teste do motor usa um caso fictício e não envia prontuários.</div>'+
+ return pageHeader('Central de Atualização Científica','Conexões verificáveis do motor magistral · v0.4.4.')+
+ '<div class="notice blue">A biblioteca diferencia sinopses oficiais, documentos completos revisados e estudos PubMed. Uma síntese do catálogo não valida doses. O teste do motor usa somente caso fictício.</div>'+
  '<div class="panel"><h3>Diagnóstico de conexão</h3>'+
  '<p class="muted small">Verifique a recuperação de artigos gratuitamente. O autoteste completo também executa o modelo de IA e consome parte da franquia Workers AI.</p>'+
  '<div class="btnrow"><button type="button" class="btn primary" data-science-check="sources" '+busy+'>Verificar fontes</button>'+
