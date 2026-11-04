@@ -1,0 +1,42 @@
+name: LifeMag IA — importar documento cientifico revisado
+on:
+  workflow_dispatch:
+    inputs:
+      manifest:
+        description: "Arquivo JSON de trechos aprovados dentro de science/manifests/"
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: lifemag-science-d1-bootstrap
+  cancel-in-progress: false
+jobs:
+  importar:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      MANIFEST_FILE: ${{ inputs.manifest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar autorização e caminho do manifesto
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Secret CLOUDFLARE_API_TOKEN ausente"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Secret CLOUDFLARE_ACCOUNT_ID ausente"; exit 1; }
+          if [[ ! "$MANIFEST_FILE" =~ ^science/manifests/[a-z0-9-]+\.json$ ]]; then
+            echo "::error::O manifesto deve estar em science/manifests/ e não pode conter caminhos externos"
+            exit 1
+          fi
+          test -f "$MANIFEST_FILE" || { echo "::error::Manifesto não encontrado"; exit 1; }
+          node -e 'const c=require("./wrangler.json");if(c.name!=="lifemag-ia-clinico"||!c.d1_databases?.some(x=>x.binding==="SCIENCE_DB"&&x.database_name==="lifemag-ia-science"))process.exit(1)'
+      - name: Conferir revisão e gerar SQL (não confiar em PDFs automaticamente)
+        run: node scripts/preparar-indice-cientifico.mjs "$MANIFEST_FILE" > /tmp/lifemag-revisado.sql
+      - name: Importar apenas na base D1 isolada do LifeMag IA
+        run: npx --yes wrangler@4 d1 execute SCIENCE_DB --remote --yes --file=/tmp/lifemag-revisado.sql
+      - name: Validar total aprovado após importação
+        run: npx --yes wrangler@4 d1 execute SCIENCE_DB --remote --command="SELECT COUNT(*) AS aprovados FROM scientific_documents WHERE review_status='approved'"
