@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** v0.4.3 • caixa de IA horizontal responsiva, edição/exclusão de cadastros de demonstração, rascunhos anônimos vinculáveis e seletores temporários de exames; armazenamento clínico real ainda pendente.
+**Status:** v0.4.4 • primeira carga automática de 13 sínteses institucionais pesquisáveis via SQLite FTS5; PubMed via Europe PMC preservado, documentos completos e Consensus ainda pendentes.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -142,3 +142,12 @@ O histórico do planejamento original permanece nos documentos anteriores desta 
 - **Exames opcionais:** a interface oferece escolha de arquivo e câmera do iPhone, porém **somente pré-seleção temporária de metadados**. Nenhum exame clínico é armazenado, enviado ou permanentemente vinculado enquanto não existir backend protegido. A ausência de exame não bloqueia consulta.
 - A tela Home e o Portal CSC não sofreram alterações. A versão final precisa ser confirmada no Worker protegido após o build automático.
 - Revisão de fluxo e armazenamento: `docs/FLUXO_CADASTROS_RASCUNHOS_EXAMES.md`.
+
+## v0.4.4 — integração verificável das fontes oficiais
+- Criado `worker/official-overviews.js` com 13 sínteses originais de conteúdo verificado em páginas oficiais da Anvisa, Conitec, OMS e Ministério da Saúde. Bibliografia com edições e URLs explícitas.
+- O Durable Object SQLite semeia esse conteúdo automaticamente e o torna pesquisável por FTS5, sem precisar de importação manual para as **sínteses institucionais**.
+- **Dois níveis distintos:** sinopses institucionais (`official_overview_available`) servem ao contexto; monografias/PCDT completos (`content_retrievable`) só após revisão e importação. Sinopse nunca serve para validação automática de dose.
+- `GET /api/science/search?q=tema` e campo **Pesquisar conteúdo científico** na Central Científica permitem verificar diretamente o que foi recuperado, separando resultados por nível de evidência, sem gastar inferência.
+- PubMed online continua operacional em código. Consensus ainda depende da chave API pessoal; não declarar conexão ativa sem autenticação.
+- A Biblioteca Digital Anvisa bloqueou consulta automatizada de alguns PDFs (HTTP 403); a integração integral dos documentos depende de acesso permitido e ingestão validada.
+- Consulte `docs/SQLITE_CIENTIFICO_AUTOMATICO.md`. Publicação no Worker protegido deve ser conferida após o deploy GitHub.
