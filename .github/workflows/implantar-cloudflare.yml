@@ -27,6 +27,8 @@ jobs:
               exit 1
             fi
           done
+      - name: Preparar arquivos estáticos usados nos testes de integração
+        run: node scripts/build-worker.mjs
       - name: Verificar código e testes
         run: |
           node --check worker/index.js
@@ -35,6 +37,7 @@ jobs:
           node --check worker/consensus.js
           node --check testes/testar_formula.js
           node --check testes/testar_consensus.js
+          node --check testes/testar_diagnostico.js
           node --check scripts/preparar-indice-cientifico.mjs
           node --check testes/testar_fontes.js
           node testes/testar_logica.js
@@ -44,6 +47,7 @@ jobs:
           node testes/testar_fontes.js
           node testes/testar_formula.js
           node testes/testar_consensus.js
+          node testes/testar_diagnostico.js
       - name: Preparar assets com a Home aprovada
         run: node scripts/build-worker.mjs
       - name: Enviar Worker e assets à conta Cloudflare
