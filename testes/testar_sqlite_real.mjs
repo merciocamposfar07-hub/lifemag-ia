@@ -1,0 +1,78 @@
+// Teste do banco SQLite REAL, sem simular consultas SQL.
+// Executar em Node 22 com loader do runtime Cloudflare:
+// node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_sqlite_real.mjs
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {LifeMagScientificStore} from '../worker/science-do.js';
+
+const db=new DatabaseSync(':memory:');
+const sql={
+ exec(query,...args){
+  const stmt=String(query).trim();
+  if(stmt.startsWith('CREATE TABLE')){
+    db.exec(stmt);
+    return {toArray:()=>[],one:()=>undefined};
+  }
+  const prepared=db.prepare(stmt);
+  if(stmt.startsWith('SELECT')){
+    return {toArray:()=>prepared.all(...args),one:()=>prepared.get(...args)};
+  }
+  prepared.run(...args);
+  return {toArray:()=>[],one:()=>undefined};
+ }
+};
+const store=new LifeMagScientificStore({storage:{
+ sql,transactionSync:fn=>fn()
+}},{});
+const digest=async value=>{
+ const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
+ return Array.from(new Uint8Array(buf),x=>x.toString(16).padStart(2,'0')).join('');
+};
+const paragraph='As diretrizes da OMS sobre atividade física para adultos de 18 a 64 anos recomendam entre 150 e 300 minutos semanais de atividade aeróbica moderada ou 75 a 150 minutos de atividade vigorosa, com fortalecimento muscular ao menos duas vezes por semana.';
+const heading='Atividade física recomendada para adultos';
+const source={
+ id:'who-guideline-summary-2020',sourceId:'who',
+ title:'WHO guidelines on physical activity and sedentary behaviour',
+ edition:'2020',officialUrl:'https://www.who.int/publications/i/item/9789240015128',
+ license:'Resumo original de orientação pública — não reproduz o compêndio integral',
+ reviewer:'Revisão de teste profissional',verifiedAt:'2026-11-04',
+ reviewStatus:'approved',sections:[{heading,body:paragraph,sha256:await digest(paragraph)}],
+ sha256:await digest(heading+'\n'+paragraph+'\n')
+};
+let ok=0;
+const check=async(name,fn)=>{await fn();ok++;console.log('PASSOU:',name)};
+await check('SQLite criou biblioteca científica e catálogo de 8 fontes',async()=>{
+ const result=await store.status();
+ assert.equal(result.approvedDocuments,0);
+ assert.ok(result.sources.length>=8);
+ assert.equal(result.storage,'SQLite Durable Object');
+});
+await check('documento com hash falso não entra no SQLite',async()=>{
+ const result=await store.importReviewed({...source,sha256:'0'.repeat(64)});
+ assert.equal(result.ok,false);
+ assert.equal((await store.status()).approvedDocuments,0);
+});
+await check('fonte não oficial é recusada',async()=>{
+ const result=await store.importReviewed({...source,officialUrl:'https://not-trusted.example/faq'});
+ assert.equal(result.ok,false);
+});
+await check('documento oficial e trecho verificados entram no SQLite REAL',async()=>{
+ const result=await store.importReviewed(source);
+ assert.equal(result.ok,true);
+ const after=await store.status();
+ assert.equal(after.approvedDocuments,1);
+ assert.equal(after.approvedPassages,1);
+});
+await check('FTS5 recupera trecho oficial com metadados da edição',async()=>{
+ const result=await store.search('atividade física adultos');
+ assert.equal(result.status,'ok');
+ assert.equal(result.items.length,1);
+ assert.match(result.items[0].abstract,/150 e 300 minutos/);
+ assert.equal(result.items[0].url,source.officialUrl);
+});
+await check('não retorna trecho quando a pergunta é alheia ao documento',async()=>{
+ const result=await store.search('riboflavina enxaqueca');
+ assert.equal(result.items.length,0);
+});
+console.log('SQLite REAL: '+ok+'/6 verificações concluídas, sem simulação do banco.');
+db.close();
