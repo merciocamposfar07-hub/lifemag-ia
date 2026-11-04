@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {default:worker}=await import('../worker/index.js');
+let worker;
 const origin='https://lifemag-ia-clinico.example.com';
 const verified={access:{aud:'aud-do-lifemag',getIdentity:async()=>({email:'farmaceutico@example.org'})}};
 const oldFetch=globalThis.fetch;
@@ -28,6 +28,7 @@ const env={AI:{run:async()=>{aiCalls++;return {response:formula}}},
  SCIENCE_DB:fakeDatabase};
 const createRequest=(route,method='GET')=>new Request(origin+route,{method});
 async function tests(){
+ ({default:worker}=await import('../worker/index.js'));
  const cases=[
   ['sem Access, endpoint de diagnóstico não é público',async()=>{
    assert.equal((await worker.fetch(createRequest('/api/source-status'),env,{})).status,401);
@@ -68,4 +69,4 @@ async function tests(){
  }
  console.log('Diagnóstico científico:',passed,'/',cases.length,'falhas:',failed);
 }
-try{await tests()}finally{globalThis.fetch=oldFetch}
+tests().finally(()=>{globalThis.fetch=oldFetch});
