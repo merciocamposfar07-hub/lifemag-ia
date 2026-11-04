@@ -39,6 +39,7 @@ jobs:
           node --check testes/testar_consensus.js
           node --check testes/testar_diagnostico.js
           node --check scripts/preparar-indice-cientifico.mjs
+          node --check testes/testar_preparo_d1.js
           node --check testes/testar_fontes.js
           node testes/testar_logica.js
           node testes/testar_interface.js
@@ -48,6 +49,7 @@ jobs:
           node testes/testar_formula.js
           node testes/testar_consensus.js
           node testes/testar_diagnostico.js
+          node testes/testar_preparo_d1.js
       - name: Preparar assets com a Home aprovada
         run: node scripts/build-worker.mjs
       - name: Enviar Worker e assets à conta Cloudflare
