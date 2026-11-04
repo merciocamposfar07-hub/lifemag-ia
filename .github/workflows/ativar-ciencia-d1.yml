@@ -43,6 +43,7 @@ jobs:
           node scripts/build-worker.mjs
           node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_ia.js
           node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_diagnostico.js
+          node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_sqlite_real.mjs
           node testes/testar_preparo_d1.js
           node testes/testar_fontes.js
           node testes/testar_formula.js
