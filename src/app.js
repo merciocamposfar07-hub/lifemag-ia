@@ -35,7 +35,7 @@ const data = readStore();
 const VALID_PAGES = ['home','patients','conversation','editor','formulas','prescriptions','followup','simulator','science','docs','settings'];
 const pageFromUrl = () => { const page = decodeURIComponent(location.hash.replace(/^#\//,'')); return VALID_PAGES.includes(page) ? page : 'home'; };
 const ui = { page:pageFromUrl(), patientId:null, visitId:null, notices:[], search:'', toastTimer:0, doc:'prescription' };
-const anonymousResearch={chat:[]};
+const anonymousResearch={chat:[],currentDraftId:null};
 const aiSession={ready:false,checked:false,busy:false,consensusReady:false,indexReady:false,message:'Servidor de IA ainda não conectado.'};
 const scienceCheck={busy:false,diagnostics:null,error:null,lastCheck:null};
 async function initializeScientificAssistant(){
@@ -189,7 +189,7 @@ function home() {
   <div class="section-heading"><h2>Seu acompanhamento</h2><button class="btn compact" data-page="followup">Ver todos ${I('arrow',17)}</button></div>
   <div class="cols-2"><div class="panel"><div class="panel-title"><h3>Atendimentos recentes</h3><span class="pill">${data.visits.length} no protótipo</span></div>${data.visits.length?latestVisits().slice(0,4).map(v=>visitRow(v)).join(''):empty('Nenhum atendimento salvo','Cadastre um paciente fictício para começar.','calendar')}</div><div class="panel"><div class="panel-title"><h3>Alertas previstos</h3><span class="badge ${due.length?'warn':'ok'}">${due.length?due.length+' atenção':'Sem alertas'}</span></div>${due.length?due.slice(0,3).map(v=>alertRow(v)).join(''):empty('Nenhum alerta vencendo','Os lembretes serão calculados pela data real de início.','bell')}<div class="notice blue">${I('info',17)} Demonstração local. Ainda sem IA clínica ou notificações externas.</div></div></div>`;
 }
-function patientCard(p){const visits=data.visits.filter(v=>v.patientId===p.id).length;return `<div class="person-row ${ui.patientId===p.id?'active':''}"><div><strong>${E(p.name)}</strong><br><span>${E(p.phone||'Sem telefone')} · ${visits} atendimento(s)</span></div><button class="btn compact" data-select-patient="${p.id}">${I('arrow',15)}</button></div>`;}
+function patientCard(p){const visits=data.visits.filter(v=>v.patientId===p.id).length;return `<div class="person-row ${ui.patientId===p.id?'active':''}"><div><strong>${E(p.name)}</strong><br><span>${E(p.phone||'Sem telefone')} · ${visits} atendimento(s)</span></div><button class="btn compact" data-select-patient="${p.id}">${I('edit',15)} Editar</button></div>`;}
 function patients(){const p=patient();return pageHeader('Pacientes','Cadastre informações essenciais e mantenha o histórico associado ao paciente.',`<button class="btn primary" data-action="new-visit">${I('plus')} Novo atendimento</button>`)+`<div class="top-panels"><div class="panel"><h3>Lista de pacientes</h3><div class="field"><label>Buscar pelo nome ou telefone</label><input id="patient-filter" value="${E(ui.search)}" placeholder="Buscar..." /></div><div class="menu-rows" id="patient-results" style="margin-top:13px">${data.patients.filter(x=>(x.name+' '+x.phone).toLowerCase().includes(ui.search.toLowerCase())).map(patientCard).join('')||empty('Nenhum paciente','Use o formulário para cadastrar.')}</div></div>
 <div class="panel"><div class="panel-title"><h3>${p?'Cadastro selecionado':'Novo cadastro'}</h3>${p?`<button class="btn compact" data-action="clear-patient">Novo</button>`:''}</div><form id="patient-form"><div class="form-grid">${field('name','Nome completo',p?.name||'',true)}${field('phone','Telefone',p?.phone||'',true,'tel')}${field('dob','Data de nascimento',p?.dob||'',false,'date')}${field('address','Endereço do paciente',p?.address||'')}${field('weight','Peso (kg)',p?.weight||'',false,'number')}${field('height','Altura (cm)',p?.height||'',false,'number')}<div class="field full"><label for="patient-notes">Observações gerais do cadastro (dados fictícios)</label><textarea id="patient-notes" name="notes" placeholder="Informações gerais; a avaliação clínica é preenchida a cada atendimento.">${E(p?.notes||'')}</textarea></div></div><div class="form-actions"><button class="btn primary" type="submit">${I('check')} ${p?'Salvar alterações':'Cadastrar paciente'}</button></div></form>${p?`<div class="form-actions clinical-start"><button class="btn primary" type="button" data-action="new-visit">${I('plus')} Iniciar avaliação clínica</button></div><hr class="divider"><h3>Atendimentos desse paciente</h3>${data.visits.filter(v=>v.patientId===p.id).map(visitRow).join('')||'<p class="muted small">Ainda não há atendimentos.</p>'}`:''}<div class="notice blue">Somente demonstração com dados fictícios. Nenhum cadastro é importado de outro sistema.</div></div></div>`;}
 function field(name,label,val='',required=false,type='text'){return `<div class="field"><label for="${name}">${label}${required?' *':''}</label><input id="${name}" name="${name}" type="${type}" ${type==='number'?'step="any"':''} value="${E(val)}" ${required?'required':''}></div>`;}
@@ -200,6 +200,86 @@ function clinicalField(name,label,value,hint=''){return `<div class="field full"
 function assessmentPanel(v){const a=normalizeClinicalAssessment(v.assessment);return `<details class="clinical-assessment panel" open><summary>Ficha de avaliação clínica — atendimento de ${fmtDate(v.date)}</summary><div class="notice blue">Preenchimento manual pelo farmacêutico. Esta versão aceita somente dados fictícios e não realiza diagnóstico automático.</div><form id="assessment-form"><div class="form-grid">${clinicalField('chiefComplaint','Motivo da consulta e objetivo clínico',a.chiefComplaint,'Descreva a necessidade apresentada')}${clinicalField('symptoms','Sintomas, duração e evolução',a.symptoms)}${clinicalField('clinicalHistory','Histórico e condições clínicas',a.clinicalHistory)}${clinicalField('medications','Medicamentos em uso',a.medications,'Inclua doses quando conhecidas')}${clinicalField('allergies','Alergias e reações adversas',a.allergies,'Informe não relatado, se for o caso')}${clinicalField('labResults','Exames e resultados relevantes',a.labResults)}${clinicalField('riskFactors','Contraindicações, restrições e fatores de risco',a.riskFactors)}${clinicalField('followUpPlan','Conduta planejada e reavaliação',a.followUpPlan)}</div><div class="form-actions"><button class="btn primary" type="submit">${I('check')} Salvar avaliação</button><button class="btn" type="button" data-page="editor">Abrir Studio Magistral ${I('arrow',16)}</button></div></form></details>`;}
 function clinicalAssessmentSummary(v){const a=normalizeClinicalAssessment(v.assessment);return `<div class="clinical-summary"><p><strong>Objetivo:</strong> ${E(a.chiefComplaint||'Não informado')}</p><p><strong>Medicamentos:</strong> ${E(a.medications||'Não informado')}</p><p><strong>Alergias:</strong> ${E(a.allergies||'Não informado')}</p><p><strong>Riscos:</strong> ${E(a.riskFactors||'Não informado')}</p><button class="btn compact" type="button" data-page="conversation">Revisar avaliação clínica</button></div>`;}
 
+function renderAnonymousDrafts(){
+  const items=Array.isArray(data.anonymousDrafts)?data.anonymousDrafts:[];
+  if(!items.length)return '';
+  return '<section class="panel anonymous-drafts" aria-label="Rascunhos anônimos">'+
+    '<h3>Rascunhos de formulações sem cadastro</h3>'+
+    '<p class="muted small">Identifique apenas como Caso 01, Caso 02 etc. Não registre nomes ou exames reais neste armazenamento demonstrativo.</p>'+
+    items.map(d=>'<div class="draft-list-item"><div><strong>'+E(d.label)+'</strong><p>'+
+      E(d.formulaName)+' · '+E(String(d.ingredients?.length||0))+' substância(s)'+
+      (d.linkedPatientId?' · já vinculado a cadastro demonstrativo':' · sem paciente')+'</p></div>'+
+      '<div class="draft-buttons"><button type="button" class="btn compact" data-open-anon-draft="'+E(d.id)+'">Reabrir na IA</button>'+
+      (d.linkedPatientId?'':(data.patients.length?
+        '<select aria-label="Vincular a paciente de demonstração" data-draft-patient="'+E(d.id)+'">'+
+        '<option value="">Selecionar paciente...</option>'+
+        data.patients.map(p=>'<option value="'+E(p.id)+'">'+E(p.name)+'</option>').join('')+
+        '</select><button type="button" class="btn compact" data-link-anon-draft="'+E(d.id)+'">Vincular e revisar</button>':
+        '<button type="button" class="btn compact" data-page="patients">Cadastrar paciente</button>'))+
+      '<button type="button" class="btn compact danger" data-delete-anon-draft="'+E(d.id)+'">Excluir</button></div></div>').join('')+'</section>';
+}
+function saveAnonymousCase(messageId){
+  const message=anonymousResearch.chat.find(m=>m.id===messageId);
+  if(!message?.draft){toast('A IA ainda não produziu um rascunho estruturado.');return}
+  const count=(data.anonymousDrafts||[]).length+1;
+  const label=prompt('Código do rascunho sem nome real (ex.: Caso 01):','Caso '+String(count).padStart(2,'0'));
+  if(label===null)return;
+  if(!/^Caso(?:\s|-)[A-Za-z0-9_-]{1,24}$/i.test(String(label).trim())){
+    toast('Use um código como Caso 01, sem nome ou identificação de paciente.');return
+  }
+  const d=createAnonymousFormulaDraft(data,message.draft,label);
+  if(!d){toast('Não foi possível salvar a proposta.');return}
+  anonymousResearch.currentDraftId=d.id;
+  persist();render();
+  toast('Rascunho anônimo salvo para continuar ou vincular depois.');
+}
+function openAnonymousCase(draftId){
+  const draft=(data.anonymousDrafts||[]).find(d=>d.id===draftId);
+  if(!draft)return;
+  anonymousResearch.currentDraftId=draft.id;
+  const details=[
+    'Rascunho salvo: '+draft.label,
+    'Formulação: '+draft.formulaName,
+    ...draft.ingredients.map(x=>'• '+x.name+' '+x.dose+' '+x.unit+' ['+x.role+']'),
+    'Posologia registrada: '+(draft.posology||'a definir'),
+    'Duração prevista: '+(draft.duration||'a definir')+' dias',
+    'Revisão profissional ainda necessária.'
+  ].join('\n');
+  anonymousResearch.chat=[{id:uid('msg'),role:'assistant',text:details,sources:[]}];
+  setPage('conversation');
+}
+function linkAnonymousCase(draftId){
+  const select=document.querySelector('[data-draft-patient="'+draftId+'"]');
+  const patientId=select?.value;
+  if(!patientId){toast('Selecione primeiro um paciente cadastrado.');return}
+  if(!confirm('Vincular este rascunho ao cadastro demonstrativo selecionado? A revisão profissional continuará obrigatória.'))return;
+  const v=linkAnonymousDraftToPatient(data,draftId,patientId);
+  if(!v){toast('Não foi possível vincular o rascunho.');return}
+  useVisit(v);
+  persist();setPage('editor');
+}
+function deleteAnonymousCase(draftId){
+  const record=(data.anonymousDrafts||[]).find(d=>d.id===draftId);
+  if(!record)return;
+  if(!confirm('Excluir definitivamente o rascunho '+record.label+'? Esta ação não apaga atendimentos já vinculados.'))return;
+  data.anonymousDrafts=data.anonymousDrafts.filter(d=>d.id!==draftId);
+  if(anonymousResearch.currentDraftId===draftId)anonymousResearch.currentDraftId=null;
+  persist();render();
+}
+function deleteSelectedPatient(){
+  const p=patient();
+  if(!p)return;
+  const count=data.visits.filter(v=>v.patientId===p.id).length;
+  if(!confirm('EXCLUIR '+p.name+' e '+count+' atendimento(s) associado(s)? Essa exclusão é permanente neste protótipo.'))return;
+  const result=deletePatientRecord(data,p.id);
+  if(!result.deleted)return;
+  for(const d of data.anonymousDrafts||[]){
+    if(d.linkedPatientId===p.id){d.linkedPatientId=null;d.linkedVisitId=null}
+  }
+  ui.patientId=null;ui.visitId=null;
+  persist();render();toast('Cadastro e atendimentos demonstrativos excluídos.');
+}
+
 function scientificOnly(){
   const online=aiSession.ready;
   const indicator=online?'Motor de IA habilitado':'IA ainda indisponível';
@@ -209,7 +289,7 @@ function scientificOnly(){
       ?'<div class="chat-sources"><strong>Fontes recuperadas:</strong>'+
         m.sources.map(ref=>'<a target="_blank" rel="noopener noreferrer" href="'+E(ref.url)+'">'+E(ref.title||'PubMed')+'</a>').join('')+'</div>'
       :'';
-    return '<article class="chat-bubble '+(m.role==='assistant'?'assistant':'user')+'"><div class="chat-label">'+label+'</div><div class="chat-text">'+E(m.text)+'</div>'+sources+'</article>';
+    return '<article class="chat-bubble '+(m.role==='assistant'?'assistant':'user')+'"><div class="chat-label">'+label+'</div><div class="chat-text">'+E(m.text)+'</div>'+sources+(m.role==='assistant'&&m.draft?'<button type="button" class="btn compact" data-save-anon-draft="'+E(m.id)+'">Salvar proposta como rascunho anônimo</button>':'')+'</article>';
   }).join('');
   const disabled=aiSession.busy?'disabled':'';
   const submitLabel=aiSession.busy?'Consultando fontes...':I('send');
@@ -226,6 +306,7 @@ function scientificOnly(){
     '<p class="research-privacy">Somente perguntas anônimas. Sem idade, medicamentos, alergias ou evidência suficiente, a IA deve indicar o que falta antes de liberar doses.</p>'+
     (history?'<div class="research-history" role="log" aria-live="polite">'+history+'</div>':'')+
     '</div>'+
+    renderAnonymousDrafts()+
     '<details class="research-visits"><summary>Atendimentos e formulações (opcional)</summary>'+pickVisit()+'</details>'+
     '</section>';
 }
