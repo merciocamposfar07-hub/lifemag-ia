@@ -49,3 +49,5 @@ jobs:
           node testes/testar_consensus.js
           node testes/testar_diagnostico.js
           node testes/testar_preparo_d1.js
+      - name: Testar recuperação REAL de artigos PubMed pela internet
+        run: node testes/testar_evidencias_reais.mjs
