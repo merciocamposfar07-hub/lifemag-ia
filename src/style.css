@@ -646,5 +646,34 @@ body{color:#122e49}
   }
 }
 
+
+/* v0.4.3 — gestão demonstrativa de rascunhos e pré-seleção de exames */
+.anonymous-drafts{margin:14px 0}
+.anonymous-drafts h3{margin-bottom:6px}
+.draft-list-item{display:flex;flex-wrap:wrap;gap:12px;align-items:center;
+  justify-content:space-between;padding:13px 0;border-top:1px solid #d9e7ee}
+.draft-list-item strong{font-size:17px;color:#123a58}
+.draft-list-item p{font-size:15px;margin:5px 0;color:#3d5c75}
+.draft-buttons{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.draft-buttons select{min-height:44px;max-width:100%;font-size:16px;
+  border:1px solid #9bbbd0;border-radius:10px;padding:7px 10px;background:#fff}
+.exam-selection{border-top:1px solid #d7e3ec;margin-top:18px;padding-top:15px}
+.exam-selection h3{font-size:19px;margin:0 0 5px}
+.exam-selection .btnrow{display:flex;flex-wrap:wrap;gap:10px}
+.exam-picker{position:relative;display:inline-flex;align-items:center;
+  justify-content:center;cursor:pointer;min-height:46px;font-size:16px}
+.exam-picker input[type=file]{position:absolute;width:1px;height:1px;
+  clip:rect(0 0 0 0);overflow:hidden;opacity:0}
+.exam-picker:focus-within{outline:3px solid #12a0a4;outline-offset:2px}
+.research-page .research-history .btn{margin-top:10px;max-width:100%;
+  white-space:normal;font-size:15px;line-height:1.4}
+@media(max-width:760px){
+  .draft-list-item{align-items:stretch;flex-direction:column}
+  .draft-buttons{flex-direction:column;align-items:stretch;width:100%}
+  .draft-buttons select,.draft-buttons .btn{width:100%;text-align:center;min-height:47px}
+  .exam-selection .btnrow{flex-direction:column}
+  .exam-picker{width:100%}
+}
+
 @media print{ @page{size:A4;margin:13mm 13mm 14mm}body{background:#fff;color:#142b47}.app-shell,.bottomnav,.toast{display:none!important}#print-root{display:block!important}.print-page{font:11pt/1.45 Arial,sans-serif;color:#182a43}.print-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #10b6b0;padding-bottom:14px;margin-bottom:20px}.print-head img{width:67px;height:67px;object-fit:contain;border-radius:12px}.print-head strong{font-size:18pt;display:block;color:#0b315a}.print-head small{display:block;font-size:9pt;color:#50657c}.print-institution{font-size:9pt;margin-top:4px}.print-h{font-size:16pt;color:#0e365a;text-align:center;border-bottom:1px solid #dae9ee;padding-bottom:12px;margin-bottom:17px}.print-section{padding:8px 0;border-bottom:1px solid #e2eaf2}.print-label{font-weight:700;color:#174568}.print-table{width:100%;border-collapse:collapse;margin:14px 0}.print-table td,.print-table th{border-bottom:1px solid #dce7ef;padding:8px;text-align:left}.print-foot{margin-top:55px;text-align:center}.print-sign{border-top:1px solid #52687d;display:inline-block;padding:6px 35px 0}.print-note{font-size:9pt;color:#a45324;margin:8px 0}}
 
