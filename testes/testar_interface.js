@@ -41,6 +41,9 @@ const cases = [
   ['home móvel sem cabeçalho duplicado', () => assert.match(css, /\.app-shell\.is-home \.topbar\{display:none\}/)],
   ['IA só habilita após verificação autenticada', () => assert.match(js, /aiSession\.ready=Boolean\(res\.ok&&info\.authenticated&&info\.ready\)/)],
   ['pesquisa anônima disponível sem cadastrar paciente', () => assert.match(js, /if\(!v\)return scientificOnly\(\)/)],
+  ['Central Científica permite diagnóstico sem cadastrar paciente', () => assert.match(js, /data-science-check="sources"/)],
+  ['autoteste da IA exige acionamento explícito', () => assert.match(js, /data-science-check="model"/)],
+  ['diagnóstico não é confundido com liberação de prontuário', () => assert.match(js, /not_ready_do_not_enter_real_patients|O teste do motor usa um caso fictício/)],
   ['pesquisa avulsa não grava prontuário no navegador', () => assert.match(js, /if\(v!==anonymousResearch\)persist\(\)/)],
   ['questionamento científico usa API no mesmo domínio', () => assert.match(js, /fetch\('\/api\/assist'/)],
 
