@@ -32,6 +32,7 @@ jobs:
           node --check worker/consensus.js
           node --check testes/testar_formula.js
           node --check testes/testar_consensus.js
+          node --check testes/testar_diagnostico.js
           node --check scripts/preparar-indice-cientifico.mjs
           node --check testes/testar_fontes.js
           node --check testes/testar_ia.js
@@ -45,3 +46,4 @@ jobs:
           node testes/testar_fontes.js
           node testes/testar_formula.js
           node testes/testar_consensus.js
+          node testes/testar_diagnostico.js
