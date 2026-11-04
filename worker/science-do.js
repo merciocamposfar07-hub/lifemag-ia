@@ -113,7 +113,9 @@ export class LifeMagScientificStore extends DurableObject{
     !allowedOfficialUrl(manifest.officialUrl)||
     !/^[a-z0-9-]{4,80}$/.test(str(manifest.id,100))||
     !Array.isArray(manifest.sections)||!manifest.sections.length||
-    !str(manifest.reviewer,120)||!str(manifest.license,200)||
+    !str(manifest.reviewer,120)||str(manifest.license,200).length<7||
+    !str(manifest.title,300)||!str(manifest.edition,100)||
+    !/^\d{4}-\d{2}-\d{2}$/.test(str(manifest.verifiedAt,15))||
     !/^[a-f0-9]{64}$/i.test(str(manifest.sha256,64)))
    return {ok:false,error:'Origem, licença, hash ou revisão documental inválidos'};
   const source=this.sql.exec('SELECT id FROM sources WHERE id=?',str(manifest.sourceId,100)).toArray();
