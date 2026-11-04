@@ -149,6 +149,9 @@ function setPage(next){
   ui.page=next;
   render();
   scrollTo(0,0);
+  // Ao entrar na Central Científica, consulta automaticamente as fontes (sem gasto de IA).
+  if(next==='science'&&aiSession.ready&&!scienceCheck.lastCheck&&!scienceCheck.busy)
+    void checkScientificServices('sources');
 }
 function useVisit(v){ui.visitId=v.id;ui.patientId=v.patientId;}
 function startVisit(pid){if(!pid){toast('Cadastre ou selecione um paciente antes de começar.');setPage('patients');return;}const v={id:uid('at'),patientId:pid,date:yyyyMmDd(),startDate:yyyyMmDd(),assessment:emptyClinicalAssessment(),duration:15,status:'em acompanhamento',formulaName:'Nova formulação',presentation:'Cápsulas',route:'Oral',quantity:'',posology:'',schedules:'',meals:'',observations:'',protocol:'',ingredients:[],chat:[],revisions:[]};data.visits.push(v);persist();useVisit(v);setPage('conversation');toast('Atendimento criado. Descreva a necessidade clínica.');}
