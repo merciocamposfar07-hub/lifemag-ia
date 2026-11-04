@@ -367,6 +367,20 @@ async function submitScientificManifest(form){
  if(file.size>500000){toast('Manifesto excede 500 KB. Divida o documento.');return}
  try{
   const manifest=JSON.parse(await file.text());
+  if(manifest.reviewStatus!=='approved'||!Array.isArray(manifest.sections)||
+     !manifest.sections.length)
+    throw Error('Manifesto sem aprovação ou trechos revisados');
+  const hash=async input=>{
+    const bytes=new TextEncoder().encode(String(input));
+    const buffer=await crypto.subtle.digest('SHA-256',bytes);
+    return Array.from(new Uint8Array(buffer),n=>n.toString(16).padStart(2,'0')).join('');
+  };
+  let allContent='';
+  for(const section of manifest.sections){
+    section.sha256=await hash(String(section.body||'').trim());
+    allContent+=String(section.heading||'').trim()+'\n'+String(section.body||'').trim()+'\n';
+  }
+  manifest.sha256=await hash(allContent);
   const res=await fetch('/api/science/import-reviewed',{method:'POST',
    credentials:'same-origin',headers:{'content-type':'application/json','accept':'application/json'},
    body:JSON.stringify({manifest,attestation:true})});
