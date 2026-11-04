@@ -41,8 +41,8 @@ jobs:
           node --check scripts/configurar-binding-cientifico.mjs
           node --check worker/index.js
           node scripts/build-worker.mjs
-          node testes/testar_ia.js
-          node testes/testar_diagnostico.js
+          node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_ia.js
+          node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_diagnostico.js
           node testes/testar_preparo_d1.js
           node testes/testar_fontes.js
           node testes/testar_formula.js
