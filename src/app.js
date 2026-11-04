@@ -221,8 +221,8 @@ function scientificOnly(){
     '<p class="research-intro">Descreva o objetivo terapêutico e os dados clínicos anônimos disponíveis. A IA entregará primeiro uma proposta magistral estruturada, sujeita à revisão profissional.</p>'+
     '<form id="research-form" class="chat-input research-input">'+
     '<textarea name="message" maxlength="2500" rows="3" required placeholder="Ex.: Quais evidências existem para riboflavina na prevenção da enxaqueca?"></textarea>'+
-    '<button type="submit" class="btn primary" '+disabled+' aria-label="Gerar proposta de formulação baseada em evidências">'+submitLabel+'</button></form>'+
-    '<label class="consensus-option"><input type="checkbox" name="useConsensus" '+(aiSession.consensusReady?'':'disabled')+'/> Incluir Consensus nesta consulta'+(aiSession.consensusReady?' (consome chamadas da cota)':' (API ainda não configurada)')+'</label>'+
+    '<button type="submit" class="btn primary" '+disabled+' aria-label="Gerar proposta de formulação baseada em evidências">'+submitLabel+'</button>'+
+    '<label class="consensus-option"><input type="checkbox" name="useConsensus" value="on" '+(aiSession.consensusReady?'':'disabled')+'/> Incluir Consensus nesta consulta'+(aiSession.consensusReady?' (consome chamadas da cota)':' (API ainda não configurada)')+'</label></form>'+
     '<p class="research-privacy">Somente perguntas anônimas. Sem idade, medicamentos, alergias ou evidência suficiente, a IA deve indicar o que falta antes de liberar doses.</p>'+
     (history?'<div class="research-history" role="log" aria-live="polite">'+history+'</div>':'')+
     '</div>'+
