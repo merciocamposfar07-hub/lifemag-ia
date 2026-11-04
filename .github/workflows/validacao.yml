@@ -34,6 +34,7 @@ jobs:
           node --check testes/testar_consensus.js
           node --check testes/testar_diagnostico.js
           node --check scripts/preparar-indice-cientifico.mjs
+          node --check testes/testar_preparo_d1.js
           node --check testes/testar_fontes.js
           node --check testes/testar_ia.js
       - name: Executar testes
@@ -47,3 +48,4 @@ jobs:
           node testes/testar_formula.js
           node testes/testar_consensus.js
           node testes/testar_diagnostico.js
+          node testes/testar_preparo_d1.js
