@@ -205,6 +205,59 @@ async function analyze(request,env){
       model:MODEL,requiresProfessionalReview:true});
   }catch(_){return reply({error:'A IA não respondeu; nenhuma recomendação foi produzida'},502)}
 }
+// Verificação real solicitada pelo farmacêutico. Sem dados de pacientes e sem gasto de IA em GET.
+async function scientificConnectivity(env){
+  const pubmed=await searchEvidence('riboflavin migraine');
+  let documents=0,passages=0,indexStatus=env.SCIENCE_DB?'configured_empty_or_unverified':'not_configured';
+  if(env.SCIENCE_DB&&typeof env.SCIENCE_DB.prepare==='function'){
+    try{
+      const totals=await env.SCIENCE_DB.prepare(
+        "SELECT COUNT(DISTINCT d.id) AS documents,COUNT(p.id) AS passages "+
+        "FROM scientific_documents d JOIN scientific_sources s ON s.id=d.source_id "+
+        "JOIN scientific_passages p ON p.document_id=d.id "+
+        "WHERE d.review_status='approved' AND s.status='active'"
+      ).first();
+      documents=Math.max(0,Number(totals?.documents)||0);
+      passages=Math.max(0,Number(totals?.passages)||0);
+      if(documents&&passages)indexStatus='approved_content_available';
+    }catch(_){indexStatus='database_error'}
+  }
+  return {
+    pubmed:{status:pubmed.status,articles:pubmed.items.length,
+      sample:pubmed.items[0]?{title:pubmed.items[0].title,url:pubmed.items[0].url}:null},
+    officialIndex:{status:indexStatus,approvedDocuments:documents,approvedPassages:passages},
+    consensus:{status:env.CONSENSUS_API_KEY?'key_configured_not_tested':'not_configured'},
+    workersAI:{status:env.AI&&typeof env.AI.run==='function'?'binding_configured_not_tested':'not_configured'},
+    clinicalRecords:{status:'not_ready_do_not_enter_real_patients'},
+    serverTime:new Date().toISOString()
+  };
+}
+async function scientificSelftest(request,env){
+  if(!env.AI||typeof env.AI.run!=='function')
+    return reply({passed:false,stage:'workers_ai',reason:'Binding AI não configurado'},503);
+  // A requisição foi autorizada pelo Cloudflare Access antes deste método.
+  // Pergunta artificial, sem identificação e com dados clínicos suficientes.
+  const synthetic='Adulto 35 anos, sem medicamentos ou suplementos em uso, sem alergias, sem doenças conhecidas, enxaqueca; evidência para riboflavina 400 mg. Revisar eficácia, forma e segurança.';
+  const internal=new Request(new URL('/api/assist',request.url),{
+    method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({question:synthetic,useConsensus:false})
+  });
+  const result=await analyze(internal,env);
+  const data=await result.json();
+  return reply({
+    passed:result.ok&&!!data.draft&&Array.isArray(data.sources)&&data.sources.length>0,
+    stages:{
+      pubmed:result.ok||data.sourceStatus?.pubmed==='ok'?'evidence_found':'not_confirmed',
+      workersAI:result.ok?'structured_response_received':'not_confirmed',
+      officialIndex:data.sourceStatus?.internal||'not_verified',
+      consensus:'not_tested_no_call'
+    },
+    sourceCount:Array.isArray(data.sources)?data.sources.length:0,
+    sampleCitation:Array.isArray(data.sources)?data.sources[0]?.url:null,
+    draftDecision:data.draft?.decision||null,
+    reason:result.ok?null:String(data.error||'Verificação não concluída').slice(0,160)
+  },result.ok?200:result.status);
+}
 function serveStatic(request){
   const url=new URL(request.url);
   const pathname=url.pathname==='/'?'/index.html':url.pathname;
@@ -238,6 +291,8 @@ export default {
         internalScienceIndex:env.SCIENCE_DB?'binding_configured':'not_configured',consensus:env.CONSENSUS_API_KEY?'ready':'not_configured',
         formulaDraft:'structured_review_only'})
     }
+    if(url.pathname==='/api/source-status'&&request.method==='GET')return reply(await scientificConnectivity(env));
+    if(url.pathname==='/api/selftest'&&request.method==='POST')return scientificSelftest(request,env);
     if(url.pathname==='/api/assist'&&request.method==='POST')return analyze(request,env);
     if(url.pathname.startsWith('/api/'))return reply({error:'Rota desconhecida'},404);
     return serveStatic(request);
