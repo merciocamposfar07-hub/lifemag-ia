@@ -32,6 +32,11 @@ const allowedOfficialUrl=value=>{
  }catch(_){return false}
 };
 const str=(value,max=300)=>String(value??'').trim().slice(0,max);
+async function sha256Hex(input){
+ const bytes=new TextEncoder().encode(String(input));
+ const digest=await crypto.subtle.digest('SHA-256',bytes);
+ return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+}
 const verifiedSource=(row)=>({
  id:String(row.id),name:String(row.name),
  status:row.status==='active'&&Number(row.approved_documents)>0?
@@ -113,12 +118,21 @@ export class LifeMagScientificStore extends DurableObject{
    return {ok:false,error:'Origem, licença, hash ou revisão documental inválidos'};
   const source=this.sql.exec('SELECT id FROM sources WHERE id=?',str(manifest.sourceId,100)).toArray();
   if(!source.length)return {ok:false,error:'Fonte não cadastrada'};
+  if(manifest.sections.length>500)return {ok:false,error:'Máximo de 500 trechos por documento'};
+  let contentForHash='';
   for(const part of manifest.sections){
    if(!str(part.heading,250)||str(part.body,4501).length<40||
      String(part.body||'').length>4500||
      !/^[a-f0-9]{64}$/i.test(str(part.sha256,64)))
     return {ok:false,error:'Trecho sem verificação ou tamanho fora do permitido'};
+   const actualHash=await sha256Hex(String(part.body).trim());
+   if(actualHash!==part.sha256.toLowerCase())
+    return {ok:false,error:'Hash SHA-256 incompatível com o trecho'};
+   contentForHash+=String(part.heading).trim()+'\n'+String(part.body).trim()+'\n';
   }
+  if((await sha256Hex(contentForHash))!==manifest.sha256.toLowerCase())
+   return {ok:false,error:'Hash SHA-256 do documento não corresponde ao conteúdo'};
+  this.ctx.storage.transactionSync(()=>{
   this.sql.exec('DELETE FROM passages_fts WHERE passage_id IN ('+
    "SELECT id FROM passages WHERE document_id=?)",str(manifest.id,80));
   this.sql.exec('DELETE FROM passages WHERE document_id=?',str(manifest.id,80));
@@ -139,6 +153,7 @@ export class LifeMagScientificStore extends DurableObject{
    this.sql.exec('INSERT INTO passages_fts(passage_id,body) VALUES(?,?)',id,str(part.body,4500));
   }
   this.sql.exec("UPDATE sources SET status='active' WHERE id=?",str(manifest.sourceId,100));
+  });
   return {ok:true,sections:manifest.sections.length};
  }
 }
