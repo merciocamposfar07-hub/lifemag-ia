@@ -46,7 +46,7 @@ async function initializeScientificAssistant(){
     aiSession.ready=Boolean(res.ok&&info.authenticated&&info.ready);
     aiSession.consensusReady=Boolean(res.ok&&info.consensus==='ready');
     aiSession.indexReady=Boolean(res.ok&&info.internalScienceIndex==='binding_configured');
-    aiSession.message=aiSession.ready?'Modelo conectado; as fontes científicas são verificadas em cada consulta.':'Serviço de IA ainda indisponível.';
+    aiSession.message=aiSession.ready?'Motor habilitado. A recuperação das fontes e a geração serão verificadas a cada consulta.':'Serviço de IA ainda indisponível.';
   }catch(_){aiSession.message='Não foi possível verificar a conexão com a IA.'}
   aiSession.checked=true;
   if(ui.page==='conversation')render();
@@ -154,7 +154,7 @@ function clinicalAssessmentSummary(v){const a=normalizeClinicalAssessment(v.asse
 
 function scientificOnly(){
   const online=aiSession.ready;
-  const indicator=online?'IA científica conectada':'IA ainda indisponível';
+  const indicator=online?'Motor de IA habilitado':'IA ainda indisponível';
   const history=anonymousResearch.chat.map(m=>{
     const label=m.role==='assistant'?'LIFEMAG IA — REVISÃO PROFISSIONAL':'FARMACÊUTICO';
     const sources=Array.isArray(m.sources)&&m.sources.length
