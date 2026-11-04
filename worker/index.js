@@ -209,6 +209,7 @@ async function analyze(request,env){
 async function scientificConnectivity(env){
   const pubmed=await searchEvidence('riboflavin migraine');
   let documents=0,passages=0,indexStatus=env.SCIENCE_DB?'configured_empty_or_unverified':'not_configured';
+  let sources=[];
   if(env.SCIENCE_DB&&typeof env.SCIENCE_DB.prepare==='function'){
     try{
       const totals=await env.SCIENCE_DB.prepare(
@@ -220,12 +221,27 @@ async function scientificConnectivity(env){
       documents=Math.max(0,Number(totals?.documents)||0);
       passages=Math.max(0,Number(totals?.passages)||0);
       if(documents&&passages)indexStatus='approved_content_available';
+      try{
+        const bySource=await env.SCIENCE_DB.prepare(
+          "SELECT s.id,s.name,s.status,COUNT(DISTINCT CASE "+
+          "WHEN d.review_status='approved' THEN d.id END) AS approved_documents "+
+          "FROM scientific_sources s LEFT JOIN scientific_documents d ON d.source_id=s.id "+
+          "GROUP BY s.id,s.name,s.status ORDER BY s.name"
+        ).all();
+        sources=(bySource?.results||[]).map(x=>({
+          id:String(x.id||''),name:String(x.name||'').slice(0,140),
+          status:x.status==='active'&&Number(x.approved_documents)>0?
+            'content_retrievable':'catalog_only',
+          approvedDocuments:Number(x.approved_documents)||0
+        })).slice(0,30);
+      }catch(_){/* O total geral ainda pode ser verificado sem catálogo detalhado. */}
+
     }catch(_){indexStatus='database_error'}
   }
   return {
     pubmed:{status:pubmed.status,articles:pubmed.items.length,
       sample:pubmed.items[0]?{title:pubmed.items[0].title,url:pubmed.items[0].url}:null},
-    officialIndex:{status:indexStatus,approvedDocuments:documents,approvedPassages:passages},
+    officialIndex:{status:indexStatus,approvedDocuments:documents,approvedPassages:passages,sources},
     consensus:{status:env.CONSENSUS_API_KEY?'key_configured_not_tested':'not_configured'},
     workersAI:{status:env.AI&&typeof env.AI.run==='function'?'binding_configured_not_tested':'not_configured'},
     clinicalRecords:{status:'not_ready_do_not_enter_real_patients'},
