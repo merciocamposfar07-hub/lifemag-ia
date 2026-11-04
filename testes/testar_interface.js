@@ -79,7 +79,7 @@ const cases = [
     assert.match(js,/capture="environment"/);
   }],
   ['exames não são persistidos em localStorage nesta fase', () => {
-    assert.match(js,/exames não são salvos nem enviados/);
+    assert.match(js,/nenhum exame é salvo ou enviado/);
     assert.doesNotMatch(js,/persist\(examSession/);
   }],
   ['rascunho anônimo pode ser salvo e reaberto na IA', () => {
