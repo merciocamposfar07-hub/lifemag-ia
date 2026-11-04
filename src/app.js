@@ -38,7 +38,7 @@ const ui = { page:pageFromUrl(), patientId:null, visitId:null, notices:[], searc
 const anonymousResearch={chat:[],currentDraftId:null};
 const examSession={patientId:null,items:[]}; // seleção temporária, não persiste
 const aiSession={ready:false,checked:false,busy:false,consensusReady:false,indexReady:false,message:'Servidor de IA ainda não conectado.'};
-const scienceCheck={busy:false,diagnostics:null,error:null,lastCheck:null};
+const scienceCheck={busy:false,diagnostics:null,error:null,lastCheck:null,searchBusy:false,searchQuery:'',libraryResults:null,searchError:null};
 async function initializeScientificAssistant(){
   // A versão GitHub Pages não possui backend: nunca envia dados para uma URL externa.
   if(location.protocol!=='https:'||!location.hostname||location.hostname.endsWith('.github.io'))return;
@@ -384,7 +384,23 @@ function science(){
  (scienceCheck.error?'<div class="notice">'+E(scienceCheck.error)+'</div>':'')+
  (checkResult?'<div class="science-check-result" aria-live="polite">'+checkResult+'</div>':'')+
  '</div>'+
- '<div class="panel" style="margin-top:14px"><h3>Conexões científicas</h3>'+
+ '<div class="panel scientific-search" style="margin-top:14px"><h3>Pesquisar conteúdo científico</h3>'+
+ '<p class="muted small">Busque no conteúdo já indexado, por exemplo: fitoterápicos, cápsulas, atividade física ou Guia Alimentar. Sinopses não equivalem a monografias integrais nem validam doses.</p>'+
+ '<form id="science-search-form"><div class="field"><label for="science-search-query">Tema científico (sem dados de paciente)</label>'+
+ '<input id="science-search-query" name="scienceQuery" maxlength="120" minlength="4" required value="'+E(scienceCheck.searchQuery)+'" placeholder="Ex.: Farmacopeia, fitoterápicos, alimentação"></div>'+
+ '<button type="submit" class="btn primary" '+(scienceCheck.searchBusy?'disabled':'')+'>'+ 
+ (scienceCheck.searchBusy?'Consultando…':'Pesquisar biblioteca')+'</button></form>'+
+ (scienceCheck.searchError?'<p role="alert" class="muted">'+E(scienceCheck.searchError)+'</p>':'')+
+ (scienceCheck.libraryResults?'<div class="science-library-results" aria-live="polite"><p class="muted small">'+
+ E(String(scienceCheck.libraryResults.results?.length||0))+' resultados · '+E(String(scienceCheck.libraryResults.reviewedCount||0))+
+ ' trechos de documentos revisados · '+E(String(scienceCheck.libraryResults.overviewCount||0))+
+ ' sinopses institucionais</p>'+
+ (scienceCheck.libraryResults.results||[]).map(x=>'<article class="listline"><div><strong>'+E(x.title)+
+ '</strong><p>'+E(x.evidenceTier==='reviewed_document'?'Documento revisado':'Sinopse institucional (não é dose clínica)')+
+ ' · '+E(x.journal||'Fonte oficial')+'</p><p>'+E(String(x.abstract||'').slice(0,800))+'</p>'+
+ '<a target="_blank" rel="noopener noreferrer" href="'+E(x.url)+'">Consultar fonte oficial</a></div></article>').join('')+
+ '</div>':'')+'</div>'+
+'<div class="panel" style="margin-top:14px"><h3>Conexões científicas</h3>'+
  statusRows.map(([name,status])=>'<div class="listline"><div><strong>'+E(name)+'</strong><p>'+E(status)+'</p></div></div>').join('')+'</div>'+
  '<details class="panel" style="margin-top:14px"><summary><strong>Incorporar documento oficial revisado</strong></summary>'+
  '<p class="muted small">Importação de manifesto JSON com edição, URL oficial, licença, conteúdo e SHA-256 conferidos. Não envie PDF bruto, documentos de pacientes ou material ainda não revisado.</p>'+
@@ -394,6 +410,22 @@ function science(){
  '<div class="form-actions"><button class="btn primary" type="submit" '+(aiSession.indexReady?'':'disabled')+'>Importar para biblioteca científica</button></div></form></details>'+
  '<div class="panel" style="margin-top:14px"><h3>Catálogo de fontes oficiais</h3>'+
  sources.map(([name,desc,url,area])=>'<div class="listline"><div><strong>'+E(name)+'</strong><p>'+E(desc)+' · '+E(area)+'</p></div><a class="btn compact" href="'+url+'" target="_blank" rel="noopener noreferrer">Abrir fonte '+I('arrow',14)+'</a></div>').join('')+'</div>';
+}
+async function searchScientificLibrary(form){
+ if(scienceCheck.searchBusy)return;
+ const value=String(form.elements.namedItem('scienceQuery')?.value||'').trim();
+ if(value.length<4||value.length>120){toast('Informe um tema com 4 a 120 caracteres.');return}
+ scienceCheck.searchBusy=true;
+ scienceCheck.searchQuery=value;
+ scienceCheck.searchError=null;scienceCheck.libraryResults=null;render();
+ try{
+   const res=await fetch('/api/science/search?q='+encodeURIComponent(value),{
+     method:'GET',credentials:'same-origin',headers:{accept:'application/json'}});
+   const json=await res.json();
+   if(!res.ok)throw Error(json.error||'Não foi possível pesquisar o índice');
+   scienceCheck.libraryResults=json;
+ }catch(error){scienceCheck.searchError=String(error?.message||'Pesquisa indisponível')}
+ finally{scienceCheck.searchBusy=false;render()}
 }
 async function checkScientificServices(kind){
  if(scienceCheck.busy)return;
@@ -495,8 +527,9 @@ async function submitScientificManifest(form){
 }
 function handleSubmit(event){
   const f=event.target;
-  if(!f.matches('#patient-form,#settings-form,#chat-form,#research-form,#formula-form,#assessment-form,#science-import-form'))return;
+  if(!f.matches('#patient-form,#settings-form,#chat-form,#research-form,#formula-form,#assessment-form,#science-import-form,#science-search-form'))return;
   event.preventDefault();
+  if(f.id==='science-search-form'){void searchScientificLibrary(f);return;}
   if(f.id==='science-import-form'){void submitScientificManifest(f);return;}
   if(f.id==='patient-form'){
     const val=trimForm(readForm(f));
