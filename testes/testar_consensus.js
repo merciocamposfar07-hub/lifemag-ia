@@ -22,6 +22,17 @@ async function main(){
    assert.equal(opts.headers['x-api-key'],'chave-ficticia');
    assert.equal(r.status,'ok');assert.equal(r.items[0].source,'Consensus API');
  });
+ await check('plano Free aproveita abstract mesmo sem takeaway',async()=>{
+   const r=await searchConsensus('riboflavin migraine',{CONSENSUS_API_KEY:'ficticia'},
+     async()=>Response.json({results:[{
+       title:'Riboflavin randomized trial',
+       abstract:'Riboflavin 400 mg/day was studied in a randomized migraine trial.',
+       url:'https://consensus.app/papers/example',
+       journal_name:'Clinical research',publish_year:2025
+     }]}));
+   assert.equal(r.status,'ok');
+   assert.ok(r.items[0].abstract.includes('400 mg'));
+ });
  await check('rejeita fontes em URLs não confiáveis',async()=>{
    const r=await searchConsensus(q,{CONSENSUS_API_KEY:'ficticia'},async()=>Response.json({
      results:[{title:'Falso',url:'https://unknown.example.com/data',takeaway:'Não'}]
