@@ -37,3 +37,27 @@ A classe `LifeMagScientificStore`, declarada em `worker/science-do.js`, usa **Du
 - FTS5: https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/#sql-api
 - PubMed Europe PMC REST API: https://dev.europepmc.org/RestfulWebService
 - API Consensus: https://docs.consensus.app/api-get-started
+
+## v0.4.4 — Primeira carga automática de conteúdo institucional (04/11/2026)
+
+Ao inicializar a biblioteca SQLite, o LifeMag IA insere **13 sínteses institucionais originais** de sete fontes oficiais verificadas:
+- Farmacopeia Brasileira, 8ª edição — 2 sínteses sobre escopo e volumes.
+- Formulário Nacional, 3ª edição — 2 sínteses sobre monografias, manipulação e estabilidade.
+- Formulário de Fitoterápicos, 3ª edição — 2 sínteses sobre espécies, formulações e vigência.
+- Conitec/PCDT — 2 sínteses sobre critérios, acompanhamento e atualização de protocolos.
+- OMS — 2 sínteses sobre atividade física e grupos populacionais.
+- Guia de Atividade Física para a População Brasileira — 1 síntese.
+- Guia Alimentar para a População Brasileira — 2 sínteses.
+
+As sínteses ficam em tabelas separadas de monografias aprovadas, com busca **SQLite FTS5**. Os endpoints protegidos passam a distinguir:
+- `official_overview_available`: síntese institucional que oferece contexto, **sem conteúdo completo nem dose terapêutica**.
+- `content_retrievable`: documentos/monografias revisados após importação profissional.
+- `external_api_registered`: fonte online de pesquisa, como PubMed.
+
+A Central Científica mostra a quantidade real de sínteses e documentos e oferece **Pesquisar conteúdo científico**, que chama `GET /api/science/search?q=tema`. Isso permite confirmar recuperação por assunto antes de pedir formulação. A primeira resposta da IA pode citar uma sinopse como contexto institucional, mas o validador de doses rejeita essas referências para justificar posologias.
+
+**Não confundir a carga de 13 sínteses com importação integral dos volumes da Anvisa.** Em 04/11/2026, tentativas de consulta automatizada a links da Biblioteca Digital Anvisa retornaram HTTP 403. Não há autorização para contornar controles de acesso. As monografias precisam ser obtidas por meio permitido e submetidas à revisão profissional, com conteúdo e versão verificados, antes de integrar a validação clínica.
+
+O Consensus continua aguardando credencial de API do proprietário. A biblioteca não inventa estudos nem simula acesso ao Consensus quando a chave está ausente.
+
+O código foi versionado no GitHub; após o deployment automático o diagnóstico deverá indicar `overviewSections=13`, `approvedDocuments=0` até haver importações revisadas. A confirmação de publicação remota ainda é necessária.
