@@ -36,7 +36,7 @@ const VALID_PAGES = ['home','patients','conversation','editor','formulas','presc
 const pageFromUrl = () => { const page = decodeURIComponent(location.hash.replace(/^#\//,'')); return VALID_PAGES.includes(page) ? page : 'home'; };
 const ui = { page:pageFromUrl(), patientId:null, visitId:null, notices:[], search:'', toastTimer:0, doc:'prescription' };
 const anonymousResearch={chat:[]};
-const aiSession={ready:false,checked:false,busy:false,message:'Servidor de IA ainda não conectado.'};
+const aiSession={ready:false,checked:false,busy:false,consensusReady:false,indexReady:false,message:'Servidor de IA ainda não conectado.'};
 async function initializeScientificAssistant(){
   // A versão GitHub Pages não possui backend: nunca envia dados para uma URL externa.
   if(location.protocol!=='https:'||!location.hostname||location.hostname.endsWith('.github.io'))return;
@@ -44,7 +44,9 @@ async function initializeScientificAssistant(){
     const res=await fetch('/api/capabilities',{credentials:'same-origin',headers:{accept:'application/json'}});
     const info=await res.json();
     aiSession.ready=Boolean(res.ok&&info.authenticated&&info.ready);
-    aiSession.message=aiSession.ready?'IA autenticada, consulta de resumos PubMed ativa.':'Serviço de IA ainda indisponível.';
+    aiSession.consensusReady=Boolean(res.ok&&info.consensus==='ready');
+    aiSession.indexReady=Boolean(res.ok&&info.internalScienceIndex==='binding_configured');
+    aiSession.message=aiSession.ready?'Modelo conectado; as fontes científicas são verificadas em cada consulta.':'Serviço de IA ainda indisponível.';
   }catch(_){aiSession.message='Não foi possível verificar a conexão com a IA.'}
   aiSession.checked=true;
   if(ui.page==='conversation')render();
@@ -58,19 +60,19 @@ function allowedScientificReference(item){
     return url.protocol==='https:'&&hosts.has(url.hostname);
   }catch(_){return false}
 }
-async function sendScientificQuestion(v,question){
+async function sendScientificQuestion(v,question,useConsensus=false){
   if(!aiSession.ready||aiSession.busy)return false;
   aiSession.busy=true;render();
   try{
     // Apenas mensagem digitada pelo farmacêutico. NÃO enviar fichas, nomes ou cadastros.
     const response=await fetch('/api/assist',{method:'POST',credentials:'same-origin',
       headers:{'content-type':'application/json','accept':'application/json'},
-      body:JSON.stringify({question})});
+      body:JSON.stringify({question,useConsensus:useConsensus&&aiSession.consensusReady})});
     const result=await response.json();
     if(!response.ok)throw Error(String(result.error||'Pesquisa indisponível'));
     if(!result.requiresProfessionalReview||!Array.isArray(result.sources)||typeof result.answer!=='string')
       throw Error('Resposta incompleta. A análise não será registrada.');
-    v.chat.push({id:uid('msg'),role:'assistant',text:result.answer.slice(0,13000),
+    v.chat.push({id:uid('msg'),role:'assistant',text:result.answer.slice(0,16000),
       sources:result.sources.filter(allowedScientificReference).slice(0,8),
       createdAt:new Date().toISOString(),requiresProfessionalReview:true});
     if(v!==anonymousResearch)persist();
@@ -166,11 +168,12 @@ function scientificOnly(){
     '<div class="panel research-panel">'+
     '<div class="research-title"><h3>O que deseja pesquisar?</h3>'+
     '<span class="research-indicator '+(online?'connected':'offline')+'">'+E(indicator)+'</span></div>'+
-    '<p class="research-intro">Pergunte sobre evidências, mecanismos, doses estudadas e segurança.</p>'+
+    '<p class="research-intro">Descreva o objetivo terapêutico e os dados clínicos anônimos disponíveis. A IA entregará primeiro uma proposta magistral estruturada, sujeita à revisão profissional.</p>'+
     '<form id="research-form" class="chat-input research-input">'+
     '<textarea name="message" maxlength="2500" rows="3" required placeholder="Ex.: Quais evidências existem para riboflavina na prevenção da enxaqueca?"></textarea>'+
-    '<button type="submit" class="btn primary" '+disabled+' aria-label="Pesquisar evidências com IA">'+submitLabel+'</button></form>'+
-    '<p class="research-privacy">Somente perguntas anônimas, sem dados pessoais ou prontuários. As respostas exigem avaliação farmacêutica.</p>'+
+    '<button type="submit" class="btn primary" '+disabled+' aria-label="Gerar proposta de formulação baseada em evidências">'+submitLabel+'</button></form>'+
+    '<label class="consensus-option"><input type="checkbox" name="useConsensus" '+(aiSession.consensusReady?'':'disabled')+'/> Incluir Consensus nesta consulta'+(aiSession.consensusReady?' (consome chamadas da cota)':' (API ainda não configurada)')+'</label>'+
+    '<p class="research-privacy">Somente perguntas anônimas. Sem idade, medicamentos, alergias ou evidência suficiente, a IA deve indicar o que falta antes de liberar doses.</p>'+
     (history?'<div class="research-history" role="log" aria-live="polite">'+history+'</div>':'')+
     '</div>'+
     '<details class="research-visits"><summary>Atendimentos e formulações (opcional)</summary>'+pickVisit()+'</details>'+
@@ -277,7 +280,7 @@ function handleSubmit(event){
     const question=val.message.slice(0,2500);
     anonymousResearch.chat.push({id:uid('msg'),role:'user',text:question,createdAt:new Date().toISOString()});
     render();
-    if(aiSession.ready)void sendScientificQuestion(anonymousResearch,question);
+    if(aiSession.ready)void sendScientificQuestion(anonymousResearch,question,val.useConsensus==='on');
     else toast('A IA ainda não está disponível neste endereço.');
   }else if(f.id==='chat-form'){
     const val=trimForm(readForm(f));
@@ -286,7 +289,7 @@ function handleSubmit(event){
     if(aiSession.busy)return;
     v.chat.push({id:uid('msg'),role:'user',text:val.message.slice(0,2500),createdAt:new Date().toISOString()});
     persist();render();
-    if(aiSession.ready)void sendScientificQuestion(v,val.message.slice(0,2500));
+    if(aiSession.ready)void sendScientificQuestion(v,val.message.slice(0,2500),val.useConsensus==='on');
     else toast('Observação registrada; serviço de IA indisponível neste endereço.');
   }else if(f.id==='formula-form')saveFormula(f);
 }
