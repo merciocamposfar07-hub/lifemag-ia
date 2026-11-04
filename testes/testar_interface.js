@@ -61,6 +61,37 @@ const cases = [
     assert.match(css,/v0\.1\.8 — geometria final do topo/);
   }],
 
+
+  ['campo de IA horizontal e com largura mínima no Safari', () => {
+    assert.match(css,/\.research-page #research-form\.research-input\{[\s\S]*?display:grid;/);
+    assert.match(css,/grid-template-columns:minmax\(0,1fr\) 58px/);
+    assert.match(css,/writing-mode:horizontal-tb/);
+  }],
+  ['checkbox Consensus não ocupa largura do texto de IA', () => assert.match(css,/\.research-page #research-form\.research-input \.consensus-option\{[\s\S]*grid-column:1\/-1;/)],
+  ['cadastro selecionado pode ser editado e excluído', () => {
+    assert.match(js,/data-action="delete-patient"/);
+    assert.match(js,/data-select-patient/);
+    assert.match(js,/deletePatientRecord\(data,p\.id\)/);
+  }],
+  ['botões opcionais de arquivo e câmera no cadastro', () => {
+    assert.match(js,/id="patient-exam-gallery"/);
+    assert.match(js,/id="patient-exam-camera"/);
+    assert.match(js,/capture="environment"/);
+  }],
+  ['exames não são persistidos em localStorage nesta fase', () => {
+    assert.match(js,/exames não são salvos nem enviados/);
+    assert.doesNotMatch(js,/persist\(examSession/);
+  }],
+  ['rascunho anônimo pode ser salvo e reaberto na IA', () => {
+    assert.match(js,/data-save-anon-draft/);
+    assert.match(js,/data-open-anon-draft/);
+    assert.match(js,/createAnonymousFormulaDraft\(data,message\.draft,label\)/);
+  }],
+  ['rascunho anônimo pode ser vinculado a paciente após cadastro', () => {
+    assert.match(js,/data-link-anon-draft/);
+    assert.match(js,/linkAnonymousDraftToPatient\(data,draftId,patientId\)/);
+    assert.match(js,/aiDraftPendingReview/);
+  }],
   ['barreiras contra rotas desconhecidas', () => assert.match(js, /VALID_PAGES\.includes\(next\)/)],
   ['navegação do Safari usa histórico', () => assert.match(js, /popstate/)],
   ['seletor de foto profissional', () => assert.match(js, /id="professional-photo-input"/)],
