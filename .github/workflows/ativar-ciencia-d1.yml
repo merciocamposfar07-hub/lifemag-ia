@@ -43,6 +43,7 @@ jobs:
           node scripts/build-worker.mjs
           node testes/testar_ia.js
           node testes/testar_diagnostico.js
+          node testes/testar_preparo_d1.js
           node testes/testar_fontes.js
           node testes/testar_formula.js
       - name: Criar somente o D1 do LifeMag IA, caso ainda não exista
