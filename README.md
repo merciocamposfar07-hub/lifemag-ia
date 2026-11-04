@@ -104,3 +104,12 @@ O histórico do planejamento original permanece nos documentos anteriores desta 
 - A indexação oficial D1 permanece **não implantada e não preenchida**. Os sites Anvisa, Conitec, OMS, atividade física e nutrição continuam catálogo até ingestão de textos revisados.
 - Documentação e procedimento: `docs/ATIVACAO_FONTES_E_FORMULACOES.md`.
 - A quantidade manipulada e o preenchimento automático do editor a partir do rascunho ainda exigem etapa complementar.
+
+### Verificação de implantação — 04/11/2026
+- Implementação versionada no GitHub: primeiro resultado do assistente em JSON estruturado, incluindo quantidade para manipular. O Worker rejeita saídas livres sem estrutura (HTTP 502) para evitar apresentar prosa imprecisa como receituário.
+- Regra de conferência de dose: concentração/unidade citada E substância presente no estudo indicado. É conferência textual conservadora, NÃO prova de dose ideal, eficácia individual, segurança nem ausência de interações.
+- No catálogo: Farmacopeia Brasileira 8ª edição, Formulário Nacional 3ª edição, Fitoterápicos 3ª edição e diretrizes. A existência de links no app NÃO representa leitura das monografias.
+- O armazenamento das monografias em D1 ainda não está provisionado; o script de importação exige cópia oficial, integridade, licenciamento e revisão identificada. É necessário vincular \`SCIENCE_DB\` no Worker após criar banco próprio.
+- A chave \`CONSENSUS_API_KEY\` precisa estar nos Secrets do Cloudflare Worker para ligar a API oficial. O conector Consensus do ChatGPT não é credencial exportável para este aplicativo.
+- Bloqueio técnico não resolvido: sem acesso delegado à conta Cloudflare, não foi possível confirmar que o último build foi publicado ou ativar D1/API Secret pelo ChatGPT. O login Zero Trust permanece configurado; Portal CSC não foi alterado.
+- Dados clínicos reais continuam proibidos no protótipo que usa localStorage e não dispõe de backend seguro.
