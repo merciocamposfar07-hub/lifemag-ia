@@ -223,14 +223,15 @@ async function scientificConnectivity(env){
       if(documents&&passages)indexStatus='approved_content_available';
       try{
         const bySource=await env.SCIENCE_DB.prepare(
-          "SELECT s.id,s.name,s.status,COUNT(DISTINCT CASE "+
+          "SELECT s.id,s.name,s.status,s.retrieval_mode,COUNT(DISTINCT CASE "+
           "WHEN d.review_status='approved' THEN d.id END) AS approved_documents "+
           "FROM scientific_sources s LEFT JOIN scientific_documents d ON d.source_id=s.id "+
-          "GROUP BY s.id,s.name,s.status ORDER BY s.name"
+          "GROUP BY s.id,s.name,s.status,s.retrieval_mode ORDER BY s.name"
         ).all();
         sources=(bySource?.results||[]).map(x=>({
           id:String(x.id||''),name:String(x.name||'').slice(0,140),
-          status:x.status==='active'&&Number(x.approved_documents)>0?
+          status:x.retrieval_mode==='live_api'&&x.status==='active'?
+            'external_api_registered':x.status==='active'&&Number(x.approved_documents)>0?
             'content_retrievable':'catalog_only',
           approvedDocuments:Number(x.approved_documents)||0
         })).slice(0,30);
