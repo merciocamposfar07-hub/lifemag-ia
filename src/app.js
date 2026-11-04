@@ -238,7 +238,7 @@ function saveAnonymousCase(messageId){
   if(!/^Caso(?:\s|-)[0-9]{1,6}(?:-[A-Z])?$/i.test(String(label).trim())){
     toast('Use um código como Caso 01, sem nome ou identificação de paciente.');return
   }
-  const d=createAnonymousFormulaDraft(data,message.draft,label);
+  const d=createAnonymousFormulaDraft(data,message.draft,label,message.sources);
   if(!d){toast('Não foi possível salvar a proposta.');return}
   anonymousResearch.currentDraftId=d.id;
   persist();render();
@@ -257,7 +257,7 @@ function openAnonymousCase(draftId){
     'Duração prevista: '+(draft.duration||'a definir')+' dias',
     'Revisão profissional ainda necessária.'
   ].join('\n');
-  anonymousResearch.chat=[{id:uid('msg'),role:'assistant',text:details,sources:[]}];
+  anonymousResearch.chat=[{id:uid('msg'),role:'assistant',text:details,sources:draft.sources||[]}];
   setPage('conversation');
 }
 function linkAnonymousCase(draftId){
