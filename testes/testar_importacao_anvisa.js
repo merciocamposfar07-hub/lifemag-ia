@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 async function main(){
  const {ANVISA_CATALOG}=await import('../worker/anvisa-catalog.js');
- const {convertAnvisaDocument,importAnvisaCompendium,splitScientificMarkdown}
+ const {convertAnvisaDocument,importAnvisaCompendium,splitScientificMarkdown,validateAnvisaPart}
    =await import('../worker/anvisa-importer.js');
  const source=ANVISA_CATALOG.find(x=>x.id==='fffb3-2026');
  let record=null,staged=0,conversions=0,approved=0;
@@ -65,6 +65,24 @@ async function main(){
  await check('extração automática de volume sem espelho exige PDF do titular',async()=>{
   const result=await importAnvisaCompendium('fb8-volume-ii-insumos',env,identity);
   assert.equal(result.ok,false);assert.equal(result.status,409);
+ });
+ await check('manifesto de páginas rejeita intervalos inválidos',async()=>{
+  const part={catalogId:source.id,originalSha256:'b'.repeat(64),
+   pdfSha256:'c'.repeat(64),partNumber:2,partCount:2,
+   pageStart:101,pageEnd:99,totalPages:200};
+  assert.equal(validateAnvisaPart(part,source.id).ok,false);
+  part.pageEnd=200;
+  assert.equal(validateAnvisaPart(part,source.id).ok,true);
+  assert.equal(validateAnvisaPart({...part,partNumber:3},source.id).ok,false);
+ });
+ await check('parte de PDF com hash divergente é barrada antes de converter',async()=>{
+  const previous=conversions;
+  const part={catalogId:source.id,originalSha256:'b'.repeat(64),
+   pdfSha256:'0'.repeat(64),partNumber:1,partCount:2,
+   pageStart:1,pageEnd:100,totalPages:200};
+  const result=await convertAnvisaDocument(source.id,buffer,env,identity,'manual',part);
+  assert.equal(result.status,422);
+  assert.equal(conversions,previous);
  });
  await check('servidor de publicação indisponível falha explicitamente',async()=>{
   const result=await importAnvisaCompendium(source.id,env,identity,

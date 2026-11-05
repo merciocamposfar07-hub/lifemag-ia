@@ -392,6 +392,12 @@ export default {
         return reply({records});
       }catch(_){return reply({error:'Falha ao consultar importações da biblioteca'},503)}
     }
+    if(url.pathname==='/api/science/anvisa-coverage'&&request.method==='GET'){
+      if(!env.SCIENCE_LIBRARY)return reply({error:'Biblioteca científica indisponível'},503);
+      try{
+        return reply({coverage:await env.SCIENCE_LIBRARY.getByName('lifemag-main').compendiumCoverage()});
+      }catch(_){return reply({error:'Falha ao conferir cobertura dos PDFs'},503)}
+    }
     if(url.pathname==='/api/science/upload-anvisa-pdf'&&request.method==='POST'){
       if(request.headers.get('origin')!==url.origin)
         return reply({error:'Origem não autorizada para carregar compêndios'},403);
@@ -411,8 +417,15 @@ export default {
       if(!file||typeof file.arrayBuffer!=='function'||!String(file.name||'').toLowerCase().endsWith('.pdf'))
         return reply({error:'Selecione um arquivo PDF válido'},400);
       if(file.size>MAX_COMPENDIUM_BYTES)return reply({error:'PDF excede 46 MiB; divisão necessária'},413);
+      const rawPart=form.get('partNumber')!==null||form.get('originalSha256')!==null?{
+        catalogId:docId,partNumber:form.get('partNumber'),partCount:form.get('partCount'),
+        pageStart:form.get('pageStart'),pageEnd:form.get('pageEnd'),
+        totalPages:form.get('totalPages'),pdfSha256:form.get('pdfSha256'),
+        originalSha256:form.get('originalSha256')
+      }:null;
       const buffer=await file.arrayBuffer();
-      const result=await convertAnvisaDocument(docId,buffer,env,identity,'pdf_oficial_enviado_pelo_profissional');
+      const result=await convertAnvisaDocument(docId,buffer,env,identity,
+        'pdf_oficial_enviado_pelo_profissional',rawPart);
       return reply(result,result.ok?202:result.status||500);
     }
     if(url.pathname==='/api/science/ingest-anvisa'&&request.method==='POST'){

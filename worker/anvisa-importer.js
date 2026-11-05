@@ -38,7 +38,25 @@ export function splitScientificMarkdown(source){
  flush();
  return parts;
 }
-export async function convertAnvisaDocument(id,buf,env,identity,provenance){
+export function validateAnvisaPart(raw,id){
+ if(raw==null)return {ok:true,part:null};
+ const n=key=>Number(raw[key]);
+ const digits=key=>Number.isSafeInteger(n(key))&&n(key)>=1;
+ if(raw.catalogId!==id||
+    !/^[a-f0-9]{64}$/i.test(String(raw.originalSha256||''))||
+    !/^[a-f0-9]{64}$/i.test(String(raw.pdfSha256||''))||
+    !['partNumber','partCount','pageStart','pageEnd','totalPages'].every(digits)||
+    n('partCount')>500||n('partNumber')>n('partCount')||
+    n('pageStart')>n('pageEnd')||n('pageEnd')>n('totalPages'))
+  return {ok:false,error:'Manifesto de partes inválido; não é possível verificar a cobertura do PDF'};
+ return {ok:true,part:{
+  originalSha256:String(raw.originalSha256).toLowerCase(),
+  pdfSha256:String(raw.pdfSha256).toLowerCase(),
+  partNumber:n('partNumber'),partCount:n('partCount'),
+  pageStart:n('pageStart'),pageEnd:n('pageEnd'),totalPages:n('totalPages')
+ }};
+}
+export async function convertAnvisaDocument(id,buf,env,identity,provenance,partMetadata=null){
  const entry=ANVISA_CATALOG.find(x=>x.id===id);
  if(!entry)return {ok:false,status:400,error:'Compêndio não cadastrado'};
  if(!env.SCIENCE_LIBRARY||typeof env.AI?.toMarkdown!=='function')
@@ -47,6 +65,13 @@ export async function convertAnvisaDocument(id,buf,env,identity,provenance){
   return {ok:false,status:413,error:'PDF excede limite seguro de 46 MiB por arquivo no plano Free; dividir este volume em partes'};
  const signature=String.fromCharCode(...new Uint8Array(buf,0,5));
  if(signature!=='%PDF-')return {ok:false,status:422,error:'Arquivo recebido não tem assinatura PDF'};
+ const checked=validateAnvisaPart(partMetadata,id);
+ if(!checked.ok)return {ok:false,status:422,error:checked.error};
+ const part=checked.part;
+ const pdfHash=await hashBytes(buf);
+ if(part&&part.pdfSha256!==pdfHash)
+  return {ok:false,status:422,error:'SHA-256 divergente: esta parte não corresponde ao manifesto'};
+
  let converted;
  try{
   converted=await env.AI.toMarkdown(
@@ -62,14 +87,13 @@ export async function convertAnvisaDocument(id,buf,env,identity,provenance){
  const parts=splitScientificMarkdown(output.data);
  if(!parts.length||parts.length>6000)
   return {ok:false,status:422,error:'Arquivo sem conteúdo recuperável ou volume maior que o limite de trechos'};
- const pdfHash=await hashBytes(buf);
  const jobId=id+'-'+pdfHash.slice(0,12);
  const library=env.SCIENCE_LIBRARY.getByName('lifemag-main');
  const start=await library.beginCompendiumExtraction({
   id:jobId,sourceId:entry.sourceId,title:entry.title,
   edition:entry.edition,officialUrl:entry.canonicalUrl,
   mirrorUrl:provenance||entry.publisherPage,pdfSha256:pdfHash,
-  submittedBy:String(identity?.email||'').toLowerCase()
+  submittedBy:String(identity?.email||'').toLowerCase(),part
  });
  if(!start.ok)return {ok:false,status:409,error:start.error};
  let count=0;
@@ -84,7 +108,8 @@ export async function convertAnvisaDocument(id,buf,env,identity,provenance){
  return {ok:true,status:202,id:jobId,sourceId:entry.sourceId,
   title:entry.title,pdfSha256:pdfHash,pdfBytes:buf.byteLength,
   convertedCharacters:output.data.length,sections:count,
-  reviewStatus:'pending_review',acquisition:provenance?'uploaded_pdf':'public_reference',
+  reviewStatus:'pending_review',part:part?{number:part.partNumber,total:part.partCount,pages:[part.pageStart,part.pageEnd]}:null,
+  acquisition:provenance?'uploaded_pdf':'public_reference',
   message:'Texto extraído, guardado em biblioteca privada para conferir tabelas, capítulos e unidades antes da aprovação.'};
 }
 export async function importAnvisaCompendium(key,env,identity,fetcher=fetch){

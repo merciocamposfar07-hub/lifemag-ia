@@ -77,7 +77,11 @@ export class LifeMagScientificStore extends DurableObject{
    'CREATE TABLE IF NOT EXISTS staged_compendium_passages ('+
    'document_id TEXT NOT NULL,ordinal INTEGER NOT NULL,heading TEXT NOT NULL,body TEXT NOT NULL,'+
    'PRIMARY KEY(document_id,ordinal));'+
-   "CREATE VIRTUAL TABLE IF NOT EXISTS staged_passages_fts USING fts5(body,tokenize='unicode61 remove_diacritics 2');"
+   "CREATE VIRTUAL TABLE IF NOT EXISTS staged_passages_fts USING fts5(body,tokenize='unicode61 remove_diacritics 2');"+
+   'CREATE TABLE IF NOT EXISTS staged_compendium_parts ('+
+   'document_id TEXT PRIMARY KEY,original_sha256 TEXT NOT NULL,'+
+   'part_number INTEGER NOT NULL,part_count INTEGER NOT NULL,'+
+   'page_start INTEGER NOT NULL,page_end INTEGER NOT NULL,total_pages INTEGER NOT NULL);'
   );
   for(const [id,name,kind,url] of SEEDS){
    this.sql.exec('INSERT OR IGNORE INTO sources(id,name,kind,url,status) VALUES(?,?,?,?,?)',
@@ -108,6 +112,7 @@ export class LifeMagScientificStore extends DurableObject{
    this.sql.exec('DELETE FROM staged_passages_fts WHERE rowid IN ('+
     'SELECT rowid FROM staged_compendium_passages WHERE document_id=?)',meta.id);
    this.sql.exec('DELETE FROM staged_compendium_passages WHERE document_id=?',meta.id);
+   this.sql.exec('DELETE FROM staged_compendium_parts WHERE document_id=?',meta.id);
    this.sql.exec('DELETE FROM staged_compendia WHERE id=?',meta.id);
    this.sql.exec(
     'INSERT INTO staged_compendia(id,source_id,title,edition,official_url,mirror_url,pdf_sha256,'+
@@ -117,6 +122,14 @@ export class LifeMagScientificStore extends DurableObject{
     str(meta.pdfSha256,64),str(meta.submittedBy,130),
     new Date().toISOString()
    );
+   if(meta.part){
+    const p=meta.part;
+    this.sql.exec(
+     'INSERT INTO staged_compendium_parts(document_id,original_sha256,'+
+     'part_number,part_count,page_start,page_end,total_pages) VALUES(?,?,?,?,?,?,?)',
+     meta.id,p.originalSha256,p.partNumber,p.partCount,p.pageStart,p.pageEnd,p.totalPages
+    );
+   }
   });
   return {ok:true,id:meta.id};
  }
@@ -158,12 +171,53 @@ export class LifeMagScientificStore extends DurableObject{
    message:'Conteúdo integral convertido e armazenado para revisão; não disponível para prescrição até validação.'};
  }
  async listCompendiumExtractions(){
-  const rows=this.sql.exec('SELECT id,source_id,title,edition,status,sections,created_at '+
-   'FROM staged_compendia ORDER BY created_at DESC LIMIT 30').toArray();
+  const rows=this.sql.exec(
+   'SELECT c.id,c.source_id,c.title,c.edition,c.status,c.sections,c.created_at,'+
+   'p.original_sha256,p.part_number,p.part_count,p.page_start,p.page_end,p.total_pages '+
+   'FROM staged_compendia c LEFT JOIN staged_compendium_parts p ON p.document_id=c.id '+
+   'ORDER BY c.created_at DESC LIMIT 100'
+  ).toArray();
   return rows.map(x=>({
    id:x.id,sourceId:x.source_id,title:x.title,edition:x.edition,
-   status:x.status,sections:Number(x.sections)||0,createdAt:x.created_at
+   status:x.status,sections:Number(x.sections)||0,createdAt:x.created_at,
+   part:x.part_number==null?null:{
+    originalSha256:x.original_sha256,number:Number(x.part_number),
+    total:Number(x.part_count),pageStart:Number(x.page_start),
+    pageEnd:Number(x.page_end),totalPages:Number(x.total_pages)}
   }));
+ }
+ async compendiumCoverage(){
+  const rows=this.sql.exec(
+   'SELECT c.id,c.source_id,c.status,p.original_sha256,p.part_number,p.part_count,'+
+   'p.page_start,p.page_end,p.total_pages FROM staged_compendium_parts p '+
+   'JOIN staged_compendia c ON c.id=p.document_id '+
+   'ORDER BY c.source_id,p.original_sha256,p.part_number'
+  ).toArray();
+  const groups=new Map();
+  for(const r of rows){
+   const key=r.source_id+'-'+r.original_sha256;
+   if(!groups.has(key))groups.set(key,{sourceId:r.source_id,
+    originalSha256:r.original_sha256,parts:[]});
+   groups.get(key).parts.push(r);
+  }
+  return Array.from(groups.values()).map(group=>{
+   const a=group.parts.sort((x,y)=>x.part_number-y.part_number);
+   const expected=Number(a[0].part_count),totalPages=Number(a[0].total_pages);
+   let covered=0,previous=0;
+   const consistent=a.every((r,i)=>{
+    const ok=Number(r.part_count)===expected&&Number(r.total_pages)===totalPages&&
+     Number(r.part_number)===i+1&&Number(r.page_start)===previous+1&&
+     Number(r.page_end)>=Number(r.page_start)&&r.status==='pending_review';
+    if(!ok)return false;
+    covered+=Number(r.page_end)-Number(r.page_start)+1;
+    previous=Number(r.page_end);
+    return true;
+   });
+   return {sourceId:group.sourceId,originalSha256:group.originalSha256,
+    importedParts:a.length,expectedParts:expected,coveredPages:covered,totalPages,
+    completeExtraction:consistent&&a.length===expected&&previous===totalPages,
+    reviewStatus:'pending_review',clinicalApproval:false};
+  });
  }
  async status(){
   const counts=this.sql.exec(
