@@ -92,6 +92,8 @@ export async function importAnvisaCompendium(key,env,identity,fetcher=fetch){
  if(!entry)return {ok:false,status:400,error:'Documento não cadastrado'};
  if(!entry.verifiedMirrorUrl)return {ok:false,status:409,
   error:'Esta seção possui apenas endereço oficial do catálogo; importe o PDF por arquivo'};
+ if(Number(entry.knownSizeBytes)>MAX_COMPENDIUM_BYTES)
+  return {ok:false,status:413,error:'Este volume tem cerca de '+Math.ceil(entry.knownSizeBytes/1048576)+' MiB e excede o limite seguro de 46 MiB. Divida o PDF em partes ou use infraestrutura de maior capacidade.'};
  let response;
  try{
   response=await fetcher(entry.verifiedMirrorUrl,{
