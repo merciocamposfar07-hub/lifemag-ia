@@ -98,8 +98,8 @@ function linkAnonymousDraftToPatient(state,draftId,patientId){
     status:'em acompanhamento',formulaName:draft.formulaName,
     presentation:draft.presentation,route:draft.route,quantity:draft.quantity,
     posology:draft.posology,schedules:draft.schedules,meals:draft.meals,
-    observations:'Rascunho importado de discussão anônima — revisão farmacêutica obrigatória.',
-    protocol:'',ingredients:draft.ingredients.map(x=>({
+    observations:'Rascunho importado de discussão anônima. Itens OPCIONAIS não foram incluídos automaticamente para priorizar custo-benefício; adicione-os somente se clinicamente justificados. Revisão farmacêutica obrigatória.',
+    protocol:'',ingredients:draft.ingredients.filter(x=>x.role!=='OPCIONAL').map(x=>({
       id:uid('ing'),name:x.name,dose:x.dose,unit:x.unit,role:x.role,
       target:x.target,evidence:x.evidence+
         (draft.sources?.length?' | Fontes: '+draft.sources.map(ref=>ref.url).join(' ; ').slice(0,1200):'')
