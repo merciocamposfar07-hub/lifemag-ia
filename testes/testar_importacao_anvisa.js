@@ -62,9 +62,13 @@ async function main(){
   assert.equal((await convertAnvisaDocument(source.id,new ArrayBuffer(10),env,identity)).status,413);
   assert.equal((await convertAnvisaDocument('inventado',buffer,env,identity)).status,400);
  });
- await check('extração automática de volume sem espelho exige PDF do titular',async()=>{
-  const result=await importAnvisaCompendium('fb8-volume-ii-insumos',env,identity);
-  assert.equal(result.ok,false);assert.equal(result.status,409);
+ await check('volume sem espelho tenta apenas página oficial e respeita HTTP 403',async()=>{
+  let requests=0;
+  const result=await importAnvisaCompendium('fb8-volume-ii-insumos',env,identity,
+   async()=>{requests++;return new Response('Forbidden',{status:403})});
+  assert.equal(result.ok,false);assert.equal(result.status,502);
+  assert.match(result.error,/HTTP 403/);
+  assert.equal(requests,1);
  });
  await check('manifesto de páginas rejeita intervalos inválidos',async()=>{
   const part={catalogId:source.id,originalSha256:'b'.repeat(64),
