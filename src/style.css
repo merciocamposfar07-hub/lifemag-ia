@@ -741,3 +741,44 @@ body{color:#122e49}
  .clinical-gate{margin:8vh 14px 0;padding:26px 18px}
  .clinical-sync{font-size:16px}
 }
+
+
+/* v0.6.4 — Conversa Inteligente com histórico e composição no mesmo painel */
+.research-page .research-thread{
+ display:flex;flex-direction:column;min-width:0;min-height:330px;
+ border:1px solid #bcd5e3;border-radius:16px;background:#fbfdff;overflow:hidden
+}
+.research-page .research-history{
+ display:flex;flex-direction:column;flex:1;gap:13px;margin:0;
+ padding:16px 14px;min-height:210px;max-height:min(62dvh,620px);
+ overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable
+}
+.research-page .research-history .chat-bubble{
+ width:fit-content;max-width:94%;border-radius:16px;
+ padding:12px 14px;line-height:1.55
+}
+.research-page .research-history .chat-bubble.user{
+ align-self:flex-end;background:#e0f1fb;border:1px solid #bfdfef
+}
+.research-page .research-history .chat-bubble.assistant{
+ align-self:flex-start;background:#f0f7f9;border:1px solid #c4dce8
+}
+.research-page .research-welcome{font-size:16px;line-height:1.6;color:#29465d;padding:8px}
+.research-page .research-thinking{font-size:16px;color:#175c77;font-weight:700;
+ padding:12px;border:1px dashed #a5cbd7;border-radius:12px}
+.research-page .research-input{
+ flex:none;margin:0!important;padding:13px!important;
+ border-top:1px solid #d1e3eb;background:#fff
+}
+.research-page .research-input textarea{min-height:74px!important}
+.research-page .research-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 5px}
+.research-page .research-actions button{font-size:15px;font-weight:700;min-height:43px}
+.research-page .chat-sources summary{font-size:15px;font-weight:700;padding:8px 0;color:#0b567b}
+.research-page .chat-sources a{display:block;font-size:14px;line-height:1.5;
+ overflow-wrap:anywhere;margin:7px 0}
+@media(max-width:760px){
+ .research-page .research-history{max-height:57dvh;min-height:230px;padding:12px 9px}
+ .research-page .research-thread{min-height:360px}
+ .research-page .research-history .chat-bubble{max-width:100%;padding:12px}
+ .research-page .research-input{padding:10px!important}
+}
