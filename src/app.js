@@ -492,7 +492,7 @@ function science(){
  '</div>'+
  '<div class="panel anvisa-import" style="margin-top:14px"><h3>Importação dos compêndios da Anvisa — edições 2026</h3>'+
  '<p class="muted small">O Worker converterá os PDFs em texto para a biblioteca privada. A extração preserva conteúdo para pesquisa, mas tabelas, unidades e capítulos devem ser conferidos antes de liberar doses. Limite atual: 46 MiB por PDF.</p>'+
- '<button type="button" class="btn primary" data-anvisa-batch="start" '+(anvisaImport.busy||!aiSession.indexReady?'disabled':'')+'>Preparar os 4 PDFs públicos disponíveis</button>'+
+ '<button type="button" class="btn primary" data-anvisa-batch="start" '+(anvisaImport.busy||!aiSession.indexReady?'disabled':'')+'>Tentar obter as 4 cópias públicas (pode haver limites de tamanho)</button>'+
  officialAnvisaDocuments.map(([id,title,desc,hasMirror])=>{
    const job=anvisaImport.records.find(x=>x.id.startsWith(id+'-'));
    const disabled=anvisaImport.busy||!aiSession.indexReady;
