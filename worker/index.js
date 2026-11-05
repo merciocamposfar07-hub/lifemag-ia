@@ -4,7 +4,7 @@ export {LifeMagScientificStore} from './science-do.js';
 export {LifeMagIngestionCoordinator} from './ingestion-coordinator.js';
 export {LifeMagClinicalRecords} from './clinical-records.js';
 import {searchConsensus} from './consensus.js';
-import {FORMULA_SCHEMA,normalizeDraft,draftAsText} from './clinical-draft.js';
+import {FORMULA_SCHEMA,normalizeDraft,draftAsText,screenClinicalQuestion} from './clinical-draft.js';
 import {ANVISA_CATALOG} from './anvisa-catalog.js';
 import {searchAnvisaOnline} from './anvisa-live.js';
 import {importAnvisaCompendium,convertAnvisaDocument,MAX_COMPENDIUM_BYTES} from './anvisa-importer.js';
@@ -12,7 +12,7 @@ import {importAnvisaCompendium,convertAnvisaDocument,MAX_COMPENDIUM_BYTES} from 
  * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
  * Nenhum texto clínico é registrado em logs.
  */
-const RELEASE='0.6.2';
+const RELEASE='0.6.3';
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -147,7 +147,7 @@ function assistantPrompt(evidence){
   'Não converta valor nutricional em dose terapêutica sem ensaio adequado. Não invente doses, monografias, interações, estudos, horários ou orientação alimentar. Dose numérica só se aparecer explicitamente com unidade em um trecho de referência identificado.',
   'IMPORTANTE: referências [W1], [W2] são páginas institucionais da Anvisa consultadas ao vivo (não são monografias); [O1], [O2] são sinopses institucionais; [P1], [P2] são trechos de PDFs oficiais convertidos, mas ainda NÃO revisados quanto a tabelas e unidades. As duas categorias podem servir apenas de contexto e identificação de capítulo. NÃO use esses identificadores para validar dose terapêutica, indicação individual, interação, preparo ou ciclo prolongado. Somente estudos clínicos e documentos profissionalmente revisados podem fundamentar doses, após análise de segurança.',
   'Inclua em ingredients[].references apenas identificadores verificados abaixo, por exemplo "1" para PubMed, "C1" para monografia aprovada ou "K1" para Consensus. Não cite fonte apenas por estar no catálogo.',
-  'Não dê por estabelecido um diagnóstico baseado em sintomas. Sinais de alarme: decision=red_flags, destacando encaminhamento apropriado e sem receita.',
+  'Não dê por estabelecido um diagnóstico baseado em sintomas. Classifique red_flags apenas quando sinais de urgência concretos estiverem descritos. Fadiga e cansaço isolados NÃO são sinais de urgência por si só. Na ausência de informações, pergunte de modo direto e não preencha uma receita vazia.',
   'Responda no formato JSON pedido, em português técnico. Não adicione prosa fora do JSON. Campos sem evidência devem ser vazios ou "a definir". Não invente ingredientes só para preencher o quadro.',
   'O campo posology deve especificar doses por tomada e frequência; meal_relation deve indicar antes, durante ou após refeições somente quando houver fundamento; daily_schedule diferencia manhã, tarde e noite.',
   'initial_duration_days e reassessment_days exigem fundamentação individual e não são sinônimos de dose máxima. Em situação sem fundamento, use 0. Avaliar resposta, eventos adversos e critérios objetivos.',
@@ -187,6 +187,16 @@ async function analyze(request,env){
     return reply({error:'Remova CPF, e-mail e qualquer identificação pessoal antes de consultar a IA.'},400)
   }
   if(question.length<8||question.length>2500)return reply({error:'Descreva a pergunta entre 8 e 2.500 caracteres'},400);
+  // Fadiga sem duração, sono ou antecedentes exige esclarecimentos, não um
+  // falso diagnóstico e nem consulta bibliográfica desconexa. Sem custo de IA.
+  const screening=screenClinicalQuestion(question);
+  if(screening)return reply({
+    answer:draftAsText(screening),draft:screening,sources:[],
+    sourceStatus:{pubmed:'not_requested_pending_clinical_data',
+      consensus:'not_requested_pending_clinical_data',internal:'not_requested'},
+    requiresProfessionalReview:true,needsMoreInfo:screening.decision==='insufficient_info',
+    model:'clinical_triage_rules'
+  });
   const terms=question;
   const [evidence,indexed,liveAnvisa]=await Promise.all([
     searchEvidence(terms),searchOfficialSources(question,env),searchAnvisaOnline(question)
@@ -210,7 +220,13 @@ async function analyze(request,env){
        {status:'monthly_budget_reached',items:[]};
     }catch(_){consensus={status:'monthly_budget_unavailable',items:[]};}
   }
-  const verifiedSources=[...indexed.items,...evidence.items,...consensus.items,...liveAnvisa.items];
+  // Sinopses gerais e PDFs ainda não conferidos são contexto documental,
+  // não evidência para a escolha de substâncias. Não mostrar catálogos
+  // farmacopéicos desconexos (como biológicos) em consultas sobre fadiga.
+  const clinicallyRelevant=(indexed.items||[]).filter(x=>
+    x.evidenceTier==='reviewed_document'||
+    (x.evidenceTier===undefined&&/^C\d+$/.test(String(x.id||''))));
+  const verifiedSources=[...clinicallyRelevant,...evidence.items,...consensus.items];
   // FALHA FECHADA: sem artigo ou trecho oficial revisado, não consulta o modelo.
   if(!verifiedSources.some(x=>x.abstract)){
     const failStatus=evidence.status==='source_error'?503:422;
