@@ -976,7 +976,7 @@ if(['patient-exam-gallery','patient-exam-camera'].includes(control.id)){
 }
 if(control.id==='professional-photo-input'){processProfessionalPhoto(control.files?.[0]);return;}if(control.dataset.ingField){const outer=control.closest('[data-ingredient-id]');const v=visit();const x=v?.ingredients.find(i=>i.id===outer.dataset.ingredientId);if(x){x[control.dataset.ingField]=control.value;if(v.aiDraftImportedAt)v.aiDraftPendingReview=true;persist();}return;}if(control.closest?.('#formula-form') && control.name){const v=visit();if(v){v[control.name]=control.value;if(v.aiDraftImportedAt)v.aiDraftPendingReview=true;persist();}return;}if(control.id==='sim-visit'){const v=data.visits.find(x=>x.id===control.value);if(v){useVisit(v);render();}}if(control.id==='doc-visit'){const v=data.visits.find(x=>x.id===control.value);if(v){useVisit(v);render();}}}
 window.addEventListener('popstate',()=>{ui.page=pageFromUrl();render();scrollTo(0,0);});
-addEventListener('beforeunload',event=>{
+if(typeof addEventListener==='function')addEventListener('beforeunload',event=>{
  if(clinicalCloudMode&&clinicalStatus.pending>0){
   event.preventDefault();event.returnValue='';
  }
