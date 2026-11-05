@@ -54,7 +54,7 @@ export function missingClinicalBasics(question){
     missing.push('Faixa etária ou idade');
   if(!/\b(?:sexo\s*[:=]?\s*(?:masculino|feminino)|paciente\s+(?:homem|mulher)|homem|mulher|masculino|feminino)\b/.test(normalized))
     missing.push('Sexo para individualização clínica');
-  if(!/\b(?:peso\s*[:=]?\s*)?\d{2,3}(?:[.,]\d+)?\s*(?:kg|quilos?)\b/.test(normalized))
+  if(!/(?:\b(?:peso\s*[:=]?\s*|pesa\s+)\d{2,3}(?:[.,]\d+)?\s*(?:kg|quilos?)?\b|\b\d{2,3}(?:[.,]\d+)?\s*(?:kg|quilos?|de peso)\b)/.test(normalized))
     missing.push('Peso corporal em kg');
   if(!/\b(?:medicament|remedi|farmac|em uso|sem medicac|nao usa medicac|nao toma remedi)/.test(normalized))
     missing.push('Medicamentos e suplementos em uso, ou confirmação de ausência');
@@ -64,6 +64,68 @@ export function missingClinicalBasics(question){
     missing.push('Comorbidades, antecedentes e fatores de risco');
   return missing;
 }
+
+// Sintomas comuns não constituem, isoladamente, sinais de urgência.
+// A triagem faz perguntas breves antes de pesquisar ou sugerir doses.
+const normalizeClinical=s=>String(s||'').normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const fatiguePattern=/\b(?:fadig\w*|cansac\w*|indisposic\w*|astenia|fraqueza)\b/;
+const urgentPatterns=[
+ /\b(?:dor (?:no|do) peito|dor toracica)\b/,
+ /\b(?:falta de ar|dispneia)\b/,
+ /\b(?:desmaios?|sincope)\b/,
+ /\b(?:confusao mental|perda de consciencia)\b/,
+ /\b(?:sangramento intenso|fraqueza subita)\b/
+];
+function explicitUrgentSigns(question){
+ const q=normalizeClinical(question);
+ const found=[];
+ for(const re of urgentPatterns){
+  const match=re.exec(q);
+  if(!match)continue;
+  const before=q.slice(Math.max(0,match.index-22),match.index);
+  if(/\b(?:nega|sem|nao tem|nao apresenta|ausencia de)\s*(?:qualquer\s*)?$/.test(before))continue;
+  found.push(match[0]);
+ }
+ return found;
+}
+export function screenClinicalQuestion(question){
+ const q=normalizeClinical(question);
+ if(!fatiguePattern.test(q))return null;
+ const urgent=explicitUrgentSigns(question);
+ const missing=[];
+ const basics=missingClinicalBasics(question);
+ if(basics.includes('Faixa etária ou idade'))missing.push('Qual a idade do paciente?');
+ if(basics.includes('Sexo para individualização clínica'))missing.push('Qual o sexo do paciente?');
+ if(basics.includes('Peso corporal em kg'))missing.push('Qual o peso em kg?');
+ if(basics.includes('Medicamentos e suplementos em uso, ou confirmação de ausência'))
+  missing.push('Usa medicamentos ou suplementos?');
+ if(basics.includes('Alergias e reações anteriores'))missing.push('Há alergias conhecidas?');
+ if(basics.includes('Comorbidades, antecedentes e fatores de risco'))
+  missing.push('Possui doenças prévias, diagnóstico conhecido ou outras condições relevantes?');
+ if(!/\b(?:ha\s+\d|desde\s+|durante\s+|inicio\s+|comecou\s+|semanas?|meses?|dias?|anos?\s+de\s+fadiga)\b/.test(q))
+  missing.push('Há quanto tempo começaram a fadiga e o cansaço?');
+ if(!/\b(?:sono|dorme|dormindo|dormiu|insonia|apneia|descanso)\b/.test(q))
+  missing.push('Como estão o sono, o descanso e a rotina de trabalho?');
+ // Exames são úteis quando existentes, mas não são exigidos em todas as situações.
+ if(!/\b(?:exames?|hemograma|ferritina|tsh|glicemia|b12|vitamina|laboratorio)\b/.test(q))
+  missing.push('Existem exames recentes ou sinais associados (febre, perda de peso, falta de ar)?');
+ if(!missing.length&&!urgent.length)return null;
+ const raw={
+  decision:urgent.length?'red_flags':'insufficient_info',
+  objective:'Avaliar causas de fadiga e indisposição',
+  formula_name:'Avaliação farmacêutica em andamento',
+  quantity:'',pharmaceutical_form:'',route:'',
+  ingredients:[],posology:'',meal_relation:'',daily_schedule:'',
+  initial_duration_days:0,reassessment_days:0,extension_criteria:'',
+  monitoring:[],interactions:[],contraindications:[],
+  missing_information:urgent.length?[]:missing,
+  red_flags:urgent,
+  limitations:['Não atribuir fadiga a uma deficiência ou indicar doses terapêuticas sem avaliação clínica.']
+ };
+ return normalizeDraft(raw,[],question);
+}
+
 export function normalizeDraft(raw,sources=[],question=''){
 
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
@@ -79,6 +141,15 @@ export function normalizeDraft(raw,sources=[],question=''){
   return {...item,dose_supported:doseSupported(item,sources)};
  }).filter(x=>x.name&&x.references.length);
  const missing=list(raw.missing_information),redFlags=list(raw.red_flags);
+ // O modelo não pode inventar sinal de alerta apenas porque uma causa exige
+ // investigação. Para fadiga inespecífica, a urgência precisa estar descrita.
+ if(question&&fatiguePattern.test(normalizeClinical(question))&&
+    redFlags.length&&!explicitUrgentSigns(question).length){
+   redFlags.length=0;
+   if(!missing.includes('Esclarecer duração, antecedentes, sono e sinais associados'))
+    missing.push('Esclarecer duração, antecedentes, sono e sinais associados');
+   decision='insufficient_info';
+ }
  // Uma pergunta sobre sintomas isolados não autoriza prescrever doses individualizadas.
  if(question&&decision==='draft'){
    for(const required of missingClinicalBasics(question)){
@@ -112,6 +183,27 @@ export function draftAsText(d){
   insufficient_evidence:'EVIDÊNCIA INSUFICIENTE — NÃO LIBERAR RECEITA',
   red_flags:'SINAIS DE ALERTA — FORMULAÇÃO NÃO LIBERADA'
  }[d.decision]||'AVALIAÇÃO FARMACÊUTICA';
+ if(d.decision==='insufficient_info'||d.decision==='red_flags'){
+  const lines=[
+   d.decision==='red_flags'?'ATENÇÃO — AVALIAR SINAIS DE ALERTA':
+    'AVALIAÇÃO CLÍNICA EM ANDAMENTO',
+   'Objetivo: '+(d.objective||'Avaliar a necessidade clínica')
+  ];
+  if(d.decision==='red_flags'){
+   lines.push('Sinais relatados: '+d.red_flags.join('; '));
+   lines.push('É necessário atendimento clínico oportuno; não iniciar formulação para mascarar esses sintomas.');
+  }else{
+   lines.push('Os dados recebidos permitem iniciar a análise, mas ainda não fundamentam uma formulação individualizada.');
+   if(d.missing_information.length){
+    lines.push('INFORMAÇÕES PARA CONTINUAR:');
+    for(const item of d.missing_information.slice(0,7))
+     lines.push('• '+item);
+   }
+   lines.push('Responda na mesma conversa. O LifeMag IA deve considerar os dados já fornecidos.');
+  }
+  lines.push('Não é receituário nem diagnóstico médico.');
+  return lines.join('\n');
+ }
  const lines=[headline,d.formula_name||'Formulação em avaliação',
   'Objetivo: '+(d.objective||'não definido'),
   'Forma farmacêutica: '+(d.pharmaceutical_form||'a definir')+
