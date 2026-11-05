@@ -320,7 +320,7 @@ async function scientificSelftest(request,env){
     return reply({passed:false,stage:'workers_ai',reason:'Binding AI não configurado'},503);
   // A requisição foi autorizada pelo Cloudflare Access antes deste método.
   // Pergunta artificial, sem identificação e com dados clínicos suficientes.
-  const synthetic='Adulto 35 anos, sem medicamentos ou suplementos em uso, sem alergias, sem doenças conhecidas, enxaqueca; evidência para riboflavina 400 mg. Revisar eficácia, forma e segurança.';
+  const synthetic='Adulto 35 anos, sexo feminino, 70 kg, sem medicamentos ou suplementos em uso, sem alergias, sem doenças conhecidas, enxaqueca; evidência para riboflavina 400 mg. Revisar eficácia, forma e segurança.';
   const internal=new Request(new URL('/api/assist',request.url),{
     method:'POST',headers:{'content-type':'application/json'},
     body:JSON.stringify({question:synthetic,useConsensus:false})

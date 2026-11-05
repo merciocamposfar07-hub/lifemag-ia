@@ -63,6 +63,15 @@ async function main(){
     const raw=basic();raw.red_flags=['sinal de alarme'];
     const d=normalizeDraft(raw,evidence);assert.equal(d.decision,'red_flags');
   });
+  await check('dados clínicos mínimos incluem sexo e peso para dose individual',async()=>{
+    const full='Mulher, 35 anos, 70 kg, sem medicamentos, sem alergias, sem doenças conhecidas: enxaqueca';
+    const insufficient='35 anos, sem medicamentos, sem alergias, sem doenças conhecidas: enxaqueca';
+    assert.equal(normalizeDraft(basic(),evidence,full).decision,'draft');
+    const limited=normalizeDraft(basic(),evidence,insufficient);
+    assert.equal(limited.decision,'insufficient_info');
+    assert.ok(limited.missing_information.includes('Sexo para individualização clínica'));
+    assert.ok(limited.missing_information.includes('Peso corporal em kg'));
+  });
   await check('falta de informações clínicas bloqueia liberação',async()=>{
     const raw=basic();raw.missing_information=['medicamentos em uso'];
     const d=normalizeDraft(raw,evidence);assert.equal(d.decision,'insufficient_info');

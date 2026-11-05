@@ -550,7 +550,7 @@ function scientificOnly(){
     '<span class="research-indicator '+(online?'connected':'offline')+'">'+E(indicator)+'</span></div>'+
     '<p class="research-intro">Descreva o objetivo terapêutico e os dados clínicos anônimos disponíveis. A IA entregará primeiro uma proposta magistral estruturada, sujeita à revisão profissional.</p>'+
     '<form id="research-form" class="chat-input research-input">'+
-    '<textarea name="message" maxlength="2500" rows="3" required placeholder="Ex.: Adulto de 35 anos, sem medicamentos e sem alergias conhecidas, com enxaqueca. Quais opções magistrais têm evidências e doses estudadas?"></textarea>'+
+    '<textarea name="message" maxlength="2500" rows="3" required placeholder="Ex.: Mulher, 35 anos, 70 kg, sem medicamentos e sem alergias conhecidas, com enxaqueca. Quais opções magistrais têm evidências e doses estudadas?"></textarea>'+
     '<button type="submit" class="btn primary" '+disabled+' aria-label="Gerar proposta de formulação baseada em evidências">'+submitLabel+'</button>'+
     '</form>'+
     '<p class="research-privacy">Somente perguntas anônimas. Sem idade, medicamentos, alergias ou evidência suficiente, a IA deve indicar o que falta antes de liberar doses.</p>'+
