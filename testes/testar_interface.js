@@ -82,6 +82,12 @@ const cases = [
     assert.match(css,/writing-mode:horizontal-tb/);
   }],
   ['checkbox Consensus não ocupa largura do texto de IA', () => assert.match(css,/\.research-page #research-form\.research-input \.consensus-option\{[\s\S]*grid-column:1\/-1;/)],
+  ['botões Editar e Excluir aparecem em cada linha de paciente', () => {
+    assert.match(js,/function patientCard\(p\)[\s\S]*?data-select-patient/);
+    assert.match(js,/data-delete-patient="\$\{E\(p\.id\)\}"/);
+    assert.match(js,/if\(b\.dataset\.deletePatient\)\{deleteSelectedPatient\(b\.dataset\.deletePatient\)/);
+    assert.match(css,/\.person-row \.patient-row-actions/);
+  }],
   ['cadastro selecionado pode ser editado e excluído', () => {
     assert.match(js,/data-action="delete-patient"/);
     assert.match(js,/data-select-patient/);
