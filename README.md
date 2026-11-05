@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** v0.4.5 • catálogo integral dos oito volumes FB8 e dos dois Formulários 2026, com conversor PDF Cloudflare, biblioteca privada de trechos e revisão obrigatória; importação real ainda depende de confirmar arquivos/execução.
+**Status:** v0.4.6 • catálogo dos oito volumes FB8 e dos dois formulários 2026; divisor de PDFs grandes por páginas, manifesto SHA-256 e acompanhamento de cobertura no SQLite privado. PDFs oficiais integrais ainda dependem da obtenção/extração efetiva e revisão profissional.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -161,3 +161,6 @@ O histórico do planejamento original permanece nos documentos anteriores desta 
 - Limite inicial de segurança de 46 MiB por PDF em Workers Free; volumes maiores requerem separação em partes ou infraestrutura de maior capacidade.
 - **Ainda não equivale à importação integral concluída:** até que a Cloudflare confirme a conversão, o estado continua sendo apenas código implantável. A aprovação das monografias revisadas é uma etapa distinta.
 - Testes: `testes/testar_importacao_anvisa.js` e extensão de `testes/testar_sqlite_real.mjs`; documentação com URLs completas `docs/IMPORTACAO_ANVISA_2026.md`.
+
+## Importação de PDFs grandes da Anvisa — v0.4.6
+A Central Científica admite arquivos divididos em partes, com `manifesto-anvisa.json`. Para gerar as partes localmente use `scripts/dividir_compendio_anvisa.py` (requer `pypdf`) e selecione o manifesto e todos os PDFs no aplicativo. O endpoint `/api/science/anvisa-coverage` mostra cobertura de páginas; a integridade por SHA-256 é conferida antes da conversão e os conteúdos ficam em `pending_review`. Instruções completas em `docs/IMPORTACAO_ANVISA_2026.md`. **Não confundir cobertura de páginas declarada com conteúdo revisado, validado ou integralmente importado na produção.**
