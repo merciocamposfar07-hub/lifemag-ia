@@ -43,10 +43,16 @@ const anvisaImport={
   busy:false,activeId:null,error:null,latest:null,records:[],checked:false
 };
 const officialAnvisaDocuments=[
-  ['fb8-volume-i','Farmacopeia Brasileira — Volume I (8ª ed.)','Métodos gerais e capítulos'],
-  ['fb8-volume-ii-plantas','Farmacopeia Brasileira — Volume II: Plantas medicinais','Monografias de plantas'],
-  ['fn3-2026','Formulário Nacional (3ª ed.)','133 monografias de preparações oficinais'],
-  ['fffb3-2026','Formulário de Fitoterápicos (3ª ed.)','85 espécies e 236 formulações']
+  ['fb8-volume-i','Farmacopeia Brasileira — Volume I','Métodos e textos gerais',true],
+  ['fb8-volume-ii-dispositivos','Farmacopeia — Vol. II: Dispositivos médicos','Monografias de dispositivos',false],
+  ['fb8-volume-ii-gases','Farmacopeia — Vol. II: Gases medicinais','Monografias de gases',false],
+  ['fb8-volume-ii-hemocomponentes','Farmacopeia — Vol. II: Hemoderivados','Hemocomponentes e hemoderivados',false],
+  ['fb8-volume-ii-insumos','Farmacopeia — Vol. II: Insumos e especialidades','Matérias-primas farmacêuticas',false],
+  ['fb8-volume-ii-plantas','Farmacopeia — Vol. II: Plantas medicinais','Monografias vegetais',true],
+  ['fb8-volume-ii-biologicos','Farmacopeia — Vol. II: Produtos biológicos','Monografias biológicas',false],
+  ['fb8-volume-ii-radiofarmacos','Farmacopeia — Vol. II: Radiofármacos','Monografias de radiofármacos',false],
+  ['fn3-2026','Formulário Nacional — 3ª edição','133 monografias',true],
+  ['fffb3-2026','Formulário de Fitoterápicos — 3ª edição','85 espécies; 236 formulações',true]
 ];
 async function refreshAnvisaIngestions(){
  if(!aiSession.indexReady)return;
@@ -56,6 +62,31 @@ async function refreshAnvisaIngestions(){
   anvisaImport.records=Array.isArray(result.records)?result.records:[];
  }catch(_){anvisaImport.error='Não foi possível consultar o andamento dos compêndios.'}
  finally{anvisaImport.checked=true;render()}
+}
+async function uploadAnvisaDocument(id,file){
+ if(anvisaImport.busy||!officialAnvisaDocuments.some(x=>x[0]===id))return;
+ if(!file||!file.name.toLowerCase().endsWith('.pdf')){toast('Selecione um PDF oficial');return}
+ if(file.size>46*1024*1024){toast('O PDF ultrapassa 46 MiB. Divida o volume antes de enviar.');return}
+ if(!confirm('Converter este PDF oficial e guardar o texto em quarentena científica para revisão?'))return;
+ anvisaImport.busy=true;anvisaImport.activeId=id;
+ anvisaImport.error=null;anvisaImport.latest=null;render();
+ try{
+  const data=new FormData();data.append('id',id);data.append('file',file,file.name);
+  const res=await fetch('/api/science/upload-anvisa-pdf',{
+   method:'POST',credentials:'same-origin',body:data});
+  const result=await res.json();
+  if(!res.ok)throw Error(String(result.error||'Falha ao converter PDF'));
+  anvisaImport.latest=result;
+  toast('PDF recebido: '+String(result.sections||0)+' trechos aguardando revisão.');
+ }catch(error){anvisaImport.error=String(error?.message||'Erro de importação').slice(0,250)}
+ finally{
+  anvisaImport.busy=false;anvisaImport.activeId=null;
+  try{
+    const res=await fetch('/api/science/anvisa-ingestions',{credentials:'same-origin'});
+    const data=await res.json();anvisaImport.records=Array.isArray(data.records)?data.records:[];
+  }catch(_){}
+  render();
+ }
 }
 async function ingestAnvisaDocument(id){
  if(anvisaImport.busy||!officialAnvisaDocuments.some(x=>x[0]===id))return;
@@ -207,6 +238,8 @@ function setPage(next){
   // Ao entrar na Central Científica, consulta automaticamente as fontes (sem gasto de IA).
   if(next==='science'&&aiSession.ready&&!scienceCheck.lastCheck&&!scienceCheck.busy)
     void checkScientificServices('sources');
+  if(next==='science'&&aiSession.indexReady&&!anvisaImport.checked)
+    void refreshAnvisaIngestions();
 }
 function useVisit(v){ui.visitId=v.id;ui.patientId=v.patientId;}
 function startVisit(pid){if(!pid){toast('Cadastre ou selecione um paciente antes de começar.');setPage('patients');return;}const v={id:uid('at'),patientId:pid,date:yyyyMmDd(),startDate:yyyyMmDd(),assessment:emptyClinicalAssessment(),duration:15,status:'em acompanhamento',formulaName:'Nova formulação',presentation:'Cápsulas',route:'Oral',quantity:'',posology:'',schedules:'',meals:'',observations:'',protocol:'',ingredients:[],chat:[],revisions:[]};data.visits.push(v);persist();useVisit(v);setPage('conversation');toast('Atendimento criado. Descreva a necessidade clínica.');}
@@ -431,13 +464,17 @@ function science(){
  '</div>'+
  '<div class="panel anvisa-import" style="margin-top:14px"><h3>Importação dos compêndios da Anvisa — edições 2026</h3>'+
  '<p class="muted small">Arquivos cadastrados de fontes públicas. O Worker poderá obter e converter os PDFs em texto pesquisável, que ficará em quarentena até revisão. Isso não libera uma monografia automaticamente.</p>'+
- officialAnvisaDocuments.map(([id,title,desc])=>{
+ officialAnvisaDocuments.map(([id,title,desc,hasMirror])=>{
    const job=anvisaImport.records.find(x=>x.id.startsWith(id+'-'));
-   return '<div class="listline"><div><strong>'+E(title)+'</strong><p>'+E(desc)+
-    ' · '+(job?E(job.status)+' — '+E(String(job.sections||0))+' trechos extraídos':'não extraído')+
-    '</p></div><button type="button" class="btn compact" data-ingest-anvisa="'+E(id)+'" '+
-    (anvisaImport.busy||!aiSession.indexReady?'disabled':'')+'>'+
-    (anvisaImport.activeId===id?'Extraindo PDF...':'Preparar PDF oficial')+'</button></div>';
+   const disabled=anvisaImport.busy||!aiSession.indexReady;
+   return '<div class="listline anvisa-row"><div><strong>'+E(title)+'</strong><p>'+E(desc)+
+    ' · '+(job?E(job.status)+' — '+E(String(job.sections||0))+' trechos convertidos':'ainda não extraído')+
+    '</p></div><div class="anvisa-actions">'+
+    (hasMirror?'<button type="button" class="btn compact" data-ingest-anvisa="'+E(id)+'" '+
+    (disabled?'disabled':'')+'>'+(anvisaImport.activeId===id?'Processando...':'Obter cópia pública')+'</button>':'')+
+    '<label class="btn compact anvisa-picker">Selecionar PDF oficial'+
+    '<input type="file" data-anvisa-pdf="'+E(id)+'" accept="application/pdf,.pdf" '+
+    (disabled?'disabled':'')+'></label></div></div>';
  }).join('')+
  (anvisaImport.error?'<p role="alert" class="notice">'+E(anvisaImport.error)+'</p>':'')+
  (anvisaImport.latest?'<p role="status" class="notice blue">Texto recebido: '+
@@ -643,6 +680,10 @@ function handleSubmit(event){
   }else if(f.id==='formula-form')saveFormula(f);
 }
 function handleChange(e){const control=e.target;
+if(control.dataset.anvisaPdf){
+ const file=control.files?.[0];if(file)void uploadAnvisaDocument(control.dataset.anvisaPdf,file);
+ return;
+}
 if(['patient-exam-gallery','patient-exam-camera'].includes(control.id)){
  const files=Array.from(control.files||[]).slice(0,6);
  const selected=files.filter(file=>file.size<=10*1024*1024&&
