@@ -312,7 +312,8 @@ async function tests(){
       question:'Paciente apresenta enxaqueca e deseja formulação de riboflavina'
     }}),e,access);
     const out=await r.json();
-    assert.equal(out.draft.decision,'preliminary_draft');
+    assert.equal(out.draft.decision,'insufficient_evidence');
+    assert.equal(out.draft.ingredients[0].dose_supported,false);
     assert.equal(out.draft.canIssuePrescription,false);
     assert.ok(out.draft.missing_information.length>=3);
     assert.ok(!out.answer.includes('POSOLOGIA: tomar diariamente'));
