@@ -9,6 +9,9 @@ function readResult(text,pattern){
  const m=pattern.exec(text);
  if(!m)return null;
  const value=Number(m[1].replace(',','.'));
+ const suffix=text.slice(m.index+m[0].length,m.index+m[0].length+12);
+ // "B12 200 mcg" e "D3 30 UI" são posologias, não exames séricos.
+ if(/^\s*(?:mg|mcg|µg|ug|ui|iu)\b/i.test(suffix))return null;
  return Number.isFinite(value)?{value,unit:String(m[2]||'').toLowerCase()}:null;
 }
 export function quickB12VitaminDGuidance(question){
