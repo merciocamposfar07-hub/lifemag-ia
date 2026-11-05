@@ -67,27 +67,35 @@ export async function convertAnvisaDocument(id,buf,env,identity,provenance,partM
  if(!entry)return {ok:false,status:400,error:'Compêndio não cadastrado'};
  if(!env.SCIENCE_LIBRARY||typeof env.AI?.toMarkdown!=='function')
   return {ok:false,status:503,error:'Biblioteca SQLite ou conversor PDF não disponível'};
- if(!(buf instanceof ArrayBuffer)||buf.byteLength<800||buf.byteLength>anvisaDocumentByteLimit(id))
+ const pdfBytes=buf instanceof Blob?buf.size:buf instanceof ArrayBuffer?buf.byteLength:-1;
+ if(pdfBytes<800||pdfBytes>anvisaDocumentByteLimit(id))
   return {ok:false,status:413,error:'PDF excede limite configurado para este volume; requer processamento segmentado'};
- const signature=String.fromCharCode(...new Uint8Array(buf,0,5));
+ const signature=buf instanceof Blob?await buf.slice(0,5).text():
+  String.fromCharCode(...new Uint8Array(buf,0,5));
  if(signature!=='%PDF-')return {ok:false,status:422,error:'Arquivo recebido não tem assinatura PDF'};
  const checked=validateAnvisaPart(partMetadata,id);
  if(!checked.ok)return {ok:false,status:422,error:checked.error};
  const part=checked.part;
- const pdfHash=await hashBytes(buf);
+ // Reutiliza o Blob para a conversão, sem concatenar outra cópia de 55 MB.
+ let pdfHash;
+ try{pdfHash=await hashBytes(buf instanceof Blob?await buf.arrayBuffer():buf)}
+ catch(_){return {ok:false,status:502,stage:'integrity',errorCode:'sha256_failed',error:'Não foi possível verificar SHA-256 do PDF'}};
  if(part&&part.pdfSha256!==pdfHash)
   return {ok:false,status:422,error:'SHA-256 divergente: esta parte não corresponde ao manifesto'};
 
  let converted;
  try{
   converted=await env.AI.toMarkdown(
-   {name:id+'.pdf',blob:new Blob([buf],{type:'application/pdf'})},
+   {name:id+'.pdf',blob:buf instanceof Blob?buf:new Blob([buf],{type:'application/pdf'})},
    {conversionOptions:{pdf:{metadata:false}}}
   );
- }catch(_){return {ok:false,status:502,error:'A Cloudflare não conseguiu converter este PDF; não foi indexado'};}
+  }catch(err){return {ok:false,status:502,stage:'conversion',
+  errorCode:'cloudflare_pdf_conversion_failed',
+  error:'Conversão PDF falhou: '+String(err?.message||err?.name||'sem detalhes')
+   .replace(/[\r\n\t]/g,' ').slice(0,135)};}
  const output=Array.isArray(converted)?converted[0]:converted;
  if(!output||output.format==='error'||typeof output.data!=='string')
-  return {ok:false,status:502,error:'Falha da conversão: '+String(output?.error||'arquivo sem texto').slice(0,180)};
+  return {ok:false,status:502,stage:'conversion',errorCode:'cloudflare_pdf_invalid_output',error:'Falha da conversão: '+String(output?.error||'arquivo sem texto').slice(0,180)};
  if(output.data.length>MAX_MARKDOWN)
   return {ok:false,status:413,error:'Texto convertido excedeu limite de memória por documento'};
  const parts=splitScientificMarkdown(output.data);
@@ -112,7 +120,7 @@ export async function convertAnvisaDocument(id,buf,env,identity,provenance,partM
  const finished=await library.finishCompendiumExtraction(jobId,count);
  if(!finished.ok)return {ok:false,status:500,error:finished.error};
  return {ok:true,status:202,id:jobId,sourceId:entry.sourceId,
-  title:entry.title,pdfSha256:pdfHash,pdfBytes:buf.byteLength,
+  title:entry.title,pdfSha256:pdfHash,pdfBytes,
   convertedCharacters:output.data.length,sections:count,
   reviewStatus:'pending_review',part:part?{number:part.partNumber,total:part.partCount,pages:[part.pageStart,part.pageEnd]}:null,
   acquisition:provenance?'uploaded_pdf':'public_reference',
@@ -164,27 +172,30 @@ export async function importAnvisaCompendium(key,env,identity,fetcher=fetch){
   if(Number(response.headers?.get('content-length')||0)>limit){
    lastError='PDF excede 46 MiB';return null;
   }
-  let buffer;
+  // Evita três buffers completos de ~55 MB em um isolate de 128 MB.
+  // Response.blob() com limite de bytes não concatena manualmente os chunks.
+  let blob;
   try{
    if(!response.body)throw Error('Sem corpo');
-   const reader=response.body.getReader();const chunks=[];let length=0;
-   try{
-    for(;;){
-     const step=await reader.read();if(step.done)break;
-     length+=step.value.byteLength;
-     if(length>limit){
-      lastError='PDF ultrapassou o limite configurado para o volume';return null;
-     }
-     chunks.push(step.value);
+   let bytes=0;
+   const capped=response.body.pipeThrough(new TransformStream({
+    transform(chunk,controller){
+     bytes+=chunk.byteLength;
+     if(bytes>limit)throw Error('PDF_TOO_LARGE');
+     controller.enqueue(chunk);
     }
-   }finally{try{await reader.cancel()}catch(_){}}
-   const data=new Uint8Array(length);let at=0;
-   for(const chunk of chunks){data.set(chunk,at);at+=chunk.length}
-   buffer=data.buffer;
-  }catch(_){lastError='Falha ao receber PDF';return null}
-  const mark=buffer.byteLength>=5?String.fromCharCode(...new Uint8Array(buffer,0,5)):'';
-  if(mark!=='%PDF-'){lastError='Arquivo não possui assinatura PDF';return null}
-  return {url:finalUrl,buffer};
+   }));
+   blob=await new Response(capped,{headers:{'content-type':'application/pdf'}}).blob();
+  }catch(err){
+   lastError=String(err?.message||'')==='PDF_TOO_LARGE'?
+    'PDF ultrapassou o limite configurado durante download':
+    'Falha no streaming do PDF remoto';
+   return null;
+  }
+  if(blob.size<800||await blob.slice(0,5).text()!=='%PDF-'){
+   lastError='Arquivo não possui assinatura PDF';return null;
+  }
+  return {url:finalUrl,blob};
  }
  for(const url of attempts){
   pdf=await retrieve(url);
@@ -196,7 +207,7 @@ export async function importAnvisaCompendium(key,env,identity,fetcher=fetch){
   if(discovered.ok)pdf=await retrieve(discovered.url);
   else lastError+=(lastError?' / ':'')+discovered.error;
  }
- if(!pdf)return {ok:false,status:502,
+ if(!pdf)return {ok:false,status:502,stage:'acquisition',errorCode:'pdf_source_unavailable',
   error:'Nenhum PDF da edição 2026 acessível: '+String(lastError||'origem indisponível').slice(0,200)};
- return convertAnvisaDocument(key,pdf.buffer,env,identity,pdf.url);
+ return convertAnvisaDocument(key,pdf.blob,env,identity,pdf.url);
 }

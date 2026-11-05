@@ -5,7 +5,7 @@ async function main(){
  const {convertAnvisaDocument,importAnvisaCompendium,splitScientificMarkdown,validateAnvisaPart,anvisaDocumentByteLimit}
    =await import('../worker/anvisa-importer.js');
  const source=ANVISA_CATALOG.find(x=>x.id==='fffb3-2026');
- let record=null,staged=0,conversions=0,approved=0;
+ let record=null,staged=0,conversions=0,approved=0,lastSentBlob=null;
  const library={
   beginCompendiumExtraction:async meta=>{
    record=meta;
@@ -23,7 +23,8 @@ async function main(){
  };
  const env={
   SCIENCE_LIBRARY:{getByName:()=>library},
-  AI:{toMarkdown:async()=>{
+  AI:{toMarkdown:async file=>{
+   lastSentBlob=file.blob;
    conversions++;
    return {format:'markdown',data:'# Formulações da Anvisa\n\n'+
     'Texto científico de teste para comprovar segmentação sem liberar doses, prescrições ou monografias. '.repeat(9)}
@@ -56,6 +57,21 @@ async function main(){
   assert.equal(approved,0);
   assert.equal(record.sourceId,'anvisa-fitoterapicos');
   assert.ok(record.officialUrl.startsWith('https://bibliotecadigital.anvisa.gov.br/'));
+ });
+ await check('PDF em Blob é convertido sem nova cópia em memória',async()=>{
+  const file=new Blob([buffer],{type:'application/pdf'});
+  const result=await convertAnvisaDocument(source.id,file,env,identity,'anvisa_pdf');
+  assert.equal(result.ok,true);
+  assert.equal(result.pdfBytes,file.size);
+  assert.equal(lastSentBlob,file);
+ });
+ await check('erro de conversão identifica a etapa e o motivo',async()=>{
+  const broken={...env,AI:{toMarkdown:async()=>{throw Error('PDF muito grande para converter')}}};
+  const result=await convertAnvisaDocument(source.id,new Blob([buffer]),broken,identity,'anvisa_pdf');
+  assert.equal(result.ok,false);
+  assert.equal(result.stage,'conversion');
+  assert.equal(result.errorCode,'cloudflare_pdf_conversion_failed');
+  assert.match(result.error,/PDF muito grande/);
  });
  await check('arquivo com bytes inválidos não passa pelo conversor',async()=>{
   const invalid=new TextEncoder().encode('FAKE!'+'x'.repeat(950)).buffer;

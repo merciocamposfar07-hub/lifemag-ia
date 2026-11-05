@@ -62,7 +62,7 @@ export async function runAnvisaAutoSync(env,now=new Date(),importer=importAnvisa
   const saved=await library.recordCompendiumSync({
    documentId:entry.id,status,sections:Number(result?.sections)||0,
    message:result?.ok?'PDF convertido, trechos isolados para revisão profissional':
-    String(result?.error||'Servidor de publicação indisponível').slice(0,220),
+    ('Etapa '+String(result?.stage||'desconhecida')+': '+String(result?.error||'Servidor de publicação indisponível')).slice(0,220),
    checkedAt:now.toISOString()
   });
   if(saved?.ok===false)throw Error('Falha ao registrar');
