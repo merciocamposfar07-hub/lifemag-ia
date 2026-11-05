@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** v0.4.4 • primeira carga automática de 13 sínteses institucionais pesquisáveis via SQLite FTS5; PubMed via Europe PMC preservado, documentos completos e Consensus ainda pendentes.
+**Status:** v0.4.5 • catálogo integral dos oito volumes FB8 e dos dois Formulários 2026, com conversor PDF Cloudflare, biblioteca privada de trechos e revisão obrigatória; importação real ainda depende de confirmar arquivos/execução.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -151,3 +151,13 @@ O histórico do planejamento original permanece nos documentos anteriores desta 
 - PubMed online continua operacional em código. Consensus ainda depende da chave API pessoal; não declarar conexão ativa sem autenticação.
 - A Biblioteca Digital Anvisa bloqueou consulta automatizada de alguns PDFs (HTTP 403); a integração integral dos documentos depende de acesso permitido e ingestão validada.
 - Consulte `docs/SQLITE_CIENTIFICO_AUTOMATICO.md`. Publicação no Worker protegido deve ser conferida após o deploy GitHub.
+
+## v0.4.5 — iniciar importação das três obras da Anvisa
+- **Dez documentos oficiais identificados:** os oito volumes da Farmacopeia Brasileira (8ª edição), o Formulário Nacional (3ª edição) e o Formulário de Fitoterápicos (3ª edição).
+- Quatro PDFs públicos foram localizados em cópias catalogadas por Fitoterapia Brasil e estão no catálogo com URLs fixas: FB8 Volume I, FB8 Volume II Plantas, FN3 e FFFB3. O acesso automático ao PDF pode falhar; isso é notificado sem simular sucesso.
+- O Worker oferece **Obter cópia pública**, **Preparar os 4 PDFs públicos disponíveis** (uma única ação) e **Selecionar PDF oficial** para todos os dez documentos. Os dados são processados no servidor protegido, nunca enviados ao repositório público.
+- Usa `env.AI.toMarkdown` da Cloudflare para converter PDF em texto. Cada arquivo tem assinatura, tamanho, SHA-256 e identificador verificados; fragmentos são gravados no **Durable Object SQLite FTS5 privado** com status `pending_review`.
+- O texto dos PDFs preparados fica pesquisável com aviso `PDF extraído — ainda não revisado`. **A IA não pode utilizá-lo para validar doses ou receitas até revisão farmacêutica**, para evitar erros silenciosos em tabelas, números e unidades.
+- Limite inicial de segurança de 46 MiB por PDF em Workers Free; volumes maiores requerem separação em partes ou infraestrutura de maior capacidade.
+- **Ainda não equivale à importação integral concluída:** até que a Cloudflare confirme a conversão, o estado continua sendo apenas código implantável. A aprovação das monografias revisadas é uma etapa distinta.
+- Testes: `testes/testar_importacao_anvisa.js` e extensão de `testes/testar_sqlite_real.mjs`; documentação com URLs completas `docs/IMPORTACAO_ANVISA_2026.md`.
