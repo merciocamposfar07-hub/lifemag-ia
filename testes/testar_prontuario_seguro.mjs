@@ -67,4 +67,24 @@ await check('exclusão em cascata salva o estado vazio com auditoria',async()=>{
  const audit=await a.audit();
  assert.equal(audit[0].action,'delete');assert.equal(audit[0].visit_count,0);
 });
-console.log('Prontuário clínico privado: 6 verificações em SQLite real');
+await check('histórico anônimo de conversa permanece após gravação e nova leitura',async()=>{
+ const st=example();
+ st.patients=[];st.visits=[];
+ st.researchMessages=[
+  {id:'msg_exemplo1',role:'user',text:'Caso fictício: fadiga e indisposição',sources:[],
+    createdAt:'2026-11-05T18:30:00Z'},
+  {id:'msg_exemplo2',role:'assistant',
+    text:'Proposta magistral para revisão; confirmação profissional necessária.',
+    sources:[],createdAt:'2026-11-05T18:31:00Z'}
+ ];
+ const result=await a.save({revision:2,state:st});
+ assert.equal(result.ok,true);
+ const after=await a.read();
+ assert.equal(after.revision,3);
+ assert.equal(after.state.researchMessages.length,2);
+ assert.equal(after.state.researchMessages[0].role,'user');
+ assert.match(after.state.researchMessages[1].text,/Proposta magistral/);
+ assert.equal((await b.read()).state,null);
+});
+
+console.log('Prontuário clínico privado: 7 verificações em SQLite real');
