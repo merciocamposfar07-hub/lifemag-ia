@@ -4,12 +4,13 @@ export {LifeMagScientificStore} from './science-do.js';
 import {searchConsensus} from './consensus.js';
 import {FORMULA_SCHEMA,normalizeDraft,draftAsText} from './clinical-draft.js';
 import {ANVISA_CATALOG} from './anvisa-catalog.js';
+import {searchAnvisaOnline} from './anvisa-live.js';
 import {importAnvisaCompendium,convertAnvisaDocument,MAX_COMPENDIUM_BYTES} from './anvisa-importer.js';
 /* LifeMag IA: assistente científico, protegido pelo Cloudflare Access.
  * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
  * Nenhum texto clínico é registrado em logs.
  */
-const RELEASE='0.4.5';
+const RELEASE='0.4.7';
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -135,7 +136,7 @@ function assistantPrompt(evidence){
   'Porém, diante de sintomas isolados, idade, alergias, condições clínicas, tratamentos concomitantes, estado gestacional quando relevante ou evidência de dose ausentes, classifique decision=insufficient_info ou insufficient_evidence e liste as lacunas. NÃO apresente como receita individual segura.',
   'NUNCA presuma que tolerância inicial autoriza repetir por 6-12 meses; pausa 15 dias a cada 30 dias ou qualquer esquema cíclico carece de comprovação específica por ingrediente e reavaliação.',
   'Não converta valor nutricional em dose terapêutica sem ensaio adequado. Não invente doses, monografias, interações, estudos, horários ou orientação alimentar. Dose numérica só se aparecer explicitamente com unidade em um trecho de referência identificado.',
-  'IMPORTANTE: referências [O1], [O2] são sinopses institucionais; [P1], [P2] são trechos de PDFs oficiais convertidos, mas ainda NÃO revisados quanto a tabelas e unidades. As duas categorias podem servir apenas de contexto e identificação de capítulo. NÃO use esses identificadores para validar dose terapêutica, indicação individual, interação, preparo ou ciclo prolongado. Somente estudos clínicos e documentos profissionalmente revisados podem fundamentar doses, após análise de segurança.',
+  'IMPORTANTE: referências [W1], [W2] são páginas institucionais da Anvisa consultadas ao vivo (não são monografias); [O1], [O2] são sinopses institucionais; [P1], [P2] são trechos de PDFs oficiais convertidos, mas ainda NÃO revisados quanto a tabelas e unidades. As duas categorias podem servir apenas de contexto e identificação de capítulo. NÃO use esses identificadores para validar dose terapêutica, indicação individual, interação, preparo ou ciclo prolongado. Somente estudos clínicos e documentos profissionalmente revisados podem fundamentar doses, após análise de segurança.',
   'Inclua em ingredients[].references apenas identificadores verificados abaixo, por exemplo "1" para PubMed, "C1" para monografia aprovada ou "K1" para Consensus. Não cite fonte apenas por estar no catálogo.',
   'Não dê por estabelecido um diagnóstico baseado em sintomas. Sinais de alarme: decision=red_flags, destacando encaminhamento apropriado e sem receita.',
   'Responda no formato JSON pedido, em português técnico. Não adicione prosa fora do JSON. Campos sem evidência devem ser vazios ou "a definir". Não invente ingredientes só para preencher o quadro.',
@@ -178,14 +179,15 @@ async function analyze(request,env){
   }
   if(question.length<8||question.length>2500)return reply({error:'Descreva a pergunta entre 8 e 2.500 caracteres'},400);
   const terms=question;
-  const evidence=await searchEvidence(terms);
-  const indexed=await searchOfficialSources(question,env);
+  const [evidence,indexed,liveAnvisa]=await Promise.all([
+    searchEvidence(terms),searchOfficialSources(question,env),searchAnvisaOnline(question)
+  ]);
   // Consensus NÃO é acionado automaticamente para preservar a cota mensal.
   // É consultado somente quando o usuário ativa useConsensus=true.
   const consensus=args.useConsensus===true?
     await searchConsensus(question,env):
     {status:'not_requested',items:[]};
-  const verifiedSources=[...indexed.items,...evidence.items,...consensus.items];
+  const verifiedSources=[...indexed.items,...evidence.items,...consensus.items,...liveAnvisa.items];
   // FALHA FECHADA: sem artigo ou trecho oficial revisado, não consulta o modelo.
   if(!verifiedSources.some(x=>x.abstract)){
     const failStatus=evidence.status==='source_error'?503:422;
@@ -214,17 +216,21 @@ async function analyze(request,env){
     return reply({answer:answer.slice(0,16000),draft,
       sources:verifiedSources.map(({abstract,...citation})=>citation),
       evidenceStatus:'Fontes recuperadas nesta consulta; análise automatizada ainda requer revisão técnica.',
-      sourceStatus:{pubmed:evidence.status,internal:indexed.status,consensus:consensus.status},
+      sourceStatus:{pubmed:evidence.status,internal:indexed.status,consensus:consensus.status,anvisaOnline:liveAnvisa.status},
       catalogStatus:indexed.reviewedCount>0?'Trechos de monografias revisadas recuperados da biblioteca interna':
         indexed.unreviewedCount>0?'PDF convertido e pesquisável, mas fidelidade de tabelas/unidades ainda não revisada':
         indexed.overviewCount>0?'Sinopses institucionais recuperadas; monografias completas ainda não indexadas':
+        liveAnvisa.items.length?'Páginas oficiais da Anvisa consultadas online; monografias integrais ainda não indexadas':
         'Compêndios Anvisa ainda não disponíveis no índice científico interno',
       model:MODEL,requiresProfessionalReview:true});
   }catch(_){return reply({error:'A IA não respondeu; nenhuma recomendação foi produzida'},502)}
 }
 // Verificação real solicitada pelo farmacêutico. Sem dados de pacientes e sem gasto de IA em GET.
 async function scientificConnectivity(env){
-  const pubmed=await searchEvidence('riboflavin migraine');
+  const [pubmed,anvisaOnline]=await Promise.all([
+    searchEvidence('riboflavin migraine'),
+    searchAnvisaOnline('Farmacopeia Brasileira Formulário Nacional Fitoterápicos')
+  ]);
   if(env.SCIENCE_LIBRARY){
     let docStatus={status:'library_error',approvedDocuments:0,
       approvedPassages:0,sources:[],storage:'SQLite Durable Object'};
@@ -233,6 +239,8 @@ async function scientificConnectivity(env){
       pubmed:{status:pubmed.status,articles:pubmed.items.length,
         sample:pubmed.items[0]?{title:pubmed.items[0].title,url:pubmed.items[0].url}:null},
       officialIndex:docStatus,
+      anvisaOnline:{status:anvisaOnline.status,checked:anvisaOnline.checked,reachable:anvisaOnline.reachable,
+        retrievedContext:anvisaOnline.items.length,fullMonographs:false},
       consensus:{status:env.CONSENSUS_API_KEY?'key_configured_not_tested':'not_configured'},
       workersAI:{status:env.AI&&typeof env.AI.run==='function'?'binding_configured_not_tested':'not_configured'},
       clinicalRecords:{status:'not_ready_do_not_enter_real_patients'},
@@ -275,6 +283,8 @@ async function scientificConnectivity(env){
     pubmed:{status:pubmed.status,articles:pubmed.items.length,
       sample:pubmed.items[0]?{title:pubmed.items[0].title,url:pubmed.items[0].url}:null},
     officialIndex:{status:indexStatus,approvedDocuments:documents,approvedPassages:passages,sources},
+    anvisaOnline:{status:anvisaOnline.status,checked:anvisaOnline.checked,reachable:anvisaOnline.reachable,
+      retrievedContext:anvisaOnline.items.length,fullMonographs:false},
     consensus:{status:env.CONSENSUS_API_KEY?'key_configured_not_tested':'not_configured'},
     workersAI:{status:env.AI&&typeof env.AI.run==='function'?'binding_configured_not_tested':'not_configured'},
     clinicalRecords:{status:'not_ready_do_not_enter_real_patients'},
@@ -366,15 +376,18 @@ export default {
       return reply({ready:!!env.AI,science:'Europe PMC (resumos indexados no PubMed)',
         official:OFFICIAL,model:MODEL,version:RELEASE,clinicalRecordStorage:false,authenticated:true,
         internalScienceIndex:env.SCIENCE_LIBRARY?'durable_sqlite_configured':env.SCIENCE_DB?'binding_configured':'not_configured',consensus:env.CONSENSUS_API_KEY?'key_configured':'not_configured',
-        formulaDraft:'structured_review_only'})
+        formulaDraft:'structured_review_only',automaticAnvisaOnline:true,
+        anvisaOnlineCoverage:'institutional_pages_only_no_full_monographs'})
     }
     if(url.pathname==='/api/science/search'&&request.method==='GET'){
       const q=String(url.searchParams.get('q')||'').trim();
       if(q.length<4||q.length>120)return reply({error:'Use um tema científico de 4 a 120 caracteres'},400);
       if(/\b\d{3}[. ]?\d{3}[. ]?\d{3}[- ]?\d{2}\b/.test(q)||/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/.test(q))
         return reply({error:'Não envie dados pessoais para a pesquisa científica'},400);
-      const results=await searchOfficialSources(q,env);
-      return reply({status:results.status,results:(results.items||[]).slice(0,10),
+      const [results,online]=await Promise.all([searchOfficialSources(q,env),searchAnvisaOnline(q)]);
+      return reply({status:results.status,results:[...(results.items||[]),...online.items].slice(0,12),
+        anvisaOnline:{status:online.status,checked:online.checked,reachable:online.reachable,
+          retrievedContext:online.items.length,fullMonographs:false},
         reviewedCount:Number(results.reviewedCount)||0,unreviewedCount:Number(results.unreviewedCount)||0,
         overviewCount:Number(results.overviewCount)||0,
         searchType:'biblioteca_cientifica_nao_pacientes'});

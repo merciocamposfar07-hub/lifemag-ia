@@ -1,5 +1,5 @@
 
-/* LifeMag IA v0.4.2 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
+/* LifeMag IA v0.4.7 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
 'use strict';
 const IMG = 'assets/icone-oficial-escuro.png';
 const iconPaths = {
@@ -514,8 +514,7 @@ function science(){
    'Busca científica online configurada; teste a recuperação para confirmar o resultado atual.':
    'Serviço ainda não identificado como disponível neste domínio.'],
   ['Farmacopeia, Formulário Nacional e Fitoterápicos',
-   aiSession.indexReady?'Biblioteca SQLite vinculada; confira quantos documentos foram realmente carregados.':
-    'Documentos apenas catalogados: índice interno ainda não conectado.'],
+   'Consulta online automática às páginas oficiais da Anvisa. O índice privado mantém documentos revisados; os PDFs integrais ainda precisam ser importados.'],
   ['Conitec / PCDT, OMS e guias brasileiros','Referências catalogadas, sem conteúdo indexado e aprovado.'],
   ['Consensus',aiSession.consensusReady?'Chave configurada; pesquisa opcional e sujeita à cota.':
    'Chave da API ainda não configurada; o Consensus conectado ao ChatGPT é independente.']
@@ -529,6 +528,9 @@ function science(){
       '<div class="listline"><strong>PubMed: '+E(x.pubmed.status)+
       '</strong><p>'+E(String(x.pubmed.articles||0))+' artigos com resumo recuperados'+
       (x.pubmed.sample?': '+E(x.pubmed.sample.title):'')+'</p></div>'+
+      '<div class="listline"><strong>Anvisa online: '+E(x.anvisaOnline?.status||'não verificado')+
+      '</strong><p>'+E(String(x.anvisaOnline?.reachable||0))+'/'+E(String(x.anvisaOnline?.checked||0))+
+      ' páginas oficiais acessíveis; conteúdo institucional, não monografia integral.</p></div>'+
       '<div class="listline"><strong>Índice oficial: '+E(x.officialIndex?.status||'desconhecido')+
       '</strong><p>'+E(String(x.officialIndex?.approvedDocuments||0))+' monografias/documentos completos aprovados; '+
       E(String(x.officialIndex?.approvedPassages||0))+' trechos revisados; '+
@@ -549,8 +551,8 @@ function science(){
    }
  }
  const busy=scienceCheck.busy?'disabled':'';
- return pageHeader('Central de Atualização Científica','Conexões verificáveis do motor magistral · v0.4.5.')+
- '<div class="notice blue">A biblioteca diferencia sinopses oficiais, documentos completos revisados e estudos PubMed. Uma síntese do catálogo não valida doses. O teste do motor usa somente caso fictício.</div>'+
+ return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.4.7.')+
+ '<div class="notice blue"><strong>Consulta científica automática:</strong> o LifeMag IA pesquisa artigos PubMed, o índice privado e páginas oficiais da Anvisa, sem você selecionar PDFs. Páginas institucionais não substituem monografias nem validam doses. O teste usa caso fictício.</div>'+
  '<div class="panel"><h3>Diagnóstico de conexão</h3>'+
  '<p class="muted small">Verifique a recuperação de artigos gratuitamente. O autoteste completo também executa o modelo de IA e consome parte da franquia Workers AI.</p>'+
  '<div class="btnrow"><button type="button" class="btn primary" data-science-check="sources" '+busy+'>Verificar fontes</button>'+
@@ -559,7 +561,7 @@ function science(){
  (scienceCheck.error?'<div class="notice">'+E(scienceCheck.error)+'</div>':'')+
  (checkResult?'<div class="science-check-result" aria-live="polite">'+checkResult+'</div>':'')+
  '</div>'+
- '<div class="panel anvisa-import" style="margin-top:14px"><h3>Importação dos compêndios da Anvisa — edições 2026</h3>'+
+ '<details class="panel anvisa-import" style="margin-top:14px"><summary><strong>Ferramentas técnicas de importação (opcionais)</strong></summary><div><h3>Importação dos compêndios da Anvisa — edições 2026</h3>'+
  '<p class="muted small">O Worker converterá os PDFs em texto para a biblioteca privada. A extração preserva conteúdo para pesquisa, mas tabelas, unidades e capítulos devem ser conferidos antes de liberar doses. Limite atual: 46 MiB por PDF.</p>'+
  '<button type="button" class="btn primary" data-anvisa-batch="start" '+(anvisaImport.busy||!aiSession.indexReady?'disabled':'')+'>Tentar obter as 3 cópias públicas menores</button>'+
  '<label class="btn compact anvisa-picker">Importar volume dividido (manifesto + PDFs)'+
@@ -588,7 +590,7 @@ function science(){
  (anvisaImport.error?'<p role="alert" class="notice">'+E(anvisaImport.error)+'</p>':'')+
  (anvisaImport.latest?'<p role="status" class="notice blue">Texto recebido: '+
   E(String(anvisaImport.latest.sections||0))+' trechos; revisão documental pendente.</p>':'')+
- '</div>'+
+ '</div></details>'+
 '<div class="panel scientific-search" style="margin-top:14px"><h3>Pesquisar conteúdo científico</h3>'+
  '<p class="muted small">Busque no conteúdo já indexado, por exemplo: fitoterápicos, cápsulas, atividade física ou Guia Alimentar. Sinopses não equivalem a monografias integrais nem validam doses.</p>'+
  '<form id="science-search-form"><div class="field"><label for="science-search-query">Tema científico (sem dados de paciente)</label>'+
@@ -599,9 +601,9 @@ function science(){
  (scienceCheck.libraryResults?'<div class="science-library-results" aria-live="polite"><p class="muted small">'+
  E(String(scienceCheck.libraryResults.results?.length||0))+' resultados · '+E(String(scienceCheck.libraryResults.reviewedCount||0))+
  ' trechos de documentos revisados · '+E(String(scienceCheck.libraryResults.unreviewedCount||0))+' trechos de PDF ainda não conferidos · '+E(String(scienceCheck.libraryResults.overviewCount||0))+
- ' sinopses institucionais</p>'+
+ ' sinopses institucionais · '+E(String(scienceCheck.libraryResults.anvisaOnline?.retrievedContext||0))+' páginas oficiais online relacionadas</p>'+
  (scienceCheck.libraryResults.results||[]).map(x=>'<article class="listline"><div><strong>'+E(x.title)+
- '</strong><p>'+E(x.evidenceTier==='reviewed_document'?'Documento revisado':x.evidenceTier==='extracted_unreviewed'?'PDF oficial extraído — revisão pendente; não valida dose':'Sinopse institucional (não é dose clínica)')+
+ '</strong><p>'+E(x.evidenceTier==='reviewed_document'?'Documento revisado':x.evidenceTier==='extracted_unreviewed'?'PDF oficial extraído — revisão pendente; não valida dose':x.evidenceTier==='official_web_context'?'Página consultada online — não é monografia integral':'Sinopse institucional (não é dose clínica)')+
  ' · '+E(x.journal||'Fonte oficial')+'</p><p>'+E(String(x.abstract||'').slice(0,800))+'</p>'+
  '<a target="_blank" rel="noopener noreferrer" href="'+E(x.url)+'">Consultar fonte oficial</a></div></article>').join('')+
  '</div>':'')+'</div>'+

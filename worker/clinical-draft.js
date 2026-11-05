@@ -37,7 +37,7 @@ function doseSupported(x,sources){
  return list(x.references,6).some(ref=>{
   const source=sourceMap.get(ref.replace(/[\[\]]/g,''));
   // Sinopses de catálogos não validam dose, posologia ou manipulação.
-  if(!source||['official_overview','extracted_unreviewed'].includes(source.evidenceTier))return false;
+  if(!source||['official_overview','extracted_unreviewed','official_web_context'].includes(source.evidenceTier))return false;
   const topic=(String(source.title||'')+' '+String(source.abstract||'')).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const ingredient=String(x.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const synonyms={riboflavina:'riboflavin',magnesio:'magnesium',cafeina:'caffeine',berberina:'berberine',coenzima:'coenzyme',melatonina:'melatonin',cromo:'chromium',zinco:'zinc',tirosina:'tyrosine'};
