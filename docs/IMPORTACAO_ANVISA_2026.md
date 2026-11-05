@@ -103,7 +103,7 @@ O fluxo de CI foi inicialmente bloqueado por um literal SQL incorreto (`"extract
 ## v0.4.9 — coleta progressiva sem seleção manual
 
 - O projeto está ligado ao Worker Cloudflare chamado **lifemag-ia-clinico**, com checks de implantação na integração oficial do GitHub.
-- O cron é configurado para executar na hora 17 de cada hora, em **UTC**: expressão `17 * * * *`. A execução efetiva deve ser confirmada pelo registro na base SQLite; build bem-sucedido não implica extração.
+- O cron está configurado para executar no minuto 17 de cada hora, em **UTC**: expressão `17 * * * *`. A execução efetiva deve ser confirmada pelo registro na base SQLite; build bem-sucedido não implica extração.
 - Prioridade: Formulário Nacional 3ª edição, Formulário de Fitoterápicos 3ª edição e Farmacopeia Brasileira 8ª edição Volume I. Depois tenta outros seis volumes elegíveis, respeitando limite de arquivo.
 - Se uma URL de cópia pública falhar ou não existir, o servidor tenta a página canônica da Biblioteca Digital e procura exclusivamente um link PDF HTTPS cujo identificador corresponda ao mesmo handle oficial. **HTTP 403 não é contornado.**
 - Registro em SQLite: `in_progress` (início), `import_failed` (falha explícita), `extracted_pending_review` (conteúdo convertido e ainda não revisado). Repetições de erro respeitam janela de 12 horas.
