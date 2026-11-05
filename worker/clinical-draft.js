@@ -1,7 +1,7 @@
 // Estrutura magistral para REVISÃO profissional. Não é prescrição nem assinatura.
 export const FORMULA_SCHEMA={
  type:'object',properties:{
-  decision:{type:'string',enum:['draft','insufficient_info','insufficient_evidence','red_flags']},
+  decision:{type:'string',enum:['draft','preliminary_draft','insufficient_info','insufficient_evidence','red_flags']},
   objective:{type:'string'},formula_name:{type:'string'},quantity:{type:'string'},
   pharmaceutical_form:{type:'string'},route:{type:'string'},
   ingredients:{type:'array',items:{type:'object',properties:{
@@ -110,7 +110,7 @@ export function screenClinicalQuestion(question){
  // Exames são úteis quando existentes, mas não são exigidos em todas as situações.
  if(!/\b(?:exames?|hemograma|ferritina|tsh|glicemia|b12|vitamina|laboratorio)\b/.test(q))
   missing.push('Existem exames recentes ou sinais associados (febre, perda de peso, falta de ar)?');
- if(!missing.length&&!urgent.length)return null;
+ if(!urgent.length)return null;
  const raw={
   decision:urgent.length?'red_flags':'insufficient_info',
   objective:'Avaliar causas de fadiga e indisposição',
@@ -129,7 +129,7 @@ export function screenClinicalQuestion(question){
 export function normalizeDraft(raw,sources=[],question=''){
 
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
- let decision=['draft','insufficient_info','insufficient_evidence','red_flags']
+ let decision=['draft','preliminary_draft','insufficient_info','insufficient_evidence','red_flags']
    .includes(raw.decision)?raw.decision:'insufficient_info';
  const ids=new Set(sources.map(x=>String(x.id)));
  const ingredients=(Array.isArray(raw.ingredients)?raw.ingredients:[]).slice(0,12).map(x=>{
@@ -151,7 +151,7 @@ export function normalizeDraft(raw,sources=[],question=''){
    decision='insufficient_info';
  }
  // Uma pergunta sobre sintomas isolados não autoriza prescrever doses individualizadas.
- if(question&&decision==='draft'){
+ if(question&&['draft','preliminary_draft'].includes(decision)){
    for(const required of missingClinicalBasics(question)){
      if(!missing.includes(required))missing.push(required);
    }
@@ -159,8 +159,8 @@ export function normalizeDraft(raw,sources=[],question=''){
 
  const unverified=ingredients.filter(x=>!x.dose_supported).map(x=>x.name);
  if(redFlags.length)decision='red_flags';
- else if(missing.length&&decision==='draft')decision='insufficient_info';
- else if((!ingredients.length||unverified.length)&&decision==='draft')decision='insufficient_evidence';
+ else if((!ingredients.length||unverified.length)&&['draft','preliminary_draft'].includes(decision))decision='insufficient_evidence';
+ else if(missing.length&&decision==='draft')decision='preliminary_draft';
  const positiveDays=x=>Number.isInteger(x)&&x>0&&x<=365?x:null;
  return {
   decision,objective:plain(raw.objective),formula_name:plain(raw.formula_name),quantity:plain(raw.quantity),
@@ -179,6 +179,7 @@ export function draftAsText(d){
  if(!d)return '';
  const headline={
   draft:'PROPOSTA MAGISTRAL PARA REVISÃO',
+  preliminary_draft:'PROPOSTA PRELIMINAR — REVISÃO FARMACÊUTICA OBRIGATÓRIA',
   insufficient_info:'DADOS CLÍNICOS INSUFICIENTES — FORMULAÇÃO NÃO LIBERADA',
   insufficient_evidence:'EVIDÊNCIA INSUFICIENTE — NÃO LIBERAR RECEITA',
   red_flags:'SINAIS DE ALERTA — FORMULAÇÃO NÃO LIBERADA'
@@ -215,17 +216,19 @@ export function draftAsText(d){
     dose+' ['+item.role+']. '+item.rationale+
     ' Fontes: '+item.references.map(r=>'['+r+']').join(', '));
  }
- lines.push('QUANTIDADE PARA MANIPULAR: '+(d.decision==='draft'?(d.quantity||'a definir'):'a definir'));
- lines.push('POSOLOGIA: '+(d.decision==='draft'?(d.posology||'a definir'):'NÃO DEFINIDA — confirmar dados clínicos e evidências'));
- lines.push('REFEIÇÕES: '+(d.decision==='draft'?(d.meal_relation||'a definir'):'a definir'));
- lines.push('HORÁRIOS: '+(d.decision==='draft'?(d.daily_schedule||'a definir'):'a definir'));
- lines.push('DURAÇÃO INICIAL: '+(d.decision==='draft'&&d.initial_duration_days?d.initial_duration_days+' dias':'a definir'));
- lines.push('REAVALIAÇÃO: '+(d.decision==='draft'&&d.reassessment_days?d.reassessment_days+' dias':'a definir'));
+ lines.push('QUANTIDADE PARA MANIPULAR: '+(d.decision==='draft'?(d.quantity||'a definir'):'a confirmar na revisão'));
+ lines.push(d.decision==='preliminary_draft'?
+  'POSOLOGIA ESTUDADA (NÃO INDIVIDUALIZADA): '+(d.posology||'a definir') :
+  'POSOLOGIA: '+(d.decision==='draft'?(d.posology||'a definir'):'NÃO DEFINIDA — confirmar dados clínicos e evidências'));
+ lines.push('REFEIÇÕES: '+(['draft','preliminary_draft'].includes(d.decision)?(d.meal_relation||'a definir'):'a definir'));
+ lines.push('HORÁRIOS: '+(['draft','preliminary_draft'].includes(d.decision)?(d.daily_schedule||'a definir'):'a definir'));
+ lines.push('DURAÇÃO INICIAL: '+(['draft','preliminary_draft'].includes(d.decision)&&d.initial_duration_days?d.initial_duration_days+' dias (sujeito a revisão)':'a definir'));
+ lines.push('REAVALIAÇÃO: '+(['draft','preliminary_draft'].includes(d.decision)&&d.reassessment_days?d.reassessment_days+' dias':'a definir'));
  lines.push('CRITÉRIOS DE PRORROGAÇÃO: '+(d.extension_criteria||'a definir'));
  const section=(title,values)=>{if(values.length)lines.push(title+': '+values.join('; '));};
  section('MONITORAMENTO',d.monitoring);section('INTERAÇÕES A AVALIAR',d.interactions);
  section('CONTRAINDICAÇÕES',d.contraindications);
- section('INFORMAÇÕES FALTANTES',d.missing_information);
+ section('INFORMAÇÕES RECOMENDADAS PARA REVISÃO',d.missing_information);
  section('SINAIS DE ALERTA',d.red_flags);
  section('DOSES NÃO COMPROVADAS',d.dose_support_gaps);
  section('LIMITAÇÕES',d.limitations);
