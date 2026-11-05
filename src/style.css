@@ -797,3 +797,18 @@ body{color:#122e49}
  background:#fff;color:#1b334d;font-size:17px;min-width:0}
 .research-page .quick-recipe-form button{min-height:47px;font-size:16px}
 @media(max-width:760px){.research-page .quick-recipe-form{padding:12px}}
+
+
+/* v0.6.6 — ações de cadastro sempre visíveis, inclusive no celular */
+.person-row{flex-wrap:wrap;align-items:center;gap:10px}
+.person-row>div:first-child{flex:1 1 170px;min-width:0;overflow-wrap:anywhere}
+.person-row .patient-row-actions{display:flex;flex:0 1 auto;gap:7px;flex-wrap:wrap}
+.person-row .patient-row-actions .btn{min-height:42px;font-size:15px;
+ padding:9px 11px;font-weight:750}
+.person-row .patient-row-actions .btn.danger{border:1px solid #ecc2c5}
+@media(max-width:760px){
+ .person-row{align-items:stretch;flex-direction:column}
+ .person-row>div:first-child{width:100%}
+ .person-row .patient-row-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
+ .person-row .patient-row-actions .btn{width:100%;justify-content:center}
+}
