@@ -3,7 +3,12 @@
 // Aceita somente documentos constantes do catálogo de edições vigentes 2026.
 import {ANVISA_CATALOG} from './anvisa-catalog.js';
 import {discoverOfficialAnvisaPdf} from './anvisa-discover.js';
-export const MAX_COMPENDIUM_BYTES=46*1024*1024; // margem para 128 MiB de RAM Workers Free
+export const MAX_COMPENDIUM_BYTES=46*1024*1024; // limite conservador habitual
+// Tentativa específica para plantas: o arquivo conhecido possui ~55 MB.
+// Falhas de conversão precisam aparecer no diagnóstico; nunca aprovar automaticamente.
+export const MAX_PLANTS_BYTES=62*1024*1024;
+export const anvisaDocumentByteLimit=id=>
+ id==='fb8-volume-ii-plantas'?MAX_PLANTS_BYTES:MAX_COMPENDIUM_BYTES;
 const MAX_MARKDOWN=20*1024*1024;
 const hashBytes=async input=>{
  const hash=await crypto.subtle.digest('SHA-256',input);
@@ -62,8 +67,8 @@ export async function convertAnvisaDocument(id,buf,env,identity,provenance,partM
  if(!entry)return {ok:false,status:400,error:'Compêndio não cadastrado'};
  if(!env.SCIENCE_LIBRARY||typeof env.AI?.toMarkdown!=='function')
   return {ok:false,status:503,error:'Biblioteca SQLite ou conversor PDF não disponível'};
- if(!(buf instanceof ArrayBuffer)||buf.byteLength<800||buf.byteLength>MAX_COMPENDIUM_BYTES)
-  return {ok:false,status:413,error:'PDF excede limite seguro de 46 MiB por arquivo no plano Free; dividir este volume em partes'};
+ if(!(buf instanceof ArrayBuffer)||buf.byteLength<800||buf.byteLength>anvisaDocumentByteLimit(id))
+  return {ok:false,status:413,error:'PDF excede limite configurado para este volume; requer processamento segmentado'};
  const signature=String.fromCharCode(...new Uint8Array(buf,0,5));
  if(signature!=='%PDF-')return {ok:false,status:422,error:'Arquivo recebido não tem assinatura PDF'};
  const checked=validateAnvisaPart(partMetadata,id);
@@ -116,8 +121,9 @@ export async function convertAnvisaDocument(id,buf,env,identity,provenance,partM
 export async function importAnvisaCompendium(key,env,identity,fetcher=fetch){
  const entry=ANVISA_CATALOG.find(x=>x.id===key);
  if(!entry)return {ok:false,status:400,error:'Documento não cadastrado'};
- if(Number(entry.knownSizeBytes)>MAX_COMPENDIUM_BYTES)return {ok:false,status:413,
-  error:'PDF acima de 46 MiB; requer segmentação remota antes da conversão'};
+ const limit=anvisaDocumentByteLimit(key);
+ if(Number(entry.knownSizeBytes)>limit)return {ok:false,status:413,
+  error:'PDF acima do limite deste volume; processamento segmentado necessário'};
  // URLs são constantes do catálogo. Não consulta buscadores genéricos ou edições revogadas.
  const attempts=[entry.verifiedMirrorUrl,entry.officialPdfUrl].filter(Boolean);
  let lastError='';const visited=new Set();
@@ -155,7 +161,7 @@ export async function importAnvisaCompendium(key,env,identity,fetcher=fetch){
   if(contentType&&!contentType.includes('pdf')&&!contentType.includes('octet-stream')){
    lastError='Servidor retornou conteúdo diferente de PDF';return null;
   }
-  if(Number(response.headers?.get('content-length')||0)>MAX_COMPENDIUM_BYTES){
+  if(Number(response.headers?.get('content-length')||0)>limit){
    lastError='PDF excede 46 MiB';return null;
   }
   let buffer;
@@ -166,8 +172,8 @@ export async function importAnvisaCompendium(key,env,identity,fetcher=fetch){
     for(;;){
      const step=await reader.read();if(step.done)break;
      length+=step.value.byteLength;
-     if(length>MAX_COMPENDIUM_BYTES){
-      lastError='PDF ultrapassou 46 MiB durante download';return null;
+     if(length>limit){
+      lastError='PDF ultrapassou o limite configurado para o volume';return null;
      }
      chunks.push(step.value);
     }

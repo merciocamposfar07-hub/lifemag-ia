@@ -21,11 +21,10 @@ async function main(){
   extracted.push({id:id+'-123456abcdef',status:'pending_review'});
   return {ok:true,sections:15};
  };
- await check('fila prioriza formulários e inclui nove arquivos do catálogo oficial',async()=>{
-  assert.deepEqual(AUTO_COMPENDIA.slice(0,3).map(x=>x.id),
-   ['fn3-2026','fffb3-2026','fb8-volume-i']);
-  assert.equal(AUTO_COMPENDIA.length,9);
-  assert.ok(!AUTO_COMPENDIA.some(x=>x.id==='fb8-volume-ii-plantas'));
+ await check('fila inclui os 10 arquivos e prioriza as plantas medicinais',async()=>{
+  assert.deepEqual(AUTO_COMPENDIA.slice(0,4).map(x=>x.id),
+   ['fb8-volume-ii-plantas','fffb3-2026','fn3-2026','fb8-volume-i']);
+  assert.equal(AUTO_COMPENDIA.length,10);
  });
  await check('sem Cloudflare AI e SQLite não tenta nenhuma importação',async()=>{
   assert.equal((await runAnvisaAutoSync({},now)).attempted,false);
@@ -37,8 +36,8 @@ async function main(){
    assert.equal(result.documentId,entry.id);
    assert.equal(result.reviewStatus,'pending_review');
   }
-  assert.equal(downloaded.length,9);
-  assert.equal(records.length,9);
+  assert.equal(downloaded.length,10);
+  assert.equal(records.length,10);
   assert.ok(records.every(r=>r.status==='extracted_pending_review'));
  });
  await check('depois da extração não repete e não aprova doses automaticamente',async()=>{
@@ -56,7 +55,7 @@ async function main(){
    assert.equal(x.reviewStatus,null);
   }
   assert.equal(extracted.length,0);
-  assert.equal(records.length,9);
+  assert.equal(records.length,10);
   assert.ok(records.every(x=>x.status==='import_failed'&&x.message.includes('HTTP 403')));
   const withheld=await runAnvisaAutoSync(env,now,async()=>{throw Error('sem cooldown')});
   assert.equal(withheld.attempted,false);
@@ -65,7 +64,7 @@ async function main(){
  await check('erros podem voltar à fila após intervalo de segurança',async()=>{
   const later=new Date(now.getTime()+12*60*60*1000);
   const result=await runAnvisaAutoSync(env,later,async()=>({ok:false,error:'ainda sem acesso'}));
-  assert.equal(result.documentId,'fn3-2026');
+  assert.equal(result.documentId,'fb8-volume-ii-plantas');
   assert.equal(result.attempted,true);
  });
  console.log('Sincronização Anvisa:',passed,'verificações aprovadas');

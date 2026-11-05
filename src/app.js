@@ -514,7 +514,7 @@ function science(){
    'Busca científica online configurada; teste a recuperação para confirmar o resultado atual.':
    'Serviço ainda não identificado como disponível neste domínio.'],
   ['Farmacopeia, Formulário Nacional e Fitoterápicos',
-   'Consulta online automática às páginas oficiais. O servidor tenta importar automaticamente PDFs acessíveis dos dez arquivos oficiais; o volume de 55 MB exige processamento segmentado. Erros aguardam 12 horas para nova tentativa.'],
+   'Consulta online automática às páginas oficiais. O servidor tenta importar automaticamente os dez arquivos, com prioridade para plantas medicinais. O PDF de ~55 MB recebe tentativa específica; erro de memória ou conversão exige processamento externo segmentado.'],
   ['Conitec / PCDT, OMS e guias brasileiros','Referências catalogadas, sem conteúdo indexado e aprovado.'],
   ['Consensus',aiSession.consensusReady?'Chave configurada; pesquisa opcional e sujeita à cota.':
    'Chave da API ainda não configurada; o Consensus conectado ao ChatGPT é independente.']

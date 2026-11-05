@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 async function main(){
  const {ANVISA_CATALOG}=await import('../worker/anvisa-catalog.js');
- const {convertAnvisaDocument,importAnvisaCompendium,splitScientificMarkdown,validateAnvisaPart}
+ const {convertAnvisaDocument,importAnvisaCompendium,splitScientificMarkdown,validateAnvisaPart,anvisaDocumentByteLimit}
    =await import('../worker/anvisa-importer.js');
  const source=ANVISA_CATALOG.find(x=>x.id==='fffb3-2026');
  let record=null,staged=0,conversions=0,approved=0;
@@ -41,6 +41,12 @@ async function main(){
   assert.equal(ANVISA_CATALOG.filter(x=>x.sourceId==='anvisa-fb').length,8);
   assert.equal(ANVISA_CATALOG.filter(x=>x.sourceId==='anvisa-fn').length,1);
   assert.equal(ANVISA_CATALOG.filter(x=>x.sourceId==='anvisa-fitoterapicos').length,1);
+ });
+ await check('plantas medicinais não ficam fora do importador por tamanho pré-cadastrado',async()=>{
+  const plant=ANVISA_CATALOG.find(x=>x.id==='fb8-volume-ii-plantas');
+  assert.ok(plant.knownSizeBytes>46*1024*1024);
+  assert.ok(plant.knownSizeBytes<anvisaDocumentByteLimit(plant.id));
+  assert.equal(anvisaDocumentByteLimit(source.id),46*1024*1024);
  });
  await check('PDF em formato de arquivo entra em quarentena sem aprovação automática',async()=>{
   const result=await convertAnvisaDocument(source.id,buffer,env,identity,'pdf_enviado');
