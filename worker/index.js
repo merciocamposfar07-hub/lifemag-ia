@@ -1,17 +1,17 @@
 import {STATIC_ASSETS} from './assets.generated.mjs';
 import {searchIndexedEvidence} from './science-index.js';
 export {LifeMagScientificStore} from './science-do.js';
+export {LifeMagIngestionCoordinator} from './ingestion-coordinator.js';
 import {searchConsensus} from './consensus.js';
 import {FORMULA_SCHEMA,normalizeDraft,draftAsText} from './clinical-draft.js';
 import {ANVISA_CATALOG} from './anvisa-catalog.js';
 import {searchAnvisaOnline} from './anvisa-live.js';
-import {runAnvisaAutoSync} from './anvisa-auto-sync.js';
 import {importAnvisaCompendium,convertAnvisaDocument,MAX_COMPENDIUM_BYTES} from './anvisa-importer.js';
 /* LifeMag IA: assistente científico, protegido pelo Cloudflare Access.
  * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
  * Nenhum texto clínico é registrado em logs.
  */
-const RELEASE='0.5.1';
+const RELEASE='0.5.2';
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -370,27 +370,9 @@ function serveStatic(request){
 }
 export default {
   async scheduled(_event,env,ctx){
-    ctx.waitUntil((async()=>{
-      const at=new Date().toISOString();
-      const library=env.SCIENCE_LIBRARY?.getByName('lifemag-main');
-      if(library)try{
-        await library.recordScheduledRun({
-          status:'started',at,detail:'Coleta dos compêndios iniciada'
-        });
-      }catch(_){}
-      let result;
-      try{result=await runAnvisaAutoSync(env)}
-      catch(_){result={status:'failed',documentId:null}}
-      if(library)try{
-        await library.recordScheduledRun({
-          status:result.status==='not_configured'?'not_configured':
-            result.status==='failed'?'failed':'finished',
-          at:new Date().toISOString(),
-          detail:JSON.stringify({outcome:result.status,
-            documentId:result.documentId||null,attempted:!!result.attempted}).slice(0,210)
-        });
-      }catch(_){}
-    })());
+    // O Worker Free só agenda; o alarme Durable Object executa a extração.
+    if(env.INGEST_COORDINATOR)
+      ctx.waitUntil(env.INGEST_COORDINATOR.getByName('lifemag-anvisa').enqueue());
   },
   async fetch(request,env,ctx){
     const url=new URL(request.url);
@@ -433,6 +415,15 @@ export default {
         const records=await env.SCIENCE_LIBRARY.getByName('lifemag-main').listCompendiumExtractions();
         return reply({records});
       }catch(_){return reply({error:'Falha ao consultar importações da biblioteca'},503)}
+    }
+    if(url.pathname==='/api/science/sync-anvisa'&&request.method==='POST'){
+      if(request.headers.get('origin')!==url.origin)
+        return reply({error:'Origem inválida para sincronizar compêndios'},403);
+      if(!env.INGEST_COORDINATOR)return reply({error:'Agendador científico indisponível'},503);
+      try{
+        const state=await env.INGEST_COORDINATOR.getByName('lifemag-anvisa').enqueue();
+        return reply({automatic:true,documentDownloadRequired:false,...state},202);
+      }catch(_){return reply({error:'Não foi possível iniciar a coleta automática'},503)}
     }
     if(url.pathname==='/api/science/anvisa-coverage'&&request.method==='GET'){
       if(!env.SCIENCE_LIBRARY)return reply({error:'Biblioteca científica indisponível'},503);

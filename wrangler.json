@@ -10,11 +10,19 @@
       {
         "name": "SCIENCE_LIBRARY",
         "class_name": "LifeMagScientificStore"
+      },
+      {
+        "name": "INGEST_COORDINATOR",
+        "class_name": "LifeMagIngestionCoordinator"
       }
     ]
   },
   "exports": {
     "LifeMagScientificStore": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    "LifeMagIngestionCoordinator": {
       "type": "durable-object",
       "storage": "sqlite"
     }
