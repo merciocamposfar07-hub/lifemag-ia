@@ -39,6 +39,9 @@ jobs:
           node --check worker/index.js
           node --check worker/science-index.js
           node --check worker/science-do.js
+          node --check worker/anvisa-catalog.js
+          node --check worker/anvisa-importer.js
+          node --check testes/testar_importacao_anvisa.js
           node --check testes/testar_sqlite_real.mjs
           node --check worker/clinical-draft.js
           node --check worker/consensus.js
@@ -55,6 +58,7 @@ jobs:
           node scripts/build-worker.mjs
           node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_ia.js
           node testes/testar_fontes.js
+          node testes/testar_importacao_anvisa.js
           node testes/testar_formula.js
           node testes/testar_consensus.js
           node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_diagnostico.js
