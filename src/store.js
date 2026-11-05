@@ -69,7 +69,7 @@ function createAnonymousFormulaDraft(state,source,label,references=[]){
     meals:String(source.meal_relation||'').slice(0,240),
     duration:Number.isInteger(source.initial_duration_days)?source.initial_duration_days:0,
     sources:(Array.isArray(references)?references:[]).slice(0,10)
-      .filter(x=>typeof x.url==='string'&&/^https:\/\/(?:pubmed\.ncbi\.nlm\.nih\.gov|(?:www\.)?gov\.br|(?:www\.)?who\.int|(?:www\.)?consensus\.app|(?:www\.)?doi\.org)\//.test(x.url))
+      .filter(x=>typeof x.url==='string'&&/^https:\/\/(?:pubmed\.ncbi\.nlm\.nih\.gov|(?:www\.)?gov\.br|(?:www\.)?who\.int|(?:www\.)?consensus\.app|(?:www\.)?doi\.org|(?:www\.)?nice\.org\.uk|ods\.od\.nih\.gov|(?:www\.)?endocrine\.org)\//.test(x.url))
       .map(x=>({id:String(x.id||'').slice(0,15),title:String(x.title||'').slice(0,200),
         date:String(x.date||'').slice(0,20),url:x.url.slice(0,500)})),
     ingredients:source.ingredients.slice(0,16).map(x=>({
