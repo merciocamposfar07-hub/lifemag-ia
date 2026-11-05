@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** v0.5.2 • consulta automática PubMed + páginas oficiais Anvisa + SQLite científico; cron Cloudflare preparado para tentar extrair gradualmente os PDFs públicos compatíveis, com erro e cobertura auditáveis. Conteúdos integrais ainda não estão confirmados nem aprovados.
+**Status:** v0.6.1 • Conversa Inteligente com PubMed e Consensus complementar sob cota; banco clínico SQLite separado por profissional (Cloudflare Access). Testes automáticos aprovados. Uso com pacientes reais requer verificação funcional autenticada, revisão de privacidade e validação farmacêutica; a IA gera rascunhos, não prescrições autônomas.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -183,3 +183,22 @@ A Central Científica admite arquivos divididos em partes, com `manifesto-anvisa
 - O banco registra `scheduler.status`, `scheduler.lastRunAt`, `scheduler.detail` e `autoSync`. Ausência de registro indica **execução não comprovada**, não base concluída.
 - **Validação registrada em vídeo pelo proprietário em 05/11/2026 03:07 UTC, versão 0.4.9:** PubMed retornou 5 estudos; índice SQLite conectado; 0 documentos aprovados, 0 pendentes, `autoSync=[]`; páginas oficiais online 0 de 3, Workers AI vinculado mas não testado. Esta é a **linha de base anterior à mudança 0.5.2**.
 - A etapa de captura integral ainda exige aferir resultados reais do alarme. PDF com falha de memória, tempo ou conversão permanece como erro explícito, sem prescrição. A preparação segmentada externa existe como alternativa, mas não é ativada automaticamente pelo Worker.
+
+## v0.6.1 — fluxo clínico priorizado
+
+- Acesso profissional protegido via Cloudflare Access no Worker de produção.
+- O banco `CLINICAL_RECORDS` é um Durable Object SQLite **separado** da biblioteca de compêndios. Seu nome é derivado de SHA-256 do e-mail validado na sessão Access; um profissional não obtém os dados de outro pela API.
+- Na origem protegida, o navegador **não carrega nem grava fichas em localStorage**. `GET /api/clinical/state` lê a ficha e `PUT /api/clinical/state` salva atualizações com verificação de mesma origem e versão de concorrência; falhas bloqueiam o uso da ficha até reconexão. O GitHub Pages continua demonstrativo.
+- A conversa pesquisa PubMed. Com chave `CONSENSUS_API_KEY` válida, a API Consensus pode complementar automaticamente perguntas com poucos artigos, limitada a **20 chamadas reservadas/mês por padrão** no SQLite científico, podendo ser alterada pelo Secret `CONSENSUS_AUTO_MONTHLY_BUDGET`. Envia **termos bibliográficos reduzidos**, nunca a ficha inteira ao Consensus.
+- O modelo retorna estrutura revisável, com medicamentos/substâncias, dose, referências, segurança e classificação MOTOR/COADJUVANTE/OPCIONAL. Doses não sustentadas por trechos identificáveis são sinalizadas como não confirmadas; `canIssuePrescription=false` no retorno da IA.
+- Testes: `testar_prontuario_seguro.mjs` usa SQLite real; `testar_ia.js` cobre login, origem e isolamento de contas; `testar_sqlite_real.mjs` confere limite de pesquisas.
+
+### Bloqueios restantes antes da operação clínica real
+
+1. **Teste autenticado de produção:** salvar e reabrir um paciente inteiramente fictício, conferir persistência e exclusão em outro navegador/dispositivo, e verificar se nenhum dado está em armazenamento do navegador.
+2. **Privacidade/LGPD:** revisar política de acesso, prazo de guarda, incidentes, backup/recuperação, direitos do titular, e tratamento de dados sensíveis por serviços terceiros. O mecanismo de banco é uma etapa técnica, **não comprova conformidade integral**.
+3. **Validação farmacêutica:** testar as propostas de dose/forma/posologia/interações em casos fictícios representativos, comparar com fontes íntegras e garantir que a revisão humana precede a emissão.
+4. **Consensus real:** verificar o Secret/conta, autenticação, cota e resposta da API com consulta sem dados identificáveis.
+5. **Edição documental e produção:** finalizar assinaturas/identificação, impressão e acompanhamento segundo o fluxo aprovado.
+
+O recurso de importação Anvisa permanece técnico, fora do fluxo obrigatório da consulta. Nenhuma receita é emitida automaticamente.

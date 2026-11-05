@@ -67,3 +67,11 @@
 - Workflow de validação e publicação foi ampliado para incluir testes/testar_ia.js. A confirmação de execução remota e a implantação da Cloudflare ainda são pendentes.
 - Home v0.1.8 e o ícone oficial permaneceram inalterados. Não há qualquer dependência do Portal CSC.
 - Próximo bloqueio: ativação na conta Cloudflare, validação de isolamento e consentimento profissional, autenticação e banco clínico seguro, indexação específica Anvisa, comprovação de desempenho e validação farmacêutica antes de consultas reais.
+
+## 05/11/2026 — v0.6.1: foco na consulta prática
+
+- Banco clínico `LifeMagClinicalRecords` em Cloudflare Durable Object separado da biblioteca científica; operações autorizadas por Access e versão, incluindo exclusão com auditoria de contagem.
+- Origem Cloudflare com ficha em memória e sincronização remota; `localStorage` permanece apenas no protótipo GitHub Pages.
+- Conversa Intelli­gente consulta PubMed e pode complementar automaticamente com Consensus se faltarem artigos; limite mensal persistido, acesso restrito e envio de termos científicos em vez de anamnese integral.
+- Testes de SQLite, endpoint autenticado, conflitos, isolamento de usuário e limite da API incluídos no CI. Sucesso de CI e build Cloudflare não comprova a leitura/escrita real no banco de produção.
+- Prioridade restante: teste de ponta a ponta com paciente **fictício**, revisão das proteções de dados e validação de formulações para liberar uso real. Importação da Anvisa não bloqueia consulta científica quando existe evidência adequada de outras fontes verificáveis.

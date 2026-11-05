@@ -30,3 +30,27 @@ flowchart TD
 **Legenda de status (v0.2.0):** Home aprovada, cadastro manual sem pré-carga, avaliação própria por atendimento, conversa de texto, editor, simulação básica, documentos demonstrativos e cálculo interno de alerta estão programados. IA científica, notificações externas, banco seguro, atualização automática e assinatura são módulos **planejados**.
 
 **Isolamento:** o Portal CSC não participa de nenhum bloco deste fluxo e não fornece dados para o LifeMag IA. O banco PostgreSQL em `database/schema-inicial.sql` ainda é somente projeto, sem conexão real.
+
+## Fluxo priorizado na versão 0.6.1
+
+```mermaid
+flowchart TD
+  A[Entrar com Cloudflare Access] --> B[Conversa Inteligente]
+  B --> C{Paciente cadastrado?}
+  C -->|Não| D[Pesquisar caso anônimo]
+  C -->|Sim| E[Atendimento no SQLite privado]
+  D --> F[Pesquisar PubMed]
+  E --> F
+  F --> G{Referências suficientes?}
+  G -->|Não, com chave e orçamento| H[Complementar com Consensus]
+  G -->|Sim| I[Propor rascunho]
+  H --> I
+  I --> J{Dados clínicos e dose fundamentada?}
+  J -->|Não| K[Solicitar dados ou não liberar]
+  J -->|Sim| L[Studio Magistral: revisão e edição]
+  L --> M[Conferência farmacêutica]
+  M --> N[Documentação sem assinatura automática]
+  E --> O[Persistência protegida e histórico]
+```
+
+**Importante:** a infraestrutura está publicada, mas nenhuma tela de sucesso ou resultado local de teste equivale a homologação com pacientes reais. Esta deve ser verificada no Worker com sessão profissional.
