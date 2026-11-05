@@ -1,4 +1,4 @@
-# LifeMag IA v0.4.5 — importação dos compêndios da Anvisa (04/11/2026)
+# LifeMag IA v0.4.6 — importação dos compêndios da Anvisa (04/11/2026)
 
 ## Objetivo e limites
 Criar uma **biblioteca privada pesquisável** a partir de PDFs das edições **vigentes em 2026** da Farmacopeia Brasileira, do Formulário Nacional e do Formulário de Fitoterápicos. O GitHub mantém **apenas código, metadados e URLs**: NÃO publica os PDFs nem o texto integral extraído.
@@ -60,3 +60,33 @@ Documentos de referência publicamente catalogados por Fitoterapia Brasil:
 - Cloudflare AI Markdown Conversion: https://developers.cloudflare.com/workers-ai/features/markdown-conversion/usage/binding/
 - Formatos suportados: https://developers.cloudflare.com/workers-ai/features/markdown-conversion/supported-formats/
 - Limites Workers: https://developers.cloudflare.com/workers/platform/limits/
+
+## v0.4.6 — divisão por páginas, integridade e cobertura (04/11/2026)
+
+O código passou a aceitar **lotes de partes de PDF** com manifesto e SHA-256. Esta atualização remove o bloqueio técnico de **um arquivo individual maior que 46 MiB** sem ampliar os limites gratuitos do Worker.
+
+### Preparação local de um volume grande
+A ferramenta não distribui PDFs nem seus textos no repositório público. No computador que contém o PDF obtido legitimamente:
+
+```bash
+python -m pip install pypdf==5.9.0
+python scripts/dividir_compendio_anvisa.py "volume_oficial.pdf" --catalog-id fb8-volume-ii-plantas
+```
+
+O programa produz `saida-anvisa/fb8-volume-ii-plantas/manifesto-anvisa.json` e PDFs por intervalo de páginas, com tamanho máximo de **40 MiB** por parte, deixando margem abaixo do limite de upload. Para outros compêndios, selecionar um dos IDs listados em `worker/anvisa-catalog.js`.
+
+### Envio pelo aplicativo
+Na **Central Científica → Importação Anvisa**, usar **Importar volume dividido (manifesto + PDFs)**. Selecionar em uma única operação o `manifesto-anvisa.json` **e todos os PDFs gerados**. O navegador verifica contiguidade, quantidade de partes, tamanho e SHA-256 antes do envio. O Worker repete a verificação SHA-256 e associa número da parte, intervalo, total de páginas e hash do PDF original no SQLite privado.
+
+O diagnóstico `GET /api/science/anvisa-coverage` apresenta os grupos por fonte e hash do documento original, com **páginas recebidas / páginas totais** e **partes recebidas / partes esperadas**. `completeExtraction=true` significa somente que a sequência declarada está completa e **cada parte foi extraída para quarentena**; **não comprova qualidade textual, aprovação clínica nem conferência das tabelas**.
+
+### Estado real após desenvolvimento
+- **Implementado no código**: divisor offline de PDFs, manifesto, upload por lote, conferência de integridade e cobertura no SQLite, sinalização de lacunas, manutenção do estado `pending_review`.
+- **Não confirmado no ambiente Cloudflare do proprietário**: importação de PDFs reais de 2026, número final de monografias, publicação do Worker após os commits e liberação de consulta clínica.
+- As três cópias públicas menores podem ser tentadas individualmente; o volume conhecido de plantas de aproximadamente 55 MB **não** é tentado automaticamente em uma chamada destinada a arquivos de até 46 MiB.
+- A coleção de oito volumes da FB8 mais dois formulários **não** equivale a dez PDFs já importados: os oito volumes abrangem uma única edição de um dos três compêndios prioritários.
+- A ferramenta local não está embutida no iPhone; onde não houver computador para preparar o arquivo, a importação do volume grande continua pendente de alternativa de processamento adequada.
+- As condições de uso das obras e a conferência profissional permanecem obrigatórias; nenhum conteúdo integral é publicado no GitHub.
+
+### Observação de testes
+O fluxo de CI foi inicialmente bloqueado por um literal SQL incorreto (`"extracting"`) em código anterior. Foi corrigido para `'extracting'`, e o teste SQLite recebeu o status correto `ok_reviewed_document`. A aprovação dos workflows precisa ser observada nos registros da versão mais recente.
