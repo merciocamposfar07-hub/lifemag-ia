@@ -5,10 +5,15 @@ import {ANVISA_CATALOG} from './anvisa-catalog.js';
 import {importAnvisaCompendium,MAX_COMPENDIUM_BYTES} from './anvisa-importer.js';
 
 const COOLDOWN_MS=12*60*60*1000;
-export const AUTO_COMPENDIA = ['fn3-2026','fffb3-2026','fb8-volume-i']
- .map(id=>ANVISA_CATALOG.find(x=>x.id===id))
- .filter(x=>x?.verifiedMirrorUrl&&
-   (x.knownSizeBytes==null||x.knownSizeBytes<=MAX_COMPENDIUM_BYTES))
+// Catalogadas para tentativa automática sem seleção de arquivos pelo usuário.
+// O volume de plantas com 55 MB permanece fora do limite de 46 MiB.
+export const AUTO_COMPENDIA=[
+ 'fn3-2026','fffb3-2026','fb8-volume-i',
+ 'fb8-volume-ii-insumos','fb8-volume-ii-dispositivos',
+ 'fb8-volume-ii-gases','fb8-volume-ii-hemocomponentes',
+ 'fb8-volume-ii-biologicos','fb8-volume-ii-radiofarmacos'
+].map(id=>ANVISA_CATALOG.find(x=>x.id===id))
+ .filter(x=>x&&(!x.knownSizeBytes||x.knownSizeBytes<=MAX_COMPENDIUM_BYTES))
  .map(x=>({id:x.id,sourceId:x.sourceId,title:x.title}));
 
 export async function runAnvisaAutoSync(env,now=new Date(),importer=importAnvisaCompendium){
@@ -23,8 +28,6 @@ export async function runAnvisaAutoSync(env,now=new Date(),importer=importAnvisa
   ]);
   if(!Array.isArray(extracted)||!Array.isArray(attempted))throw Error('Falha no catálogo científico');
  }catch(_){return {status:'library_unavailable',attempted:false}}
- const complete=new Set(extracted.filter(x=>x.status==='pending_review'||x.status==='approved')
-  .map(x=>x.id?.split(/-(?=[a-f0-9]{12}$)/)[0]));
  const last=new Map(attempted.map(x=>[x.documentId,x]));
  const eligible=AUTO_COMPENDIA.filter(entry=>{
   const exact=extracted.some(x=>x.id.startsWith(entry.id+'-')&&
