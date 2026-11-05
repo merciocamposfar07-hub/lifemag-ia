@@ -11,6 +11,7 @@ export const ANVISA_CATALOG=[
     canonicalUrl:'https://bibliotecadigital.anvisa.gov.br/jspui/handle/anvisa/21035',
     publisherPage:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',
     verifiedMirrorUrl:'https://fitoterapiabrasil.com.br/sites/default/files/documentos-oficiais/volume_i_-_fb8_final_c_ficha.pdf',
+    knownSizeBytes:36406063,
     acquisition:'public_mirror',expectedMime:'application/pdf'
   },
   {
@@ -20,6 +21,7 @@ export const ANVISA_CATALOG=[
     canonicalUrl:'https://bibliotecadigital.anvisa.gov.br/jspui/handle/anvisa/21039',
     publisherPage:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',
     verifiedMirrorUrl:'https://fitoterapiabrasil.com.br/sites/default/files/documentos-oficiais/volume_ii_-_fb8_plantas_medicinais_final_c_ficha.pdf',
+    knownSizeBytes:55366200,
     acquisition:'public_mirror',expectedMime:'application/pdf'
   },
   {
@@ -71,6 +73,7 @@ export const ANVISA_CATALOG=[
     canonicalUrl:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/formulario-nacional',
     publisherPage:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/formulario-nacional',
     verifiedMirrorUrl:'https://fitoterapiabrasil.com.br/sites/default/files/documentos-oficiais/fnfb3_c_ficha_e_capa.pdf',
+    knownSizeBytes:32120823,
     acquisition:'public_mirror',expectedMime:'application/pdf'
   },
   {
