@@ -40,7 +40,7 @@ const examSession={patientId:null,items:[]}; // seleção temporária, não pers
 const aiSession={ready:false,checked:false,busy:false,consensusReady:false,indexReady:false,message:'Servidor de IA ainda não conectado.'};
 const scienceCheck={busy:false,diagnostics:null,error:null,lastCheck:null,searchBusy:false,searchQuery:'',libraryResults:null,searchError:null};
 const anvisaImport={
-  busy:false,activeId:null,error:null,latest:null,records:[],checked:false,batchReport:[]
+  busy:false,activeId:null,error:null,latest:null,records:[],coverage:[],checked:false,batchReport:[]
 };
 const officialAnvisaDocuments=[
   ['fb8-volume-i','Farmacopeia Brasileira — Volume I','Métodos e textos gerais',true],
@@ -60,15 +60,17 @@ async function refreshAnvisaIngestions(){
   const response=await fetch('/api/science/anvisa-ingestions',{credentials:'same-origin'});
   const result=await response.json();
   anvisaImport.records=Array.isArray(result.records)?result.records:[];
+  const check=await fetch('/api/science/anvisa-coverage',{credentials:'same-origin'});
+  if(check.ok){const data=await check.json();anvisaImport.coverage=Array.isArray(data.coverage)?data.coverage:[]}
  }catch(_){anvisaImport.error='Não foi possível consultar o andamento dos compêndios.'}
  finally{anvisaImport.checked=true;render()}
 }
 async function prepareAnvisaBatch(){
  if(anvisaImport.busy||!aiSession.indexReady)return;
- if(!confirm('Preparar as quatro cópias públicas dos compêndios Anvisa 2026? Os PDFs serão lidos na Cloudflare e os textos permanecerão pendentes de revisão. A conversão pode consumir recursos do plano.'))return;
+ if(!confirm('Tentar obter três PDFs públicos Anvisa 2026? O volume de plantas requer divisão por partes. O conteúdo ficará pendente de revisão.'))return;
  anvisaImport.busy=true;anvisaImport.error=null;anvisaImport.batchReport=[];
  render();
- const publicIds=officialAnvisaDocuments.filter(x=>x[3]).map(x=>x[0]);
+ const publicIds=officialAnvisaDocuments.filter(x=>x[3]&&x[0]!=='fb8-volume-ii-plantas').map(x=>x[0]);
  for(const id of publicIds){
   anvisaImport.activeId=id;render();
   try{
@@ -91,6 +93,73 @@ async function prepareAnvisaBatch(){
  }catch(_){}
  render();
 }
+async function uploadAnvisaParts(fileList){
+ if(anvisaImport.busy||!aiSession.indexReady)return;
+ const files=Array.from(fileList||[]);
+ const manifestFile=files.find(x=>x.name==='manifesto-anvisa.json');
+ if(!manifestFile){toast('Selecione manifesto-anvisa.json e todos os PDFs das partes.');return}
+ let manifest,ordered;
+ try{
+  if(manifestFile.size>1024*1024)throw Error('Manifesto acima de 1 MB');
+  manifest=JSON.parse(await manifestFile.text());
+  if(manifest.schema!=='lifemag-anvisa-parts-v1'||
+    !officialAnvisaDocuments.some(x=>x[0]===manifest.catalogId)||
+    !/^[a-f0-9]{64}$/i.test(String(manifest.originalSha256||''))||
+    !Number.isSafeInteger(manifest.totalPages)||manifest.totalPages<1||
+    !Number.isSafeInteger(manifest.totalParts)||manifest.totalParts<1||manifest.totalParts>500||
+    !Array.isArray(manifest.parts)||manifest.parts.length!==manifest.totalParts)
+   throw Error('Manifesto inválido para catálogo Anvisa 2026');
+  const pdfs=new Map(files.filter(x=>x.name.toLowerCase().endsWith('.pdf')).map(x=>[x.name,x]));
+  if(pdfs.size!==manifest.totalParts)throw Error('Faltam PDFs correspondentes ao manifesto');
+  ordered=manifest.parts.slice().sort((a,b)=>a.partNumber-b.partNumber);
+  let page=1;
+  for(let i=0;i<ordered.length;i++){
+   const p=ordered[i],file=pdfs.get(p.filename);
+   if(!file||p.partNumber!==i+1||p.partCount!==manifest.totalParts||
+      p.pageStart!==page||!Number.isSafeInteger(p.pageEnd)||p.pageEnd<page||
+      p.totalPages!==manifest.totalPages||file.size!==p.pdfBytes||
+      file.size>40*1024*1024||!/^[a-f0-9]{64}$/i.test(String(p.pdfSha256||'')))
+    throw Error('Arquivo ausente ou página inválida: '+String(p.filename));
+   page=p.pageEnd+1;
+  }
+  if(page!==manifest.totalPages+1)throw Error('Manifesto não cobre todas as páginas');
+ }catch(error){anvisaImport.error=String(error?.message||error).slice(0,230);render();return}
+ if(!confirm('Importar '+manifest.totalParts+' partes e '+manifest.totalPages+
+ ' páginas para revisão? Nenhuma dose será validada automaticamente.'))return;
+ anvisaImport.busy=true;anvisaImport.activeId=manifest.catalogId;
+ anvisaImport.error=null;anvisaImport.batchReport=[];render();
+ try{
+  for(const p of ordered){
+   const file=files.find(f=>f.name===p.filename);
+   const bytes=await file.arrayBuffer();
+   const digest=await crypto.subtle.digest('SHA-256',bytes);
+   const sha=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+   if(sha!==String(p.pdfSha256).toLowerCase())throw Error('SHA-256 divergente: '+p.filename);
+   const body=new FormData();
+   body.append('id',manifest.catalogId);body.append('file',file,file.name);
+   for(const [k,v] of Object.entries({
+     partNumber:p.partNumber,partCount:p.partCount,pageStart:p.pageStart,
+     pageEnd:p.pageEnd,totalPages:p.totalPages,originalSha256:manifest.originalSha256,
+     pdfSha256:p.pdfSha256
+   }))body.append(k,String(v));
+   const res=await fetch('/api/science/upload-anvisa-pdf',{
+    method:'POST',credentials:'same-origin',body
+   });
+   const result=await res.json();
+   if(!res.ok)throw Error('Parte '+p.partNumber+'/'+manifest.totalParts+': '+
+    String(result.error||'Falha na conversão'));
+   anvisaImport.batchReport.push({id:p.filename,ok:true,
+    text:String(result.sections||0)+' trechos, páginas '+p.pageStart+'-'+p.pageEnd});
+   render();
+  }
+  toast('Partes extraídas; conferir cobertura e revisar antes de usar clinicamente.');
+ }catch(error){anvisaImport.error=String(error?.message||error).slice(0,250)}
+ finally{
+  anvisaImport.busy=false;anvisaImport.activeId=null;
+  await refreshAnvisaIngestions();render();
+ }
+}
+
 async function uploadAnvisaDocument(id,file){
  if(anvisaImport.busy||!officialAnvisaDocuments.some(x=>x[0]===id))return;
  if(!file||!file.name.toLowerCase().endsWith('.pdf')){toast('Selecione um PDF oficial');return}
@@ -492,7 +561,11 @@ function science(){
  '</div>'+
  '<div class="panel anvisa-import" style="margin-top:14px"><h3>Importação dos compêndios da Anvisa — edições 2026</h3>'+
  '<p class="muted small">O Worker converterá os PDFs em texto para a biblioteca privada. A extração preserva conteúdo para pesquisa, mas tabelas, unidades e capítulos devem ser conferidos antes de liberar doses. Limite atual: 46 MiB por PDF.</p>'+
- '<button type="button" class="btn primary" data-anvisa-batch="start" '+(anvisaImport.busy||!aiSession.indexReady?'disabled':'')+'>Tentar obter as 4 cópias públicas (pode haver limites de tamanho)</button>'+
+ '<button type="button" class="btn primary" data-anvisa-batch="start" '+(anvisaImport.busy||!aiSession.indexReady?'disabled':'')+'>Tentar obter as 3 cópias públicas menores</button>'+
+ '<label class="btn compact anvisa-picker">Importar volume dividido (manifesto + PDFs)'+
+ '<input type="file" data-anvisa-parts accept=".pdf,.json,application/pdf,application/json" multiple '+
+ (anvisaImport.busy||!aiSession.indexReady?'disabled':'')+'></label>'+
+ '<p class="muted small">Para volumes acima de 46 MiB, divida por páginas e selecione o manifesto e todas as partes.</p>'+
  officialAnvisaDocuments.map(([id,title,desc,hasMirror])=>{
    const job=anvisaImport.records.find(x=>x.id.startsWith(id+'-'));
    const disabled=anvisaImport.busy||!aiSession.indexReady;
@@ -505,6 +578,12 @@ function science(){
     '<input type="file" data-anvisa-pdf="'+E(id)+'" accept="application/pdf,.pdf" '+
     (disabled?'disabled':'')+'></label></div></div>';
  }).join('')+
+ (anvisaImport.coverage.length?'<div class="anvisa-report">'+
+  anvisaImport.coverage.map(c=>'<p><strong>'+E(c.sourceId)+':</strong> '+
+  E(String(c.importedParts))+'/'+E(String(c.expectedParts))+' partes, '+
+  E(String(c.coveredPages))+'/'+E(String(c.totalPages))+' páginas — '+
+  (c.completeExtraction?'extração completa, revisão pendente':'extração parcial')+
+  '</p>').join('')+'</div>':'')+
  (anvisaImport.batchReport.length?'<div class="anvisa-report" role="status">'+anvisaImport.batchReport.map(item=>'<p><strong>'+E(item.id)+':</strong> '+E(item.text)+'</p>').join('')+'</div>':'')+
  (anvisaImport.error?'<p role="alert" class="notice">'+E(anvisaImport.error)+'</p>':'')+
  (anvisaImport.latest?'<p role="status" class="notice blue">Texto recebido: '+
@@ -711,6 +790,10 @@ function handleSubmit(event){
   }else if(f.id==='formula-form')saveFormula(f);
 }
 function handleChange(e){const control=e.target;
+if(control.hasAttribute('data-anvisa-parts')){
+ const files=Array.from(control.files||[]);if(files.length)void uploadAnvisaParts(files);
+ return;
+}
 if(control.dataset.anvisaPdf){
  const file=control.files?.[0];if(file)void uploadAnvisaDocument(control.dataset.anvisaPdf,file);
  return;
