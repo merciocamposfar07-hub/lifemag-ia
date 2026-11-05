@@ -338,12 +338,32 @@ async function sendScientificQuestion(v,question,useConsensus='auto'){
     // Em pesquisa sem cadastro, manter o contexto das últimas falas ANÔNIMAS.
     // Não incluir prontuários, nomes de pacientes, fichas ou exames anexados.
     // O formulário já inseriu a fala atual; excluir a última para não duplicar.
-    const previous=v===anonymousResearch?v.chat.filter(m=>m.role==='user')
-      .slice(-4,-1).map(m=>String(m.text||'').slice(0,600)).join(' | '):'';
+    const previous=(v.chat||[]).filter(m=>m.role==='user')
+      .slice(-4,-1).map(m=>String(m.text||'').slice(0,600)).join(' | ');
+    // O cadastro fornece somente dados demográficos numéricos ou categóricos,
+    // nunca nome, telefone, endereço, identificação ou data de nascimento.
+    let demographicContext='';
+    if(v!==anonymousResearch){
+      const p=patientFor(v);
+      const details=[];
+      const born=parseISODate(p?.dob||'');
+      if(born){
+        const today=new Date();
+        let age=today.getFullYear()-born.getFullYear();
+        if(today.getMonth()<born.getMonth()||
+          (today.getMonth()===born.getMonth()&&today.getDate()<born.getDate()))age--;
+        if(age>=0&&age<=120)details.push(age+' anos');
+      }
+      if(['Masculino','Feminino'].includes(p?.sex))details.push('sexo '+p.sex.toLowerCase());
+      const weight=Number(p?.weight);
+      if(weight>=15&&weight<=300)details.push('peso '+weight+' kg');
+      if(details.length)demographicContext='CONTEXTO NÃO IDENTIFICÁVEL DO CADASTRO: '+
+        details.join(', ')+'.\n';
+    }
     const clinicalHistory=previous?'DADOS CLÍNICOS ANTERIORES: '+previous+
       '\nINFORMAÇÃO NOVA: ':'';
-    const questionWithContext=(clinicalHistory+question.slice(0,1600)+
-      context.slice(0,350)).slice(0,2450);
+    const questionWithContext=(demographicContext+clinicalHistory+
+      question.slice(0,1550)+context.slice(0,300)).slice(0,2450);
     const response=await fetch('/api/assist',{method:'POST',credentials:'same-origin',
       headers:{'content-type':'application/json','accept':'application/json'},
       body:JSON.stringify({question:questionWithContext,useConsensus:aiSession.consensusReady?(useConsensus===true?true:'auto'):false})});
@@ -483,7 +503,11 @@ function patientCard(p){
  </div></div>`;
 }
 function patients(){const p=patient();return pageHeader('Pacientes','Cadastre informações essenciais e mantenha o histórico associado ao paciente.',`<button class="btn primary" data-action="new-visit">${I('plus')} Novo atendimento</button>`)+`<div class="top-panels"><div class="panel"><h3>Lista de pacientes</h3><div class="field"><label>Buscar pelo nome ou telefone</label><input id="patient-filter" value="${E(ui.search)}" placeholder="Buscar..." /></div><div class="menu-rows" id="patient-results" style="margin-top:13px">${data.patients.filter(x=>(x.name+' '+x.phone).toLowerCase().includes(ui.search.toLowerCase())).map(patientCard).join('')||empty('Nenhum paciente','Use o formulário para cadastrar.')}</div></div>
-<div class="panel"><div class="panel-title"><h3>${p?'Cadastro selecionado':'Novo cadastro'}</h3>${p?`<button class="btn compact" data-action="clear-patient">Novo</button><button class="btn compact danger" data-action="delete-patient">Excluir cadastro</button>`:''}</div><form id="patient-form"><div class="form-grid">${field('name','Nome completo',p?.name||'',true)}${field('phone','Telefone',p?.phone||'',true,'tel')}${field('dob','Data de nascimento',p?.dob||'',false,'date')}${field('address','Endereço do paciente',p?.address||'')}${field('weight','Peso (kg)',p?.weight||'',false,'number')}${field('height','Altura (cm)',p?.height||'',false,'number')}<div class="field full"><label for="patient-notes">Observações gerais do cadastro (dados fictícios)</label><textarea id="patient-notes" name="notes" placeholder="Informações gerais; a avaliação clínica é preenchida a cada atendimento.">${E(p?.notes||'')}</textarea></div></div><div class="form-actions"><button class="btn primary" type="submit">${I('check')} ${p?'Salvar alterações':'Cadastrar paciente'}</button></div></form>${p?`<div class="form-actions clinical-start"><button class="btn primary" type="button" data-action="new-visit">${I('plus')} Iniciar avaliação clínica</button></div><hr class="divider"><h3>Atendimentos desse paciente</h3>${data.visits.filter(v=>v.patientId===p.id).map(visitRow).join('')||'<p class="muted small">Ainda não há atendimentos.</p>'}`:''}<div class="exam-selection"><h3>Exames e documentos (opcionais)</h3><p class="muted small">Escolha PDF ou imagem da biblioteca, ou tire uma foto. Nesta etapa a seleção é temporária: nenhum exame é salvo ou enviado. A vinculação definitiva exige armazenamento clínico protegido.</p><div class="btnrow"><label class="btn compact exam-picker">Biblioteca / arquivos<input id="patient-exam-gallery" type="file" accept="application/pdf,image/jpeg,image/png,image/heic,image/heif" multiple></label><label class="btn compact exam-picker">Tirar foto<input id="patient-exam-camera" type="file" accept="image/*" capture="environment"></label></div>${(examSession.patientId===p?.id||(!p&&examSession.patientId===null))&&examSession.items.length?'<p class="muted small" role="status">Pré-seleção temporária: '+examSession.items.map(x=>E(x.name)+' ('+Math.ceil(x.bytes/1024)+' KB)').join('; ')+'</p>':''}<p class="muted small">Os exames são opcionais e nunca bloqueiam o cadastro ou atendimento.</p></div><div class="notice blue">Somente demonstração com dados fictícios. Nenhum cadastro é importado de outro sistema.</div></div></div>`;}
+<div class="panel"><div class="panel-title"><h3>${p?'Cadastro selecionado':'Novo cadastro'}</h3>${p?`<button class="btn compact" data-action="clear-patient">Novo</button><button class="btn compact danger" data-action="delete-patient">Excluir cadastro</button>`:''}</div><form id="patient-form"><div class="form-grid">${field('name','Nome completo',p?.name||'',true)}${field('phone','Telefone',p?.phone||'',true,'tel')}${field('dob','Data de nascimento',p?.dob||'',false,'date')}<div class="field"><label for="patient-sex">Sexo (opcional)</label><select id="patient-sex" name="sex">
+<option value="" ${!p?.sex?'selected':''}>Não informado</option>
+<option value="Masculino" ${p?.sex==='Masculino'?'selected':''}>Masculino</option>
+<option value="Feminino" ${p?.sex==='Feminino'?'selected':''}>Feminino</option>
+</select></div>${field('address','Endereço do paciente',p?.address||'')}${field('weight','Peso (kg)',p?.weight||'',false,'number')}${field('height','Altura (cm)',p?.height||'',false,'number')}<div class="field full"><label for="patient-notes">Observações gerais do cadastro (dados fictícios)</label><textarea id="patient-notes" name="notes" placeholder="Informações gerais; a avaliação clínica é preenchida a cada atendimento.">${E(p?.notes||'')}</textarea></div></div><div class="form-actions"><button class="btn primary" type="submit">${I('check')} ${p?'Salvar alterações':'Cadastrar paciente'}</button></div></form>${p?`<div class="form-actions clinical-start"><button class="btn primary" type="button" data-action="new-visit">${I('plus')} Iniciar avaliação clínica</button></div><hr class="divider"><h3>Atendimentos desse paciente</h3>${data.visits.filter(v=>v.patientId===p.id).map(visitRow).join('')||'<p class="muted small">Ainda não há atendimentos.</p>'}`:''}<div class="exam-selection"><h3>Exames e documentos (opcionais)</h3><p class="muted small">Escolha PDF ou imagem da biblioteca, ou tire uma foto. Nesta etapa a seleção é temporária: nenhum exame é salvo ou enviado. A vinculação definitiva exige armazenamento clínico protegido.</p><div class="btnrow"><label class="btn compact exam-picker">Biblioteca / arquivos<input id="patient-exam-gallery" type="file" accept="application/pdf,image/jpeg,image/png,image/heic,image/heif" multiple></label><label class="btn compact exam-picker">Tirar foto<input id="patient-exam-camera" type="file" accept="image/*" capture="environment"></label></div>${(examSession.patientId===p?.id||(!p&&examSession.patientId===null))&&examSession.items.length?'<p class="muted small" role="status">Pré-seleção temporária: '+examSession.items.map(x=>E(x.name)+' ('+Math.ceil(x.bytes/1024)+' KB)').join('; ')+'</p>':''}<p class="muted small">Os exames são opcionais e nunca bloqueiam o cadastro ou atendimento.</p></div><div class="notice blue">Somente demonstração com dados fictícios. Nenhum cadastro é importado de outro sistema.</div></div></div>`;}
 function field(name,label,val='',required=false,type='text'){return `<div class="field"><label for="${name}">${label}${required?' *':''}</label><input id="${name}" name="${name}" type="${type}" ${type==='number'?'step="any"':''} value="${E(val)}" ${required?'required':''}></div>`;}
 function visitRow(v){const p=patientFor(v);return `<div class="listline"><div><strong>${E(p?.name||'Paciente excluído')}</strong><p>${I('calendar',12)} ${fmtDate(v.date)} · ${E(p?.phone||'Sem telefone')} · ${E(v.formulaName||'Rascunho')}</p></div><div class="visit-actions"><button class="btn compact" data-review-visit="${v.id}">Avaliação</button><button class="btn compact" data-open-visit="${v.id}">Fórmula ${I('arrow',14)}</button></div></div>`;}
 function alertRow(v){const p=patientFor(v),remain=daysUntil(endDate(v));return `<div class="listline"><div><strong>${E(p?.name||'Paciente')}</strong><p>${fmtDate(v.date)} · ${E(p?.phone||'—')} · Término ${fmtDate(endDate(v))}</p><span class="badge warn">${remain<0?'Reavaliação pendente':remain===0?'Termina hoje':remain+' dias restantes'}</span></div><button class="btn compact" data-open-visit="${v.id}">Abrir</button></div>`;}
