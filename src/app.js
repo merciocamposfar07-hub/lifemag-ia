@@ -54,7 +54,7 @@ async function initializeClinicalRecords(){
     credentials:'same-origin',headers:{accept:'application/json'}}),
    fetch('/api/clinical/selftest',{
     method:'POST',credentials:'same-origin',
-    headers:{origin:location.origin,'content-type':'application/json'},
+    headers:{'content-type':'application/json'},
     body:'{}'})
   ]);
   const test=await probe.json();
