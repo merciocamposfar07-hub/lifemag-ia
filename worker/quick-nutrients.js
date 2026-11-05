@@ -3,6 +3,7 @@
 // O contexto é anônimo; não consultar IA nem transferir dados para terceiros.
 const N=(s)=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const NICE='https://www.nice.org.uk/guidance/ng239/chapter/Recommendations';
+const NIH_B12='https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/';
 const ODS='https://ods.od.nih.gov/factsheets/Vitamind-HealthProfessional/';
 const ENDO='https://www.endocrine.org/clinical-practice-guidelines/vitamin-d-for-prevention-of-disease';
 function readResult(text,pattern){
@@ -29,6 +30,8 @@ export function quickB12VitaminDGuidance(question){
  const sources=[
   {id:'NICE-B12',title:'NICE NG239 — vitamina B12: interpretação, reposição e acompanhamento',
    url:NICE,source:'Diretriz clínica NICE (2024)',evidenceTier:'clinical_guideline'},
+  {id:'NIH-B12',title:'NIH ODS — vitamina B12 e avaliação por MMA',
+   url:NIH_B12,source:'NIH Office of Dietary Supplements',evidenceTier:'clinical_reference'},
   {id:'NIH-D',title:'NIH ODS — vitamina D e interpretação da 25(OH)D',
    url:ODS,source:'NIH Office of Dietary Supplements',evidenceTier:'clinical_reference'},
   {id:'ENDO-D',title:'Endocrine Society (2024) — vitamina D em adultos',
@@ -38,7 +41,7 @@ export function quickB12VitaminDGuidance(question){
   decision:'preliminary_draft',
   objective:'Avaliar B12 sérica limítrofe e necessidade de complemento de vitamina D',
   formula_name:'Vitamina B12 oral — proposta inicial para revisão',
-  quantity:'90 unidades — confirmar na revisão',
+  quantity:'30 unidades para etapa inicial; reavaliar continuidade',
   pharmaceutical_form:'Cápsula ou comprimido oral, conforme manipulação viável',
   route:'oral',
   ingredients:[
@@ -54,7 +57,7 @@ export function quickB12VitaminDGuidance(question){
   posology:'Se indicada reposição oral de B12: 1.000 mcg/dia. D3 600 UI/dia somente se pertinente à ingestão e contexto clínico; não é tratamento da fadiga.',
   meal_relation:'Conforme apresentação; vitamina D absorve melhor com refeição contendo gordura.',
   daily_schedule:'Uma tomada diária conforme opção escolhida pelo farmacêutico.',
-  initial_duration_days:90,reassessment_days:90,
+  initial_duration_days:30,reassessment_days:30,
   extension_criteria:'Reavaliar sintomas e necessidade de manutenção; investigar causas de B12 baixa quando indicado.',
   monitoring:['Resposta clínica; parestesias ou manifestações neurológicas; suspeita de má absorção.'],
   interactions:['Avaliar medicamentos que reduzem absorção de B12 e condições relacionadas a cálcio/vitamina D quando existentes.'],
@@ -65,7 +68,8 @@ export function quickB12VitaminDGuidance(question){
    'Confirmar indicação de vitamina D antes de incluí-la no produto final.'
   ],
   red_flags:[],dose_support_gaps:[],limitations:[
-   'A concentração de B12 entre 180 e 350 pg/mL é indeterminada segundo NICE, não diagnóstico definitivo de deficiência.',
+   'NICE usa 180–350 pg/mL como faixa diagnóstica indeterminada; não é intervalo de referência laboratorial nem limite superior de normalidade. Interpretar conforme o laudo e o método.',
+   'Não há alvo mínimo universal de 600 pg/mL para todos. A investigação pode incluir ácido metilmalônico conforme contexto.',
    'A dose de B12 de 1 mg/dia é especialmente referida para reposição oral quando há deficiência e suspeita de má absorção; não é prescrição automática.',
    '25(OH)D de 30 ng/mL é geralmente adequada. Reposição de altas doses não é indicada por esse valor isoladamente.'
   ],requiresProfessionalReview:true,canIssuePrescription:false
@@ -76,16 +80,18 @@ export function quickB12VitaminDGuidance(question){
     (assumed?' Unidades presumidas: confirmar no laudo.':''),
   '',
   '1. VITAMINA B12 — MOTOR (quando a reposição for indicada)',
-  'B12 '+b12.value+' pg/mL: resultado limítrofe/indeterminado pela NICE (180–350 pg/mL).',
+  'B12 '+b12.value+' pg/mL: valor indeterminado pela NICE (180–350 pg/mL) — critério de suspeita, NÃO intervalo de referência do laboratório.',
+  'Referência laboratorial: conferir o intervalo validado no laudo; varia com método. Não existe meta mínima universal de 600 pg/mL para todos.',
+  'Se a dúvida diagnóstica persistir, avaliar sintomas e a utilidade de ácido metilmalônico (MMA), conforme a situação.',
   'Exemplo de reposição oral para avaliação: cianocobalamina 1.000 mcg (1 mg), 1 vez ao dia. Reavaliar a resposta em até 3 meses. Se houver alteração neurológica, anemia relevante ou má absorção, avaliar a necessidade de outra via e investigação.',
   '',
   '2. VITAMINA D3 — OPCIONAL, NÃO TERAPIA OBRIGATÓRIA',
   '25(OH)D '+vitaminD.value+' ng/mL: nível geralmente adequado. Não há indicação de dose de ataque apenas por esse resultado.',
   'Se a alimentação/contexto justificar complemento nutricional, referência de ingestão para adultos de 19–70 anos: 600 UI/dia. Não atribuir a fadiga à vitamina D com esse resultado isolado.',
   '',
-  'REVISÃO PRÁTICA: 90 unidades de B12 para reavaliação até 3 meses; D3 só incluir após confirmar necessidade. Separar os componentes permite retirar D3 sem comprometer a reposição de B12.',
+  'OPÇÃO COM MELHOR CUSTO-BENEFÍCIO: começar somente com o componente MOTOR, B12 oral em apresentação econômica, por 30 dias, se a reposição estiver indicada. Reavaliar a continuidade e o prazo laboratorial conforme a resposta; D3 não precisa entrar na fórmula quando não há indicação. Não prometer preço sem orçamento da farmácia.',
   'Antes de emitir: confirmar unidades, excluir sinais clínicos que alterem a via de B12 e revisar contraindicações/interações.',
-  'Referências: NICE NG239 (B12); NIH ODS e Endocrine Society 2024 (vitamina D).',
+  'Referências: NICE NG239 e NIH ODS (B12); NIH ODS e Endocrine Society 2024 (vitamina D).',
   'Não é receituário assinado; ajuste a formulação no Studio Magistral.'
  ];
  return {
