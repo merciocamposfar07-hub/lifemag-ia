@@ -20,6 +20,16 @@ async function main(){
   const r=quickB12VitaminDGuidance('B12 200 pg/mL; vitamina D 30 ng/mL');
   assert.ok(r);assert.ok(!r.answer.includes('Unidades presumidas'));
  });
+ check('intervalo NICE não é apresentado como referência de laboratório nem meta de 600',()=>{
+  const r=quickB12VitaminDGuidance('B12 em 200 pg/mL, vitamina D em 30 ng/mL');
+  assert.ok(r);
+  assert.match(r.answer,/NÃO intervalo de referência do laboratório/);
+  assert.match(r.answer,/Não existe meta mínima universal de 600/);
+  assert.match(r.answer,/menor custo-benefício|MELHOR CUSTO-BENEFÍCIO/);
+  assert.match(r.answer,/30 dias/);
+  assert.equal(r.draft.ingredients[0].role,'MOTOR');
+  assert.equal(r.draft.ingredients[1].role,'OPCIONAL');
+ });
  check('doses em mcg e UI não são confundidas com laudos',()=>{
   assert.equal(quickB12VitaminDGuidance('B12 200 mcg e vitamina D 30 UI'),null);
  });
