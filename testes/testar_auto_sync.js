@@ -5,67 +5,69 @@ async function main(){
  let passed=0;
  const check=async(name,fn)=>{await fn();passed++;console.log('PASSOU:',name)};
  const now=new Date('2026-11-05T06:17:00Z');
- let existing=[],recorded=[],attempts=[];
+ let extracted=[],records=[],downloaded=[];
  const library={
-  listCompendiumExtractions:async()=>existing,
-  listCompendiumSync:async()=>recorded,
-  recordCompendiumSync:async data=>{
-   recorded=recorded.filter(x=>x.documentId!==data.documentId).concat(data);
+  listCompendiumExtractions:async()=>extracted,
+  listCompendiumSync:async()=>records,
+  recordCompendiumSync:async input=>{
+   records=records.filter(x=>x.documentId!==input.documentId).concat(input);
    return {ok:true};
   }
  };
  const env={AI:{toMarkdown:async()=>({format:'markdown',data:'teste'})},
   SCIENCE_LIBRARY:{getByName:()=>library}};
- await check('os formulários têm prioridade; farmacopeia Volume I fica na fila',async()=>{
-  assert.deepEqual(AUTO_COMPENDIA.map(x=>x.id),['fn3-2026','fffb3-2026','fb8-volume-i']);
+ const success=async id=>{
+  downloaded.push(id);
+  extracted.push({id:id+'-123456abcdef',status:'pending_review'});
+  return {ok:true,sections:15};
+ };
+ await check('fila prioriza formulários e inclui nove arquivos do catálogo oficial',async()=>{
+  assert.deepEqual(AUTO_COMPENDIA.slice(0,3).map(x=>x.id),
+   ['fn3-2026','fffb3-2026','fb8-volume-i']);
+  assert.equal(AUTO_COMPENDIA.length,9);
   assert.ok(!AUTO_COMPENDIA.some(x=>x.id==='fb8-volume-ii-plantas'));
  });
- await check('sem infraestrutura não tenta download',async()=>{
+ await check('sem Cloudflare AI e SQLite não tenta nenhuma importação',async()=>{
   assert.equal((await runAnvisaAutoSync({},now)).attempted,false);
  });
- const simulate=async(id,_env,identity)=>{
-  attempts.push(id);
-  assert.match(identity.email,/automatic-sync/);
-  existing.push({id:id+'-012345abcdef',status:'pending_review'});
-  return {ok:true,sections:30};
- };
- await check('primeiro ciclo extrai FN sem aprovação de dose',async()=>{
-  const r=await runAnvisaAutoSync(env,now,simulate);
-  assert.equal(r.documentId,'fn3-2026');
-  assert.equal(r.reviewStatus,'pending_review');
-  assert.equal(recorded[0].status,'extracted_pending_review');
+ await check('segue para próximo documento sem intervenção manual',async()=>{
+  for(const entry of AUTO_COMPENDIA){
+   const result=await runAnvisaAutoSync(env,now,success);
+   assert.equal(result.attempted,true);
+   assert.equal(result.documentId,entry.id);
+   assert.equal(result.reviewStatus,'pending_review');
+  }
+  assert.equal(downloaded.length,9);
+  assert.equal(records.length,9);
+  assert.ok(records.every(r=>r.status==='extracted_pending_review'));
  });
- await check('segundo ciclo passa automaticamente aos Fitoterápicos',async()=>{
-  const r=await runAnvisaAutoSync(env,now,simulate);
-  assert.equal(r.documentId,'fffb3-2026');
+ await check('depois da extração não repete e não aprova doses automaticamente',async()=>{
+  const x=await runAnvisaAutoSync(env,now,async()=>{throw Error('duplicado')});
+  assert.equal(x.attempted,false);
+  assert.equal(x.status,'all_extracted_pending_review');
  });
- await check('terceiro ciclo prepara Farmacopeia Volume I',async()=>{
-  const r=await runAnvisaAutoSync(env,now,simulate);
-  assert.equal(r.documentId,'fb8-volume-i');
+ await check('falhas HTTP são registradas e não geram falsa extração',async()=>{
+  extracted=[];records=[];downloaded=[];
+  const failure=async()=>({ok:false,status:502,error:'HTTP 403 Biblioteca Digital'});
+  for(const entry of AUTO_COMPENDIA){
+   const x=await runAnvisaAutoSync(env,now,failure);
+   assert.equal(x.status,'import_failed');
+   assert.equal(x.documentId,entry.id);
+   assert.equal(x.reviewStatus,null);
+  }
+  assert.equal(extracted.length,0);
+  assert.equal(records.length,9);
+  assert.ok(records.every(x=>x.status==='import_failed'&&x.message.includes('HTTP 403')));
+  const withheld=await runAnvisaAutoSync(env,now,async()=>{throw Error('sem cooldown')});
+  assert.equal(withheld.attempted,false);
+  assert.equal(withheld.status,'retry_cooldown');
  });
- await check('não repete download quando todos estão pendentes de revisão',async()=>{
-  const r=await runAnvisaAutoSync(env,now,async()=>{throw Error('não deve chamar')});
-  assert.equal(r.attempted,false);
-  assert.equal(r.status,'all_extracted_pending_review');
-  assert.deepEqual(attempts,['fn3-2026','fffb3-2026','fb8-volume-i']);
+ await check('erros podem voltar à fila após intervalo de segurança',async()=>{
+  const later=new Date(now.getTime()+12*60*60*1000);
+  const result=await runAnvisaAutoSync(env,later,async()=>({ok:false,error:'ainda sem acesso'}));
+  assert.equal(result.documentId,'fn3-2026');
+  assert.equal(result.attempted,true);
  });
- await check('falha remota entra em intervalo de segurança antes de nova tentativa',async()=>{
-  existing=[];recorded=[];attempts=[];
-  const r=await runAnvisaAutoSync(env,now,async id=>({ok:false,status:502,error:'HTTP 403'}));
-  assert.equal(r.status,'import_failed');
-  assert.equal(recorded[0].status,'import_failed');
-  // Prossegue para o segundo PDF, sem insistir imediatamente no arquivo que falhou.
-  const next=await runAnvisaAutoSync(env,now,async id=>({ok:false,status:502,error:'HTTP 403'}));
-  assert.equal(next.documentId,'fffb3-2026');
-  const third=await runAnvisaAutoSync(env,now,async id=>({ok:false,status:502,error:'HTTP 403'}));
-  assert.equal(third.documentId,'fb8-volume-i');
-  const blocked=await runAnvisaAutoSync(env,now,async()=>{throw Error('repetição indevida')});
-  assert.equal(blocked.status,'retry_cooldown');
-  assert.equal(blocked.attempted,false);
-  const later=await runAnvisaAutoSync(env,new Date(now.getTime()+12*60*60*1000),
-   async()=>({ok:false,error:'ainda indisponível'}));
-  assert.equal(later.documentId,'fn3-2026');
- });
- console.log('Sincronização automática Anvisa:',passed,'verificações aprovadas');
+ console.log('Sincronização Anvisa:',passed,'verificações aprovadas');
 }
-main().catch(e=>{console.error(e);process.exitCode=1});
+main().catch(error=>{console.error(error);process.exitCode=1});
