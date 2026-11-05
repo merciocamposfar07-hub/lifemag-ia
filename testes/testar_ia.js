@@ -107,6 +107,31 @@ async function tests(){
     assert.equal(body.sourceStatus.consensus,'not_needed');
     assert.equal(called,0);
   }],
+  ['autoteste clínico verifica leitura e gravação apenas em conta sintética',async()=>{
+    const names=[];
+    const entries=new Map();
+    const e={...env,CLINICAL_RECORDS:{getByName:name=>{
+      names.push(name);
+      if(!entries.has(name)){
+       let revision=0,state=null;
+       entries.set(name,{
+        read:async()=>({ok:true,revision,state}),
+        save:async x=>{if(x.revision!==revision)return {ok:false,status:409};
+          state=x.state;revision++;return {ok:true,revision};}
+       });
+      }
+      return entries.get(name);
+    }}};
+    const url='/api/clinical/selftest';
+    assert.equal((await worker.fetch(request(url,{method:'POST',headers:{origin:URL_WORKER}}),e,{})).status,401);
+    assert.equal((await worker.fetch(request(url,{method:'POST',headers:{origin:'https://evil.example'}}),e,access)).status,403);
+    const r=await worker.fetch(request(url,{method:'POST',headers:{origin:URL_WORKER}}),e,access);
+    assert.equal(r.status,200);
+    assert.equal((await r.json()).syntheticOnly,true);
+    assert.equal(names.length,3);
+    assert.equal(new Set(names).size,1);
+    assert.ok(!names[0].includes('farmaceutico@example.org'));
+  }],
   ['sem Access: nenhum arquivo ou API permitido',async()=>{
     assert.equal((await worker.fetch(request('/'),env,{})).status,401);
     assert.equal((await worker.fetch(request('/api/capabilities'),env,{})).status,401);

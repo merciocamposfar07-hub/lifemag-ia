@@ -12,7 +12,7 @@ import {importAnvisaCompendium,convertAnvisaDocument,MAX_COMPENDIUM_BYTES} from 
  * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
  * Nenhum texto clínico é registrado em logs.
  */
-const RELEASE='0.6.1';
+const RELEASE='0.6.2';
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -406,6 +406,25 @@ export default {
         internalScienceIndex:env.SCIENCE_LIBRARY?'durable_sqlite_configured':env.SCIENCE_DB?'binding_configured':'not_configured',consensus:env.CONSENSUS_API_KEY?'key_configured':'not_configured',
         formulaDraft:'structured_review_only',automaticAnvisaOnline:true,
         anvisaOnlineCoverage:'institutional_pages_only_no_full_monographs'})
+    }
+    if(url.pathname==='/api/clinical/selftest'&&request.method==='POST'){
+      if(request.headers.get('origin')!==url.origin)
+        return reply({ok:false,error:'Origem inválida para autoteste clínico'},403);
+      try{
+        if(!env.CLINICAL_RECORDS)return reply({ok:false,error:'Banco clínico ausente'},503);
+        // Nome separado: NUNCA tocar nos prontuários do profissional.
+        const synthetic=await personalClinicalStore(env,{email:identity.email+'#synthetic-only'});
+        const before=await synthetic.read();
+        if(!before?.ok)return reply({ok:false,error:'Não foi possível ler o banco de testes'},503);
+        const state={schema:1,patients:[],visits:[],anonymousDrafts:[],settings:{}};
+        const saved=await synthetic.save({revision:before.revision,state});
+        if(!saved?.ok)return reply({ok:false,error:'Gravação clínica de teste falhou'},503);
+        const after=await synthetic.read();
+        const healthy=after?.ok&&after.revision===saved.revision&&
+          Array.isArray(after.state?.patients)&&after.state.patients.length===0;
+        return reply({ok:healthy,read:true,written:healthy,syntheticOnly:true},
+          healthy?200:503);
+      }catch(_){return reply({ok:false,error:'Autoteste de prontuário não concluído'},503)}
     }
     if(url.pathname==='/api/clinical/state'&&request.method==='GET'){
       try{
