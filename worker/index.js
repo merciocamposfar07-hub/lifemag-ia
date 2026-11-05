@@ -375,7 +375,8 @@ export default {
         return reply({error:'Não envie dados pessoais para a pesquisa científica'},400);
       const results=await searchOfficialSources(q,env);
       return reply({status:results.status,results:(results.items||[]).slice(0,10),
-        reviewedCount:Number(results.reviewedCount)||0,overviewCount:Number(results.overviewCount)||0,
+        reviewedCount:Number(results.reviewedCount)||0,unreviewedCount:Number(results.unreviewedCount)||0,
+        overviewCount:Number(results.overviewCount)||0,
         searchType:'biblioteca_cientifica_nao_pacientes'});
     }
     if(url.pathname==='/api/source-status'&&request.method==='GET')return reply(await scientificConnectivity(env));
