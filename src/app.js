@@ -514,7 +514,7 @@ function science(){
    'Busca científica online configurada; teste a recuperação para confirmar o resultado atual.':
    'Serviço ainda não identificado como disponível neste domínio.'],
   ['Farmacopeia, Formulário Nacional e Fitoterápicos',
-   'Consulta online automática às páginas oficiais. O servidor tenta importar PDFs públicos diariamente quando o agendamento Cloudflare estiver ativo.'],
+   'Consulta online automática às páginas oficiais. O servidor tenta importar gradualmente PDFs públicos a cada hora, sem download manual; erros aguardam 12 horas para nova tentativa.'],
   ['Conitec / PCDT, OMS e guias brasileiros','Referências catalogadas, sem conteúdo indexado e aprovado.'],
   ['Consensus',aiSession.consensusReady?'Chave configurada; pesquisa opcional e sujeita à cota.':
    'Chave da API ainda não configurada; o Consensus conectado ao ChatGPT é independente.']

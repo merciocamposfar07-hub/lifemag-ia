@@ -222,6 +222,12 @@ export class LifeMagScientificStore extends DurableObject{
     reviewStatus:'pending_review',clinicalApproval:false};
   });
  }
+ async listCompendiumSync(){
+  return this.sql.exec('SELECT document_id,status,checked_at,sections,message '+
+   'FROM auto_compendium_sync ORDER BY checked_at DESC LIMIT 20').toArray()
+   .map(x=>({documentId:x.document_id,status:x.status,checkedAt:x.checked_at,
+     sections:Number(x.sections)||0,message:x.message}));
+ }
  async recordCompendiumSync(entry){
   if(!/^[a-z0-9-]{4,80}$/.test(String(entry?.documentId||''))||
      !['extracted_pending_review','import_failed'].includes(entry?.status)||

@@ -136,6 +136,24 @@ export async function importAnvisaCompendium(key,env,identity,fetcher=fetch){
  if(size>MAX_COMPENDIUM_BYTES)return {ok:false,status:413,
   error:'Volume maior que o limite de memória desta operação; dividir em PDFs menores'};
  let buffer;
- try{buffer=await response.arrayBuffer()}catch(_){return {ok:false,status:502,error:'Falha ao receber PDF'};}
+ try{
+  if(!response.body)throw Error('Resposta sem corpo de PDF');
+  const reader=response.body.getReader();
+  const chunks=[];let length=0;
+  try{
+   for(;;){
+    const chunk=await reader.read();
+    if(chunk.done)break;
+    length+=chunk.value.byteLength;
+    if(length>MAX_COMPENDIUM_BYTES)
+     return {ok:false,status:413,error:'PDF excedeu o limite durante download; não foi indexado'};
+    chunks.push(chunk.value);
+   }
+  }finally{try{await reader.cancel()}catch(_){}}
+  const merged=new Uint8Array(length);
+  let offset=0;
+  for(const chunk of chunks){merged.set(chunk,offset);offset+=chunk.length}
+  buffer=merged.buffer;
+ }catch(_){return {ok:false,status:502,error:'Falha ao receber PDF público'};}
  return convertAnvisaDocument(key,buffer,env,identity,entry.verifiedMirrorUrl);
 }
