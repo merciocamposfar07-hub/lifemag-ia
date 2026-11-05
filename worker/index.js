@@ -12,7 +12,7 @@ import {importAnvisaCompendium,convertAnvisaDocument,MAX_COMPENDIUM_BYTES} from 
  * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
  * Nenhum texto clínico é registrado em logs.
  */
-const RELEASE='0.6.0';
+const RELEASE='0.6.1';
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -191,11 +191,25 @@ async function analyze(request,env){
   const [evidence,indexed,liveAnvisa]=await Promise.all([
     searchEvidence(terms),searchOfficialSources(question,env),searchAnvisaOnline(question)
   ]);
-  // Consensus NÃO é acionado automaticamente para preservar a cota mensal.
-  // É consultado somente quando o usuário ativa useConsensus=true.
-  const consensus=args.useConsensus===true?
-    await searchConsensus(question,env):
-    {status:'not_requested',items:[]};
+  // Consensus é fonte COMPLEMENTAR: a pesquisa primária continua no PubMed.
+  // A API só é usada quando a pergunta solicitar explicitamente, ou quando
+  // a busca principal recuperar menos de duas referências úteis.
+  const explicit=args.useConsensus===true;
+  const automatic=args.useConsensus==='auto';
+  const sparse=evidence.items.length<2&&indexed.reviewedCount===0;
+  let consensus={status:'not_needed',items:[]};
+  if(explicit||(automatic&&sparse)){
+    if(!env.CONSENSUS_API_KEY)consensus={status:'not_configured',items:[]};
+    else if(!env.SCIENCE_LIBRARY)consensus={status:'monthly_budget_unavailable',items:[]};
+    else try{
+      const month=new Date().toISOString().slice(0,7);
+      const limit=Math.min(100,Math.max(1,Number(env.CONSENSUS_AUTO_MONTHLY_BUDGET)||20));
+      const budget=await env.SCIENCE_LIBRARY.getByName('lifemag-main')
+       .reserveConsensusSearch(month,limit);
+      consensus=budget?.allowed?await searchConsensus(question,env):
+       {status:'monthly_budget_reached',items:[]};
+    }catch(_){consensus={status:'monthly_budget_unavailable',items:[]};}
+  }
   const verifiedSources=[...indexed.items,...evidence.items,...consensus.items,...liveAnvisa.items];
   // FALHA FECHADA: sem artigo ou trecho oficial revisado, não consulta o modelo.
   if(!verifiedSources.some(x=>x.abstract)){

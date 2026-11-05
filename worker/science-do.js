@@ -101,7 +101,9 @@ export class LifeMagScientificStore extends DurableObject{
    'sections INTEGER NOT NULL DEFAULT 0,message TEXT NOT NULL);'+
    'CREATE TABLE IF NOT EXISTS scheduled_compendium_audit ('+
    'task_id TEXT PRIMARY KEY,status TEXT NOT NULL,'+
-   'last_run_at TEXT NOT NULL,detail TEXT NOT NULL);'
+   'last_run_at TEXT NOT NULL,detail TEXT NOT NULL);'+
+   'CREATE TABLE IF NOT EXISTS consensus_monthly_budget ('+
+   'month TEXT PRIMARY KEY,used INTEGER NOT NULL,updated_at TEXT NOT NULL);'
   );
   for(const [id,name,kind,url] of SEEDS){
    this.sql.exec('INSERT OR IGNORE INTO sources(id,name,kind,url,status) VALUES(?,?,?,?,?)',
@@ -267,6 +269,22 @@ export class LifeMagScientificStore extends DurableObject{
    str(entry.documentId,80),entry.status,str(entry.checkedAt,40),
    Number(entry.sections),str(entry.message,220));
   return {ok:true};
+ }
+ async reserveConsensusSearch(month,monthlyLimit=20){
+  if(!/^20\\d{2}-(?:0[1-9]|1[0-2])$/.test(String(month))||
+    !Number.isInteger(monthlyLimit)||monthlyLimit<1||monthlyLimit>1000)
+   return {ok:false,error:'Limite de pesquisa inválido'};
+  let used=0;
+  this.ctx.storage.transactionSync(()=>{
+   const row=this.sql.exec('SELECT used FROM consensus_monthly_budget WHERE month=?',month).toArray()[0];
+   used=Number(row?.used)||0;
+   if(used>=monthlyLimit)return;
+   this.sql.exec('INSERT INTO consensus_monthly_budget(month,used,updated_at) VALUES(?,?,?) '+
+    'ON CONFLICT(month) DO UPDATE SET used=excluded.used,updated_at=excluded.updated_at',
+    month,used+1,new Date().toISOString());
+   used++;
+  });
+  return {ok:used<=monthlyLimit,allowed:used<=monthlyLimit,used,monthlyLimit};
  }
  async status(){
   const counts=this.sql.exec(

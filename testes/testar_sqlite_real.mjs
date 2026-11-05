@@ -74,6 +74,13 @@ await check('tentativa em andamento há muito tempo é apresentada como interrom
  assert.equal(recent.ok,true);
  assert.equal((await store.listCompendiumSync())[0].status,'in_progress');
 });
+await check('Consensus respeita limite mensal de chamadas',async()=>{
+ const month='2026-11';
+ assert.equal((await store.reserveConsensusSearch(month,2)).allowed,true);
+ assert.equal((await store.reserveConsensusSearch(month,2)).allowed,true);
+ assert.equal((await store.reserveConsensusSearch(month,2)).allowed,false);
+ assert.equal((await store.reserveConsensusSearch('2026-12',2)).allowed,true);
+});
 await check('SQLite criou biblioteca científica e catálogo de 8 fontes',async()=>{
  const result=await store.status();
  assert.equal(result.approvedDocuments,0);

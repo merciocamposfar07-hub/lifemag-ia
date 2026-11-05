@@ -90,6 +90,23 @@ async function tests(){
     assert.equal(data.documentDownloadRequired,false);
     assert.equal(enqueued,1);
   }],
+  ['Consensus automático só consulta em caso de escassez de evidências',async()=>{
+    const {searchConsensus}=await import('../worker/consensus.js');
+    let called=0;
+    const fake={CONSENSUS_API_KEY:'chave-interna',SCIENCE_LIBRARY:{
+      getByName:()=>({reserveConsensusSearch:async()=>({allowed:false})})
+    }};
+    const clinical={...env,...fake};
+    // O teste principal já encontra um artigo; não deve esgotar a cota.
+    const response=await worker.fetch(request('/api/assist',{method:'POST',body:{
+      question:'Adulto 35 anos, sem medicamentos, sem alergias, sem doenças conhecidas, enxaqueca e riboflavina.',
+      useConsensus:'auto'
+    }}),clinical,access);
+    assert.equal(response.status,200);
+    const body=await response.json();
+    assert.equal(body.sourceStatus.consensus,'not_needed');
+    assert.equal(called,0);
+  }],
   ['sem Access: nenhum arquivo ou API permitido',async()=>{
     assert.equal((await worker.fetch(request('/'),env,{})).status,401);
     assert.equal((await worker.fetch(request('/api/capabilities'),env,{})).status,401);
