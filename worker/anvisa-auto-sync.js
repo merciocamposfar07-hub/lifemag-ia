@@ -36,6 +36,11 @@ export async function runAnvisaAutoSync(env,now=new Date(),importer=importAnvisa
   const row=last.get(entry.id);
   if(!row)return true;
   if(row.status==='extracted_pending_review')return false;
+  // Após a correção da versão 0.5.4, falhas do importador antigo de plantas
+  // são retentadas UMA vez automaticamente, sem esperar 12 horas.
+  // O novo registro prefixa 'Etapa ...', impedindo loop de retentativas.
+  if(entry.id==='fb8-volume-ii-plantas'&&row.status==='import_failed'&&
+     !String(row.message||'').startsWith('Etapa '))return true;
   // Só a solicitação explícita pelo farmacêutico pode antecipar retry de Plantas.
   if(retryFailed&&entry.id==='fb8-volume-ii-plantas'&&row.status==='import_failed')return true;
   const at=Date.parse(row.checkedAt);

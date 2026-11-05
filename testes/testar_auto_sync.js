@@ -61,6 +61,18 @@ async function main(){
   assert.equal(withheld.attempted,false);
   assert.equal(withheld.status,'retry_cooldown');
  });
+ await check('corrige automaticamente uma falha antiga de Plantas após atualizar código',async()=>{
+  const i=records.findIndex(x=>x.documentId==='fb8-volume-ii-plantas');
+  records[i]={...records[i],status:'import_failed',
+   message:'A Cloudflare não conseguiu converter este PDF; não foi indexado'};
+  const result=await runAnvisaAutoSync(env,now,
+   async()=>({ok:false,status:502,stage:'conversion',error:'Conversão PDF falhou'}));
+  assert.equal(result.documentId,'fb8-volume-ii-plantas');
+  assert.equal(result.attempted,true);
+  assert.match(records.find(x=>x.documentId==='fb8-volume-ii-plantas').message,/^Etapa conversion:/);
+  const withheld=await runAnvisaAutoSync(env,now,async()=>{throw Error('Não repetir')});
+  assert.equal(withheld.attempted,false);
+ });
  await check('pedido explícito permite repetir Plantas antes das 12 horas',async()=>{
   const result=await runAnvisaAutoSync(env,now,
    async()=>({ok:false,status:502,stage:'conversion',error:'Conversor não concluiu'}),
