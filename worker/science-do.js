@@ -271,10 +271,10 @@ export class LifeMagScientificStore extends DurableObject{
   return {ok:true};
  }
  async reserveConsensusSearch(month,monthlyLimit=20){
-  if(!/^20\\d{2}-(?:0[1-9]|1[0-2])$/.test(String(month))||
+  if(!/^20\d{2}-(?:0[1-9]|1[0-2])$/.test(String(month))||
     !Number.isInteger(monthlyLimit)||monthlyLimit<1||monthlyLimit>1000)
    return {ok:false,error:'Limite de pesquisa inválido'};
-  let used=0;
+  let used=0,allowed=false;
   this.ctx.storage.transactionSync(()=>{
    const row=this.sql.exec('SELECT used FROM consensus_monthly_budget WHERE month=?',month).toArray()[0];
    used=Number(row?.used)||0;
@@ -282,9 +282,9 @@ export class LifeMagScientificStore extends DurableObject{
    this.sql.exec('INSERT INTO consensus_monthly_budget(month,used,updated_at) VALUES(?,?,?) '+
     'ON CONFLICT(month) DO UPDATE SET used=excluded.used,updated_at=excluded.updated_at',
     month,used+1,new Date().toISOString());
-   used++;
+   used++;allowed=true;
   });
-  return {ok:used<=monthlyLimit,allowed:used<=monthlyLimit,used,monthlyLimit};
+  return {ok:true,allowed,used,monthlyLimit};
  }
  async status(){
   const counts=this.sql.exec(
