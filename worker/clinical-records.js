@@ -12,6 +12,14 @@ const validState=s=>{
    !Array.isArray(s.patients)||!Array.isArray(s.visits)||
    !Array.isArray(s.anonymousDrafts)||!normalizeObject(s.settings))return false;
  if(s.patients.length>2000||s.visits.length>5000||s.anonymousDrafts.length>2000)return false;
+ if(s.researchMessages!==undefined){
+  if(!Array.isArray(s.researchMessages)||s.researchMessages.length>60)return false;
+  for(const m of s.researchMessages){
+   if(!normalizeObject(m)||!safeId(m.id)||
+      !['user','assistant'].includes(m.role)||typeof m.text!=='string'||
+      m.text.length>16000)return false;
+  }
+ }
  const ids=new Set(), visitIds=new Set();
  for(const p of s.patients){
   if(!normalizeObject(p)||!safeId(p.id)||ids.has(p.id)||
