@@ -76,7 +76,8 @@ export class LifeMagScientificStore extends DurableObject{
    'created_at TEXT NOT NULL);'+
    'CREATE TABLE IF NOT EXISTS staged_compendium_passages ('+
    'document_id TEXT NOT NULL,ordinal INTEGER NOT NULL,heading TEXT NOT NULL,body TEXT NOT NULL,'+
-   'PRIMARY KEY(document_id,ordinal));'
+   'PRIMARY KEY(document_id,ordinal));'+
+   "CREATE VIRTUAL TABLE IF NOT EXISTS staged_passages_fts USING fts5(body,tokenize='unicode61 remove_diacritics 2');"
   );
   for(const [id,name,kind,url] of SEEDS){
    this.sql.exec('INSERT OR IGNORE INTO sources(id,name,kind,url,status) VALUES(?,?,?,?,?)',
@@ -104,6 +105,8 @@ export class LifeMagScientificStore extends DurableObject{
   if(current?.status==='pending_review'||current?.status==='approved')
    return {ok:false,error:'Já existe uma extração aguardando revisão; não sobrescrever'};
   this.ctx.storage.transactionSync(()=>{
+   this.sql.exec('DELETE FROM staged_passages_fts WHERE rowid IN ('+
+    'SELECT rowid FROM staged_compendium_passages WHERE document_id=?)',meta.id);
    this.sql.exec('DELETE FROM staged_compendium_passages WHERE document_id=?',meta.id);
    this.sql.exec('DELETE FROM staged_compendia WHERE id=?',meta.id);
    this.sql.exec(
@@ -130,9 +133,16 @@ export class LifeMagScientificStore extends DurableObject{
     return {ok:false,error:'Trecho ausente ou com tamanho inválido'};
   }
   this.ctx.storage.transactionSync(()=>{
-   parts.forEach((part,i)=>this.sql.exec(
-    'INSERT INTO staged_compendium_passages(document_id,ordinal,heading,body) VALUES(?,?,?,?)',
-    id,offset+i+1,str(part.heading,250),part.body.trim()));
+   parts.forEach((part,i)=>{
+    const ordinal=offset+i+1;
+    this.sql.exec(
+     'INSERT INTO staged_compendium_passages(document_id,ordinal,heading,body) VALUES(?,?,?,?)',
+     id,ordinal,str(part.heading,250),part.body.trim());
+    this.sql.exec(
+     'INSERT INTO staged_passages_fts(rowid,body) SELECT rowid,body '+
+     'FROM staged_compendium_passages WHERE document_id=? AND ordinal=?',
+     id,ordinal);
+   });
    this.sql.exec('UPDATE staged_compendia SET sections=? WHERE id=?',
     offset+parts.length,id);
   });
@@ -213,10 +223,28 @@ export class LifeMagScientificStore extends DurableObject{
      url:x.official_url,source:'Sinopse institucional, não monografia completa',
      evidenceTier:'official_overview'
    }));
-   const items=[...verified,...overviews].slice(0,10);
+   const pendingRows=this.sql.exec(
+    'SELECT j.title,j.edition,j.official_url,j.created_at,p.heading,p.body '+
+    'FROM staged_passages_fts JOIN staged_compendium_passages p '+
+    'ON p.rowid=staged_passages_fts.rowid '+
+    'JOIN staged_compendia j ON j.id=p.document_id '+
+    "WHERE staged_passages_fts MATCH ? AND j.status='pending_review' "+
+    'ORDER BY bm25(staged_passages_fts) LIMIT 4',query
+   ).toArray();
+   const pending=pendingRows.filter(x=>allowedOfficialUrl(x.official_url)&&
+    typeof x.body==='string'&&x.body.length>=40).map((x,i)=>({
+     id:'P'+String(i+1),title:str(x.title,180)+' — '+str(x.edition,70),
+     abstract:str(x.heading,90)+': '+str(x.body,1600),
+     journal:'Anvisa (PDF extraído, ainda não conferido)',
+     date:String(x.created_at||'').slice(0,10),url:x.official_url,
+     source:'PDF integral extraído — revisão profissional pendente',
+     evidenceTier:'extracted_unreviewed'
+   }));
+   const items=[...verified,...pending,...overviews].slice(0,10);
    return {status:verified.length?'ok_reviewed_document':
-      overviews.length?'ok_official_overview':'no_approved_documents',
-     items,reviewedCount:verified.length,overviewCount:overviews.length};
+     pending.length?'ok_unreviewed_pdf':overviews.length?'ok_official_overview':'no_approved_documents',
+     items,reviewedCount:verified.length,unreviewedCount:pending.length,
+     overviewCount:overviews.length};
   }catch(_){return {status:'library_search_error',items:[]}}
  }
  // Ainda NÃO exposto como rota pública: documentos têm de ser conferidos pelo
