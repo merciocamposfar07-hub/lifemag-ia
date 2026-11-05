@@ -262,7 +262,7 @@ async function tests(){
     };
     const e={...env,AI:{run:async()=>({response:formula})}};
     const r=await worker.fetch(request('/api/assist',{method:'POST',body:{
-      question:'Adulto 35 anos, sem medicamentos, sem alergias, sem doenças, enxaqueca e riboflavina.'
+      question:'Mulher, 35 anos, 70 kg, sem medicamentos, sem alergias, sem doenças conhecidas, enxaqueca e riboflavina.'
     }}),e,access);
     assert.equal(r.status,200);
     const d=await r.json();
