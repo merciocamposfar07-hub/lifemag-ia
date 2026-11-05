@@ -40,7 +40,7 @@ const examSession={patientId:null,items:[]}; // seleção temporária, não pers
 const aiSession={ready:false,checked:false,busy:false,consensusReady:false,indexReady:false,message:'Servidor de IA ainda não conectado.'};
 const scienceCheck={busy:false,diagnostics:null,error:null,lastCheck:null,searchBusy:false,searchQuery:'',libraryResults:null,searchError:null};
 const anvisaImport={
-  busy:false,activeId:null,error:null,latest:null,records:[],checked:false
+  busy:false,activeId:null,error:null,latest:null,records:[],checked:false,batchReport:[]
 };
 const officialAnvisaDocuments=[
   ['fb8-volume-i','Farmacopeia Brasileira — Volume I','Métodos e textos gerais',true],
@@ -62,6 +62,34 @@ async function refreshAnvisaIngestions(){
   anvisaImport.records=Array.isArray(result.records)?result.records:[];
  }catch(_){anvisaImport.error='Não foi possível consultar o andamento dos compêndios.'}
  finally{anvisaImport.checked=true;render()}
+}
+async function prepareAnvisaBatch(){
+ if(anvisaImport.busy||!aiSession.indexReady)return;
+ if(!confirm('Preparar as quatro cópias públicas dos compêndios Anvisa 2026? Os PDFs serão lidos na Cloudflare e os textos permanecerão pendentes de revisão. A conversão pode consumir recursos do plano.'))return;
+ anvisaImport.busy=true;anvisaImport.error=null;anvisaImport.batchReport=[];
+ render();
+ const publicIds=officialAnvisaDocuments.filter(x=>x[3]).map(x=>x[0]);
+ for(const id of publicIds){
+  anvisaImport.activeId=id;render();
+  try{
+   const res=await fetch('/api/science/ingest-anvisa',{
+    method:'POST',credentials:'same-origin',
+    headers:{'content-type':'application/json'},
+    body:JSON.stringify({id})
+   });
+   const result=await res.json();
+   anvisaImport.batchReport.push({id,ok:res.ok,text:res.ok?
+    String(result.sections||0)+' trechos extraídos para revisão':
+    String(result.error||'Falha').slice(0,180)});
+  }catch(_){anvisaImport.batchReport.push({id,ok:false,text:'Servidor indisponível nesta tentativa'})}
+ }
+ anvisaImport.busy=false;anvisaImport.activeId=null;
+ try{
+  const response=await fetch('/api/science/anvisa-ingestions',{credentials:'same-origin'});
+  const data=await response.json();
+  anvisaImport.records=Array.isArray(data.records)?data.records:[];
+ }catch(_){}
+ render();
 }
 async function uploadAnvisaDocument(id,file){
  if(anvisaImport.busy||!officialAnvisaDocuments.some(x=>x[0]===id))return;
@@ -464,6 +492,7 @@ function science(){
  '</div>'+
  '<div class="panel anvisa-import" style="margin-top:14px"><h3>Importação dos compêndios da Anvisa — edições 2026</h3>'+
  '<p class="muted small">O Worker converterá os PDFs em texto para a biblioteca privada. A extração preserva conteúdo para pesquisa, mas tabelas, unidades e capítulos devem ser conferidos antes de liberar doses. Limite atual: 46 MiB por PDF.</p>'+
+ '<button type="button" class="btn primary" data-anvisa-batch="start" '+(anvisaImport.busy||!aiSession.indexReady?'disabled':'')+'>Preparar os 4 PDFs públicos disponíveis</button>'+
  officialAnvisaDocuments.map(([id,title,desc,hasMirror])=>{
    const job=anvisaImport.records.find(x=>x.id.startsWith(id+'-'));
    const disabled=anvisaImport.busy||!aiSession.indexReady;
@@ -476,6 +505,7 @@ function science(){
     '<input type="file" data-anvisa-pdf="'+E(id)+'" accept="application/pdf,.pdf" '+
     (disabled?'disabled':'')+'></label></div></div>';
  }).join('')+
+ (anvisaImport.batchReport.length?'<div class="anvisa-report" role="status">'+anvisaImport.batchReport.map(item=>'<p><strong>'+E(item.id)+':</strong> '+E(item.text)+'</p>').join('')+'</div>':'')+
  (anvisaImport.error?'<p role="alert" class="notice">'+E(anvisaImport.error)+'</p>':'')+
  (anvisaImport.latest?'<p role="status" class="notice blue">Texto recebido: '+
   E(String(anvisaImport.latest.sections||0))+' trechos; revisão documental pendente.</p>':'')+
@@ -581,10 +611,11 @@ function trimForm(obj){for(const k of Object.keys(obj))if(typeof obj[k]==='strin
 function saveFormula(form){const v=visit();if(!v)return;const next=trimForm(readForm(form));if(Number(next.duration)<1||Number(next.duration)>3650){toast('A duração deve ser maior que zero.');return;}Object.assign(v,next);v.duration=Number(next.duration)||15;v.revisions.push({ savedAt:new Date().toISOString(), ingredients:JSON.parse(JSON.stringify(v.ingredients)), formulaName:v.formulaName, posology:v.posology });persist();toast('Formulação salva com versão registrada.');render();}
 function preview(doc,chosen=visit()){const v=chosen,p=v&&patientFor(v);if(!v||!p){toast('Selecione primeiro um atendimento.');return;}if(doc==='prescription'&&v.aiDraftPendingReview){toast('Receituário bloqueado: conclua primeiro a revisão farmacêutica da proposta da IA.');setPage('editor');return;}if(doc==='service'&&(!data.settings.cnpj||!data.settings.businessPhone)){toast('Preencha CNPJ e telefone institucional confirmados antes deste modelo.');setPage('settings');return;}if(doc==='prescription'&&(!v.ingredients.length||!v.posology||!v.quantity)){toast('Complete substâncias, quantidade e posologia antes do receituário.');setPage('editor');return;}ui.doc=doc;document.getElementById('print-root').innerHTML=renderPaper(doc,v,p);window.print();}
 function renderPaper(doc,v,p){const s=data.settings, names={clinical:'FICHA CLÍNICA / CADASTRO',prescription:'RECEITUÁRIO MAGISTRAL',attendance:'DECLARAÇÃO DE COMPARECIMENTO',service:'DECLARAÇÃO DE SERVIÇO FARMACÊUTICO',protocol:'PROTOCOLO COMPLEMENTAR'};const line=(label,value)=>`<div class="print-section"><span class="print-label">${label}:</span> ${E(value||'—')}</div>`;const header=`<div class="print-head"><img src="${IMG}" alt="Logo oficial LifeMag IA"/><div><strong>LifeMag IA</strong><small>Prescrição Magistral Inteligente</small><div class="print-institution"><b>${E(s.workplace)}</b><br>${E(s.address)}<br>${E(s.professional)} — ${E(s.role)} — ${E(s.crf)}</div></div></div>`;const common=line('Paciente',p.name)+line('Data do atendimento',fmtDate(v.date))+line('Telefone',p.phone);let body='';if(doc==='prescription'){body=common+line('Endereço do paciente',p.address)+`<table class="print-table"><thead><tr><th>Substância</th><th>Dose</th></tr></thead><tbody>${v.ingredients.map(i=>`<tr><td>${E(i.name)}</td><td>${E(i.dose)} ${E(i.unit||'mg')}</td></tr>`).join('')}</tbody></table>`+line('Apresentação',v.presentation)+line('Via de administração',v.route)+line('Quantidade para manipular',v.quantity)+line('Posologia',v.posology)+line('Horários',v.schedules)+line('Relação com refeições',v.meals)+line('Duração',v.duration+' dias')+line('Orientações',v.observations);}else if(doc==='clinical'){body=common+line('Nascimento',fmtDate(p.dob))+line('Endereço',p.address)+line('Peso (kg)',p.weight)+line('Altura (cm)',p.height)+line('Observações gerais do cadastro',p.notes)+line('Motivo da consulta e objetivo clínico',normalizeClinicalAssessment(v.assessment).chiefComplaint)+line('Sintomas e evolução',normalizeClinicalAssessment(v.assessment).symptoms)+line('Histórico clínico',normalizeClinicalAssessment(v.assessment).clinicalHistory)+line('Medicamentos em uso',normalizeClinicalAssessment(v.assessment).medications)+line('Alergias e reações',normalizeClinicalAssessment(v.assessment).allergies)+line('Exames e resultados',normalizeClinicalAssessment(v.assessment).labResults)+line('Restrições e riscos',normalizeClinicalAssessment(v.assessment).riskFactors)+line('Plano de acompanhamento',normalizeClinicalAssessment(v.assessment).followUpPlan);}else if(doc==='attendance'){body=common+line('Horário de entrada','_________')+line('Horário de saída','_________')+`<p>Declaramos, para fins de comprovação, que a pessoa identificada compareceu ao atendimento farmacêutico no período efetivamente confirmado.</p>`;}else if(doc==='service'){body=common+line('CNPJ',s.cnpj)+line('Telefone institucional',s.businessPhone)+line('Serviço efetivamente realizado','_____________________________________________')+line('Resultado/observações','_____________________________________________');}else{body=common+line('Formulação vinculada',v.formulaName)+line('Orientações educativas complementares',v.protocol||'Não informado')+`<p>Intensidade progressiva, iniciando leve e evoluindo gradualmente conforme condicionamento e tolerância, se aplicável.</p>`;}return `<article class="print-page">${header}<h1 class="print-h">${names[doc]}</h1><p class="print-note"><b>RASCUNHO DE TESTE — NÃO ASSINADO — NÃO VÁLIDO PARA USO CLÍNICO</b></p>${body}<div class="print-foot"><div class="print-sign"><b>${E(s.professional)}</b><br>${E(s.role)} — ${E(s.crf)}<br><small>Campo reservado à assinatura válida</small></div></div></article>`;}
-function handleClick(event){const b=event.target.closest('[data-page],[data-action],[data-select-patient],[data-review-visit],[data-open-visit],[data-add-ingredient],[data-remove-ingredient],[data-print-visit],[data-complete],[data-doc],[data-science-check],[data-import-draft],[data-save-anon-draft],[data-open-anon-draft],[data-link-anon-draft],[data-delete-anon-draft],[data-ingest-anvisa]');if(!b)return;if(b.dataset.importDraft){const v=visit();importFormulaDraft(v?.chat?.find(m=>m.id===b.dataset.importDraft));return;}if(b.dataset.saveAnonDraft){saveAnonymousCase(b.dataset.saveAnonDraft);return}
+function handleClick(event){const b=event.target.closest('[data-page],[data-action],[data-select-patient],[data-review-visit],[data-open-visit],[data-add-ingredient],[data-remove-ingredient],[data-print-visit],[data-complete],[data-doc],[data-science-check],[data-import-draft],[data-save-anon-draft],[data-open-anon-draft],[data-link-anon-draft],[data-delete-anon-draft],[data-ingest-anvisa],[data-anvisa-batch]');if(!b)return;if(b.dataset.importDraft){const v=visit();importFormulaDraft(v?.chat?.find(m=>m.id===b.dataset.importDraft));return;}if(b.dataset.saveAnonDraft){saveAnonymousCase(b.dataset.saveAnonDraft);return}
 if(b.dataset.openAnonDraft){openAnonymousCase(b.dataset.openAnonDraft);return}
 if(b.dataset.linkAnonDraft){linkAnonymousCase(b.dataset.linkAnonDraft);return}
 if(b.dataset.deleteAnonDraft){deleteAnonymousCase(b.dataset.deleteAnonDraft);return}
+if(b.dataset.anvisaBatch){void prepareAnvisaBatch();return;}
 if(b.dataset.ingestAnvisa){void ingestAnvisaDocument(b.dataset.ingestAnvisa);return;}
 if(b.dataset.scienceCheck){void checkScientificServices(b.dataset.scienceCheck);return;}if(b.dataset.page){setPage(b.dataset.page);return;}if(b.dataset.selectPatient){ui.patientId=b.dataset.selectPatient;ui.visitId=null;render();return;}if(b.dataset.reviewVisit){const v=data.visits.find(x=>x.id===b.dataset.reviewVisit);if(v){useVisit(v);setPage('conversation');}return;}if(b.dataset.openVisit){const v=data.visits.find(x=>x.id===b.dataset.openVisit);if(v){useVisit(v);setPage('editor');}return;}if(b.dataset.printVisit){const v=data.visits.find(x=>x.id===b.dataset.printVisit);if(v){useVisit(v);preview('prescription',v);}return;}if(b.dataset.doc){preview(b.dataset.doc);return;}if(b.dataset.removeIngredient){const v=visit();if(!v)return;v.ingredients=v.ingredients.filter(i=>i.id!==b.dataset.removeIngredient);if(v.aiDraftImportedAt)v.aiDraftPendingReview=true;persist();render();return;}if(b.dataset.complete){const v=data.visits.find(x=>x.id===b.dataset.complete);if(v){v.status=v.status==='finalizado'?'em acompanhamento':'finalizado';persist();render();}return;}
 const a=b.dataset.action;if(a==='delete-patient'){deleteSelectedPatient();return;}if(a==='new-visit')startVisit(ui.patientId||(data.patients.length===1?data.patients[0]?.id:null));if(a==='clear-patient'){ui.patientId=null;render();}if(a==='add-ingredient'){const v=visit();if(v){v.ingredients.push({id:uid('ing'),name:'',dose:'',unit:'mg',role:'',target:'',evidence:''});if(v.aiDraftImportedAt)v.aiDraftPendingReview=true;persist();render();}}if(a==='confirm-ai-review'){const v=visit();if(!v?.aiDraftPendingReview)return;if(!v.ingredients.length||!v.quantity||!v.posology){toast('Complete composição, quantidade e posologia antes de confirmar.');return;}if(!confirm('Confirma ter revisado clinicamente doses, interações, contraindicações, formulação e orientações? Isso não constitui assinatura digital.'))return;v.aiDraftPendingReview=false;v.aiDraftReviewedAt=new Date().toISOString();persist();render();toast('Revisão registrada. Documentos ainda exigem assinatura profissional.');return;}if(a==='save-protocol'){const v=visit();if(v){v.protocol=document.getElementById('protocol-text')?.value||'';persist();toast('Protocolo educativo salvo.');}}if(a==='test-sound'){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error();const c=new AC(),o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=660;g.gain.setValueAtTime(.10,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.25);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.25);o.onended=()=>c.close();toast('Som de demonstração reproduzido.');}catch(e){toast('Som indisponível neste navegador.');}}if(a==='remove-photo'){delete data.settings.photoData;persist();render();toast('Foto removida.');}if(a==='clear-demo'){if(confirm('Apagar os dados locais desta demonstração?')){localStorage.removeItem(STORAGE_KEY);Object.assign(data,initialState());ui.patientId=null;ui.visitId=null;setPage('home');toast('Demonstração limpa.');}}}
