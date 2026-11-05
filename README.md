@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** v0.4.6 • catálogo dos oito volumes FB8 e dos dois formulários 2026; divisor de PDFs grandes por páginas, manifesto SHA-256 e acompanhamento de cobertura no SQLite privado. PDFs oficiais integrais ainda dependem da obtenção/extração efetiva e revisão profissional.
+**Status:** v0.4.8 • consulta automática PubMed + páginas oficiais Anvisa + SQLite científico; cron Cloudflare preparado para tentar extrair gradualmente os PDFs públicos compatíveis, com erro e cobertura auditáveis. Conteúdos integrais ainda não estão confirmados nem aprovados.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -164,3 +164,12 @@ O histórico do planejamento original permanece nos documentos anteriores desta 
 
 ## Importação de PDFs grandes da Anvisa — v0.4.6
 A Central Científica admite arquivos divididos em partes, com `manifesto-anvisa.json`. Para gerar as partes localmente use `scripts/dividir_compendio_anvisa.py` (requer `pypdf`) e selecione o manifesto e todos os PDFs no aplicativo. O endpoint `/api/science/anvisa-coverage` mostra cobertura de páginas; a integridade por SHA-256 é conferida antes da conversão e os conteúdos ficam em `pending_review`. Instruções completas em `docs/IMPORTACAO_ANVISA_2026.md`. **Não confundir cobertura de páginas declarada com conteúdo revisado, validado ou integralmente importado na produção.**
+
+## Consulta automática e sincronização científica (v0.4.8, 04/11/2026)
+- Na conversa e na busca da Central Científica, o Worker consulta automaticamente **PubMed/Europe PMC**, **SQLite científico** e as **três páginas oficiais da Anvisa**. O usuário não seleciona PDFs para pesquisar.
+- Trechos das páginas HTML oficiais entram como `official_web_context` (referências `W#`), **sem acesso à monografia do PDF**. Esses trechos **não validam doses**.
+- As ferramentas técnicas para upload de PDFs foram recolhidas num painel opcional, sem remover a possibilidade de importação supervisionada.
+- `worker/anvisa-auto-sync.js` e `wrangler.json` agora preparam uma rotina **Cloudflare Cron diária**: uma tentativa por execução entre PDF do volume I da FB8, Formulário Nacional 3ª ed. e Formulário de Fitoterápicos 3ª ed., sempre de links públicos fixos, sem guardar PDF em GitHub. O Worker verifica o limite de 46 MiB, faz conversão e grava em SQLite com `pending_review`.
+- Tentativas e erros ficam em `auto_compendium_sync`, recuperados pelo `GET /api/source-status` em `officialIndex.autoSync`. Sem registro, a tela declara **nenhuma tentativa registrada**, não diz que sincronizou.
+- Ainda faltam: confirmar a publicação do Worker protegido com Cron e binding AI, verificar as extrações com PDFs reais, cobrir arquivos sem cópia pública compatível (incluindo plantas acima do limite) e revisar monografias.
+- A conclusão do GitHub Pages **não equivale à implantação do Cloudflare Worker**. O Cron não funcionará até a configuração Cloudflare correspondente estar publicada.
