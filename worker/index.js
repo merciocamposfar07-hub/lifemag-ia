@@ -5,6 +5,7 @@ export {LifeMagIngestionCoordinator} from './ingestion-coordinator.js';
 export {LifeMagClinicalRecords} from './clinical-records.js';
 import {searchConsensus} from './consensus.js';
 import {FORMULA_SCHEMA,normalizeDraft,draftAsText,screenClinicalQuestion} from './clinical-draft.js';
+import {quickB12VitaminDGuidance} from './quick-nutrients.js';
 import {ANVISA_CATALOG} from './anvisa-catalog.js';
 import {searchAnvisaOnline} from './anvisa-live.js';
 import {importAnvisaCompendium,convertAnvisaDocument,MAX_COMPENDIUM_BYTES} from './anvisa-importer.js';
@@ -12,7 +13,7 @@ import {importAnvisaCompendium,convertAnvisaDocument,MAX_COMPENDIUM_BYTES} from 
  * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
  * Nenhum texto clínico é registrado em logs.
  */
-const RELEASE='0.6.4';
+const RELEASE='0.6.5';
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -189,6 +190,11 @@ async function analyze(request,env){
   if(question.length<8||question.length>2500)return reply({error:'Descreva a pergunta entre 8 e 2.500 caracteres'},400);
   // Fadiga sem duração, sono ou antecedentes exige esclarecimentos, não um
   // falso diagnóstico e nem consulta bibliográfica desconexa. Sem custo de IA.
+  // Resposta imediata, com referência estável e sem chamadas externas:
+  // valores B12 e D em contexto clínico são interpretados antes de acionar
+  // pesquisas genéricas que poderiam demorar ou retornar doses sem pertinência.
+  const nutrientGuidance=quickB12VitaminDGuidance(question);
+  if(nutrientGuidance)return reply(nutrientGuidance);
   const screening=screenClinicalQuestion(question);
   if(screening)return reply({
     answer:draftAsText(screening),draft:screening,sources:[],
