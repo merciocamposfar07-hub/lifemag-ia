@@ -206,7 +206,7 @@ async function analyze(request,env){
       const limit=Math.min(100,Math.max(1,Number(env.CONSENSUS_AUTO_MONTHLY_BUDGET)||20));
       const budget=await env.SCIENCE_LIBRARY.getByName('lifemag-main')
        .reserveConsensusSearch(month,limit);
-      consensus=budget?.allowed?await searchConsensus(question,env):
+      consensus=budget?.allowed?await searchConsensus(buildEuropePmcQuery(question),env):
        {status:'monthly_budget_reached',items:[]};
     }catch(_){consensus={status:'monthly_budget_unavailable',items:[]};}
   }
