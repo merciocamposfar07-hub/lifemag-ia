@@ -27,15 +27,7 @@ async function main(){
   });
   await check('fadiga isolada não vira falso sinal de alarme nem receita vazia',async()=>{
     const input='Homem de 41 anos, 68,0 de peso, não tem alergias e não faz uso de medicação contínua. Sente indisposição, cansaço, fadiga. Qual formulação sugerida?';
-    const triage=screenClinicalQuestion(input);
-    assert.equal(triage.decision,'insufficient_info');
-    assert.deepEqual(triage.red_flags,[]);
-    const answer=draftAsText(triage);
-    assert.ok(answer.includes('INFORMAÇÕES PARA CONTINUAR'));
-    assert.ok(answer.includes('sono'));
-    assert.ok(answer.includes('Há quanto tempo'));
-    assert.ok(!answer.includes('QUANTIDADE PARA MANIPULAR'));
-    assert.ok(!answer.includes('SINAIS DE ALERTA'));
+    assert.equal(screenClinicalQuestion(input),null); // Sem urgência: pesquisar evidências e construir opções.
   });
   await check('esclarecimentos na mesma conversa retomam avaliação, não reiniciam idade e peso',async()=>{
     const input='Homem de 41 anos, 68,0 de peso, sem alergias, não usa medicamentos, não possui doenças conhecidas. Sente fadiga. Há 3 semanas, dorme bem. Exames recentes disponíveis.';
@@ -43,7 +35,7 @@ async function main(){
   });
   await check('negação de falta de ar não inventa sinal de alerta',async()=>{
     const input='Homem de 41 anos, 68 kg, sem alergias, sem medicamentos, com fadiga, sem falta de ar';
-    assert.equal(screenClinicalQuestion(input).decision,'insufficient_info');
+    assert.equal(screenClinicalQuestion(input),null);
   });
   await check('dor no peito relatada com fadiga exige avaliação prioritária',async()=>{
     const input='Homem de 41 anos, 68 kg, sem alergias, sem medicamentos, com fadiga e dor no peito';
@@ -110,13 +102,15 @@ async function main(){
     const insufficient='35 anos, sem medicamentos, sem alergias, sem doenças conhecidas: enxaqueca';
     assert.equal(normalizeDraft(basic(),evidence,full).decision,'draft');
     const limited=normalizeDraft(basic(),evidence,insufficient);
-    assert.equal(limited.decision,'insufficient_info');
+    assert.equal(limited.decision,'preliminary_draft');
     assert.ok(limited.missing_information.includes('Sexo para individualização clínica'));
     assert.ok(limited.missing_information.includes('Peso corporal em kg'));
   });
   await check('falta de informações clínicas bloqueia liberação',async()=>{
     const raw=basic();raw.missing_information=['medicamentos em uso'];
-    const d=normalizeDraft(raw,evidence);assert.equal(d.decision,'insufficient_info');
+    const d=normalizeDraft(raw,evidence);assert.equal(d.decision,'preliminary_draft');
+    assert.equal(d.canIssuePrescription,false);
+    assert.match(draftAsText(d),/POSOLOGIA ESTUDADA/);
   });
   await check('ingredientes mantêm MOTOR/COADJUVANTE/OPCIONAL somente',async()=>{
     const raw=basic();raw.ingredients[0].role='SUPER EFEITO';
