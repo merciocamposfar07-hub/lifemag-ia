@@ -23,6 +23,48 @@ export const ANVISA_CATALOG=[
     acquisition:'public_mirror',expectedMime:'application/pdf'
   },
   {
+    id:'fb8-volume-ii-dispositivos',sourceId:'anvisa-fb',
+    title:'Farmacopeia Brasileira — Volume II, dispositivos médicos',edition:'8ª edição (2026)',rdc:'RDC 1.026/2026',
+    canonicalUrl:'https://bibliotecadigital.anvisa.gov.br/jspui/handle/anvisa/21037',
+    publisherPage:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',
+    verifiedMirrorUrl:null,acquisition:'manual_upload',expectedMime:'application/pdf'
+  },
+  {
+    id:'fb8-volume-ii-gases',sourceId:'anvisa-fb',
+    title:'Farmacopeia Brasileira — Volume II, gases medicinais',edition:'8ª edição (2026)',rdc:'RDC 1.026/2026',
+    canonicalUrl:'https://bibliotecadigital.anvisa.gov.br/jspui/handle/anvisa/21038',
+    publisherPage:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',
+    verifiedMirrorUrl:null,acquisition:'manual_upload',expectedMime:'application/pdf'
+  },
+  {
+    id:'fb8-volume-ii-hemocomponentes',sourceId:'anvisa-fb',
+    title:'Farmacopeia Brasileira — Volume II, hemocomponentes e hemoderivados',edition:'8ª edição (2026)',rdc:'RDC 1.026/2026',
+    canonicalUrl:'https://bibliotecadigital.anvisa.gov.br/jspui/handle/anvisa/21036',
+    publisherPage:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',
+    verifiedMirrorUrl:null,acquisition:'manual_upload',expectedMime:'application/pdf'
+  },
+  {
+    id:'fb8-volume-ii-insumos',sourceId:'anvisa-fb',
+    title:'Farmacopeia Brasileira — Volume II, insumos e especialidades',edition:'8ª edição (2026)',rdc:'RDC 1.026/2026',
+    canonicalUrl:'https://bibliotecadigital.anvisa.gov.br/jspui/handle/anvisa/21042',
+    publisherPage:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',
+    verifiedMirrorUrl:null,acquisition:'manual_upload',expectedMime:'application/pdf'
+  },
+  {
+    id:'fb8-volume-ii-biologicos',sourceId:'anvisa-fb',
+    title:'Farmacopeia Brasileira — Volume II, produtos biológicos',edition:'8ª edição (2026)',rdc:'RDC 1.026/2026',
+    canonicalUrl:'https://bibliotecadigital.anvisa.gov.br/jspui/handle/anvisa/21040',
+    publisherPage:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',
+    verifiedMirrorUrl:null,acquisition:'manual_upload',expectedMime:'application/pdf'
+  },
+  {
+    id:'fb8-volume-ii-radiofarmacos',sourceId:'anvisa-fb',
+    title:'Farmacopeia Brasileira — Volume II, radiofármacos',edition:'8ª edição (2026)',rdc:'RDC 1.026/2026',
+    canonicalUrl:'https://bibliotecadigital.anvisa.gov.br/jspui/handle/anvisa/21041',
+    publisherPage:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',
+    verifiedMirrorUrl:null,acquisition:'manual_upload',expectedMime:'application/pdf'
+  },
+  {
     id:'fn3-2026',sourceId:'anvisa-fn',
     title:'Formulário Nacional da Farmacopeia Brasileira',
     edition:'3ª edição (2026)',rdc:'RDC 1.025/2026',
@@ -41,4 +83,4 @@ export const ANVISA_CATALOG=[
     acquisition:'public_mirror',expectedMime:'application/pdf'
   }
 ];
-export const ANVISA_FULL_CATALOG_NOTE='Quatro arquivos atuais identificados e referenciados; a FB8 possui outros volumes II não importados neste lote.';
+export const ANVISA_FULL_CATALOG_NOTE='Catálogo dos oito volumes oficiais da FB8 e dos dois formulários atuais; conteúdo integral ainda depende de importação e validação.';
