@@ -3,11 +3,13 @@ import {searchIndexedEvidence} from './science-index.js';
 export {LifeMagScientificStore} from './science-do.js';
 import {searchConsensus} from './consensus.js';
 import {FORMULA_SCHEMA,normalizeDraft,draftAsText} from './clinical-draft.js';
+import {ANVISA_CATALOG} from './anvisa-catalog.js';
+import {importAnvisaCompendium} from './anvisa-importer.js';
 /* LifeMag IA: assistente científico, protegido pelo Cloudflare Access.
  * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
  * Nenhum texto clínico é registrado em logs.
  */
-const RELEASE='0.4.4';
+const RELEASE='0.4.5';
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -376,6 +378,29 @@ export default {
         searchType:'biblioteca_cientifica_nao_pacientes'});
     }
     if(url.pathname==='/api/source-status'&&request.method==='GET')return reply(await scientificConnectivity(env));
+    if(url.pathname==='/api/science/anvisa-catalog'&&request.method==='GET'){
+      const records=ANVISA_CATALOG.map(({verifiedMirrorUrl,...metadata})=>metadata);
+      return reply({catalog:records,automaticApproval:false,
+        note:'O PDF convertido entra em quarentena e exige revisão antes de aparecer nas respostas clínicas.'});
+    }
+    if(url.pathname==='/api/science/anvisa-ingestions'&&request.method==='GET'){
+      if(!env.SCIENCE_LIBRARY)return reply({error:'Biblioteca científica indisponível'},503);
+      try{
+        const records=await env.SCIENCE_LIBRARY.getByName('lifemag-main').listCompendiumExtractions();
+        return reply({records});
+      }catch(_){return reply({error:'Falha ao consultar importações da biblioteca'},503)}
+    }
+    if(url.pathname==='/api/science/ingest-anvisa'&&request.method==='POST'){
+      const origin=request.headers.get('origin');
+      if(origin!==url.origin)return reply({error:'Origem de operação científica inválida'},403);
+      if(!String(request.headers.get('content-type')||'').includes('application/json'))
+        return reply({error:'Envie JSON com identificador do compêndio'},415);
+      let params;
+      try{const raw=await request.text();if(raw.length>1000)throw Error();params=JSON.parse(raw)}
+      catch(_){return reply({error:'Identificador do documento inválido'},400)}
+      const result=await importAnvisaCompendium(params.id,env,identity);
+      return reply(result,result.ok?202:result.status||500);
+    }
     if(url.pathname==='/api/science/import-reviewed'&&request.method==='POST')return importOfficialDocument(request,env,identity);
     if(url.pathname==='/api/selftest'&&request.method==='POST')return scientificSelftest(request,env);
     if(url.pathname==='/api/assist'&&request.method==='POST')return analyze(request,env);
