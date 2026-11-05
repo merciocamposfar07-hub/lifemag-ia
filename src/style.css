@@ -782,3 +782,18 @@ body{color:#122e49}
  .research-page .research-history .chat-bubble{max-width:100%;padding:12px}
  .research-page .research-input{padding:10px!important}
 }
+
+
+/* v0.6.5 — identificação mínima no mesmo fluxo de proposta magistral */
+.research-page .quick-recipe-form{margin:13px 0;padding:16px;border:1px solid #a9d0df;
+ border-radius:15px;background:#eef8fb;display:grid;gap:11px;min-width:0}
+.research-page .quick-recipe-form>strong{font-size:18px;color:#123d58}
+.research-page .quick-recipe-form p{font-size:15px;color:#3e5666;margin:0}
+.research-page .quick-recipe-form label{display:grid;gap:5px;font-size:16px;
+ font-weight:700;color:#143952}
+.research-page .quick-recipe-form input,
+.research-page .quick-recipe-form select{min-height:47px;width:100%;
+ padding:10px;border-radius:10px;border:1px solid #aac4d2;
+ background:#fff;color:#1b334d;font-size:17px;min-width:0}
+.research-page .quick-recipe-form button{min-height:47px;font-size:16px}
+@media(max-width:760px){.research-page .quick-recipe-form{padding:12px}}
