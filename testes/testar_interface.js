@@ -53,9 +53,17 @@ const cases = [
   ['pesquisa avulsa não grava prontuário no navegador', () => assert.match(js, /if\(v!==anonymousResearch\)persist\(\)/)],
   ['questionamento científico usa API no mesmo domínio', () => assert.match(js, /fetch\('\/api\/assist'/)],
 
-  ['campo de pergunta da IA vem antes do histórico', () => {
+  ['histórico e campo compõem a mesma conversa, em ordem legível', () => {
     const isolated=js.slice(js.indexOf('function scientificOnly()'),js.indexOf('function conversation(){'));
-    assert.ok(isolated.indexOf('<form id="research-form"')<isolated.indexOf('research-history'));
+    assert.ok(isolated.indexOf('class="research-thread"')>0);
+    assert.ok(isolated.indexOf('class="research-history"')<isolated.indexOf('<form id="research-form"'));
+    assert.match(css,/\.research-page \.research-history\{[\s\S]*?overflow-y:auto/);
+  }],
+  ['histórico privado é recuperado e persistido pelo banco clínico', () => {
+    assert.match(js,/anonymousResearch\.chat=Array\.isArray\(data\.researchMessages\)/);
+    assert.match(js,/function persistResearchConversation\(\)/);
+    assert.match(js,/persistResearchConversation\(\);render\(\)/);
+    assert.match(js,/data-reset-research/);
   }],
   ['tela IA não usa altura forçada do chat antigo', () => {
     const isolated=js.slice(js.indexOf('function scientificOnly()'),js.indexOf('function conversation(){'));
