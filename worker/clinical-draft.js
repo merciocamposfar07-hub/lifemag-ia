@@ -56,7 +56,7 @@ export function missingClinicalBasics(question){
     missing.push('Sexo para individualização clínica');
   if(!/(?:\b(?:peso\s*[:=]?\s*|pesa\s+)\d{2,3}(?:[.,]\d+)?\s*(?:kg|quilos?)?\b|\b\d{2,3}(?:[.,]\d+)?\s*(?:kg|quilos?|de peso)\b)/.test(normalized))
     missing.push('Peso corporal em kg');
-  if(!/\b(?:medicament|remedi|farmac|em uso|sem medicac|nao usa medicac|nao toma remedi)/.test(normalized))
+  if(!/\b(?:medicac|medicament|remedi|farmac|suplement|em uso|sem medicac|nao usa medicac|nao toma remedi)/.test(normalized))
     missing.push('Medicamentos e suplementos em uso, ou confirmação de ausência');
   if(!/\b(?:alergi|hipersensibil|sem alergi|nega alergi)/.test(normalized))
     missing.push('Alergias e reações anteriores');
