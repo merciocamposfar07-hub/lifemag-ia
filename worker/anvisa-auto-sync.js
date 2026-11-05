@@ -46,6 +46,14 @@ export async function runAnvisaAutoSync(env,now=new Date(),importer=importAnvisa
    attempted:false,covered:AUTO_COMPENDIA.length-eligible.length};
  }
  const entry=eligible[0];
+ try{
+  const reserved=await library.recordCompendiumSync({
+   documentId:entry.id,status:'in_progress',sections:0,
+   message:'Iniciada a tentativa automática de aquisição do documento',
+   checkedAt:now.toISOString()
+  });
+  if(reserved?.ok===false)throw Error('Falha ao registrar tentativa');
+ }catch(_){return {status:'sync_record_error',attempted:false,documentId:entry.id}}
  let result;
  try{result=await importer(entry.id,env,{email:'automatic-sync@lifemag.invalid'})}
  catch(_){result={ok:false,status:502,error:'Falha inesperada na importação'};}
