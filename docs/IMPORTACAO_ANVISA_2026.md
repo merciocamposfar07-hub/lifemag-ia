@@ -113,3 +113,17 @@ O fluxo de CI foi inicialmente bloqueado por um literal SQL incorreto (`"extract
 - Verificações: `testar_auto_sync.js`, `testar_importacao_anvisa.js`, `testar_descoberta_anvisa.js`, `testar_sqlite_real.mjs` e suite de interface.
 
 **PENDÊNCIAS:** observar a primeira execução real do cron no endpoint autenticado `/api/source-status`, confirmar a quantidade efetivamente convertida e resolver a obtenção e segmentação dos volumes maiores sem transferência manual pelo usuário.
+
+
+## v0.5.2 — prioridade fitoterápica e execução desacoplada do Worker
+
+Em 05/11/2026, a gravação da API protegida mostrou: versão do servidor 0.4.9, `approvedDocuments=0`, `pendingReviewDocuments=0`, `autoSync=[]`, `anvisaOnline.reachable=0` de três páginas consultadas, e PubMed com cinco artigos recuperados. Nenhuma monografia integral fora carregada naquela medição.
+
+Alterações posteriores implementadas:
+1. Plantas Medicinais FB8 (cerca de 55 MB) é **a primeira** na fila de dez documentos. Uma tentativa específica de até 62 MiB é permitida; nenhum arquivo é ignorado por estar acima dos 46 MiB padrão.
+2. A rotina foi transferida para `LifeMagIngestionCoordinator`, Durable Object SQLite com `alarm()` persistente. O Worker Free apenas agenda o trabalho e a interface pode agendar sem selecionar PDFs pelo endpoint `POST /api/science/sync-anvisa` (Cloudflare Access e Origin válidos).
+3. O registro `scheduled_compendium_audit` diferencia o disparo `started` e o resultado `finished`, `failed` ou `not_configured`. A UI apresenta esse estado do cron e as importações `autoSync` já existentes.
+4. A importação **continua em quarentena** (`pending_review`) até conferir conteúdo, tabelas, unidades, versão e segurança, sem completar doses por inferência.
+5. O Durable Object oferece mais CPU por invocação que o Worker Free, mas ainda possui 128 MB de memória; falhas reais devem ser tratadas por processamento segmentado externo. O desenvolvimento desse processamento será necessário se a tentativa integral do arquivo de plantas falhar.
+
+Referências técnicas: https://developers.cloudflare.com/durable-objects/platform/limits/ e https://developers.cloudflare.com/workers/platform/limits/.
