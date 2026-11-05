@@ -132,21 +132,47 @@ async function tests(){
     assert.equal(new Set(names).size,1);
     assert.ok(!names[0].includes('farmaceutico@example.org'));
   }],
-  ['caso do vídeo solicita esclarecimentos sem inventar alerta nem consumir IA',async()=>{
-    let aiUsed=false;
-    const clinical={...env,AI:{run:async()=>{aiUsed=true;throw Error('Não deveria chamar IA')}}};
-    const q='Homem de 41 anos, 68,0 de peso, não tem alergias e não faz uso de medicação contínua. Sente indisposição, cansaço, fadiga. Qual formulação sugerida?';
-    const response=await worker.fetch(request('/api/assist',{method:'POST',
-     body:{question:q,useConsensus:'auto'}}),clinical,access);
-    assert.equal(response.status,200);
-    const result=await response.json();
-    assert.equal(aiUsed,false);
-    assert.equal(result.draft.decision,'insufficient_info');
-    assert.deepEqual(result.draft.red_flags,[]);
-    assert.ok(result.answer.includes('Há quanto tempo'));
-    assert.ok(!result.answer.includes('QUANTIDADE PARA MANIPULAR'));
-    assert.equal(result.sources.length,0);
-    assert.equal(result.needsMoreInfo,true);
+  ['caso de fadiga avança para proposta preliminar apenas com dose estudada',async()=>{
+    const previous=globalThis.fetch;
+    globalThis.fetch=async url=>{
+      if(String(url).startsWith('https://www.ebi.ac.uk/europepmc/webservices/rest/search?'))
+       return Response.json({resultList:{result:[{
+        source:'MED',id:'23456789',title:'Coenzyme Q10 in fatigue: trial in adults',
+        abstractText:'In adults reporting fatigue, a randomized study evaluated coenzyme Q10 200 mg per day versus placebo.',
+        firstPublicationDate:'2026-03-01',journalTitle:'Clinical Trial Journal'
+       }]}});
+      throw Error('Sem rede externa neste teste');
+    };
+    try{
+     const candidate={
+      decision:'draft',objective:'fadiga e indisposição',
+      formula_name:'Coenzima Q10 — proposta para revisão',
+      quantity:'30 cápsulas',pharmaceutical_form:'cápsulas',route:'oral',
+      ingredients:[{name:'Coenzima Q10',chemical_form:'ubiquinona',dose_value:'200',
+       dose_unit:'mg',role:'MOTOR',rationale:'dose avaliada em estudo clínico',
+       references:['1']}],
+      posology:'1 vez ao dia, verificar indicação individual',
+      meal_relation:'a conferir',daily_schedule:'a definir',
+      initial_duration_days:30,reassessment_days:15,
+      extension_criteria:'reavaliação farmacêutica',monitoring:[],
+      interactions:[],contraindications:[],missing_information:[],
+      red_flags:[],limitations:['Dose estudada não comprova benefício individual']
+     };
+     let aiUsed=false;
+     const clinical={...env,AI:{run:async()=>{aiUsed=true;return {response:candidate}}}};
+     const question='Homem de 41 anos, 68,0 de peso, não tem alergias e não faz uso de medicação contínua. Sente indisposição, cansaço, fadiga. Qual formulação sugerida?';
+     const response=await worker.fetch(request('/api/assist',{method:'POST',
+       body:{question,useConsensus:'auto'}}),clinical,access);
+     assert.equal(response.status,200);
+     const result=await response.json();
+     assert.equal(aiUsed,true);
+     assert.equal(result.draft.decision,'preliminary_draft');
+     assert.equal(result.draft.canIssuePrescription,false);
+     assert.equal(result.draft.ingredients[0].dose_supported,true);
+     assert.equal(result.draft.red_flags.length,0);
+     assert.match(result.answer,/POSOLOGIA ESTUDADA/);
+     assert.match(result.answer,/INFORMAÇÕES RECOMENDADAS/);
+    }finally{globalThis.fetch=previous}
   }],
   ['sem Access: nenhum arquivo ou API permitido',async()=>{
     assert.equal((await worker.fetch(request('/'),env,{})).status,401);
@@ -286,7 +312,8 @@ async function tests(){
       question:'Paciente apresenta enxaqueca e deseja formulação de riboflavina'
     }}),e,access);
     const out=await r.json();
-    assert.equal(out.draft.decision,'insufficient_info');
+    assert.equal(out.draft.decision,'preliminary_draft');
+    assert.equal(out.draft.canIssuePrescription,false);
     assert.ok(out.draft.missing_information.length>=3);
     assert.ok(!out.answer.includes('POSOLOGIA: tomar diariamente'));
   }],
