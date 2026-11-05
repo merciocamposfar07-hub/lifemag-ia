@@ -216,6 +216,7 @@ async function analyze(request,env){
       evidenceStatus:'Fontes recuperadas nesta consulta; análise automatizada ainda requer revisão técnica.',
       sourceStatus:{pubmed:evidence.status,internal:indexed.status,consensus:consensus.status},
       catalogStatus:indexed.reviewedCount>0?'Trechos de monografias revisadas recuperados da biblioteca interna':
+        indexed.unreviewedCount>0?'PDF convertido e pesquisável, mas fidelidade de tabelas/unidades ainda não revisada':
         indexed.overviewCount>0?'Sinopses institucionais recuperadas; monografias completas ainda não indexadas':
         'Compêndios Anvisa ainda não disponíveis no índice científico interno',
       model:MODEL,requiresProfessionalReview:true});
