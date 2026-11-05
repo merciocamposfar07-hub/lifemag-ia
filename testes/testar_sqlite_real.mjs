@@ -63,6 +63,33 @@ await check('farmacopeia e Formulário Nacional permanecem com contagem de monog
  assert.equal(formularies.length,3);
  assert.ok(formularies.every(x=>x.overviewSections>=2&&x.approvedDocuments===0));
 });
+await check('extração PDF aguarda revisão e não libera monografia',async()=>{
+ const id='fn3-2026-000000000000';
+ const started=await store.beginCompendiumExtraction({
+   id,sourceId:'anvisa-fn',title:'Formulário Nacional demonstrativo',
+   edition:'3ª edição 2026',
+   officialUrl:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/formulario-nacional',
+   mirrorUrl:'https://example.org/documento.pdf',pdfSha256:'a'.repeat(64),
+   submittedBy:'teste@exemplo.org'
+ });
+ assert.equal(started.ok,true);
+ const inserted=await store.addCompendiumSegments(id,[{
+  heading:'Trecho importado de PDF e pendente de revisão',
+  body:'A manipulação de cápsulas e o controle em processo exigem conferência de tabelas e unidades do documento oficial. O texto ainda não pode respaldar dose clínica de paciente.'
+ }]);
+ assert.equal(inserted.ok,true);
+ const finished=await store.finishCompendiumExtraction(id,1);
+ assert.equal(finished.status,'pending_review');
+ const current=await store.status();
+ assert.equal(current.pendingReviewDocuments,1);
+ assert.equal(current.approvedDocuments,0);
+});
+await check('texto integral ainda não revisado aparece apenas como fonte contextual',async()=>{
+ const result=await store.search('capsulas manipulacao');
+ assert.ok(result.items.some(x=>x.evidenceTier==='extracted_unreviewed'));
+ assert.ok(result.items.some(x=>x.source.includes('revisão profissional pendente')));
+ assert.equal(result.reviewedCount,0);
+});
 await check('documento com hash falso não entra no SQLite',async()=>{
  const result=await store.importReviewed({...source,sha256:'0'.repeat(64)});
  assert.equal(result.ok,false);
@@ -90,5 +117,5 @@ await check('não retorna trecho quando a pergunta é alheia ao documento',async
  const result=await store.search('riboflavina enxaqueca');
  assert.equal(result.items.length,0);
 });
-console.log('SQLite REAL: '+ok+'/8 verificações concluídas, sem simulação do banco.');
+console.log('SQLite REAL: '+ok+'/10 verificações concluídas, sem simulação do banco.');
 db.close();
