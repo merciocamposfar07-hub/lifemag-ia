@@ -389,7 +389,7 @@ export default {
       ]);
       const peerReviewed=(literature.items||[]).map(x=>({...x,evidenceTier:'clinical_literature'}));
       return reply({status:results.status,results:[
-        ...peerReviewed,...(results.items||[]),...online.items
+        ...(results.items||[]),...online.items,...peerReviewed
       ].slice(0,15),pubmedOnline:{status:literature.status,articles:peerReviewed.length},
         anvisaOnline:{status:online.status,checked:online.checked,reachable:online.reachable,
           retrievedContext:online.items.length,fullMonographs:false},
