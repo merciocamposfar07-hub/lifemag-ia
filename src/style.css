@@ -675,5 +675,23 @@ body{color:#122e49}
   .exam-picker{width:100%}
 }
 
+
+/* v0.4.5 — importação dos compêndios oficiais, sem apertar os controles no iPhone */
+.anvisa-import .anvisa-row{display:flex;gap:12px;justify-content:space-between;
+  align-items:center;flex-wrap:wrap;border-bottom:1px solid #d8e5ed;padding:12px 0}
+.anvisa-import .anvisa-row strong{font-size:17px;color:#173c5b}
+.anvisa-import .anvisa-row p{font-size:15px;color:#456178;line-height:1.4}
+.anvisa-import .anvisa-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.anvisa-import .anvisa-picker{position:relative;display:inline-flex;align-items:center;
+  justify-content:center;min-height:44px;cursor:pointer;font-size:15px;line-height:1.3}
+.anvisa-import .anvisa-picker input[type=file]{position:absolute;opacity:0;
+  width:1px;height:1px;overflow:hidden}
+.anvisa-import .anvisa-picker:focus-within{outline:3px solid #16a0aa;outline-offset:2px}
+@media(max-width:760px){
+  .anvisa-import .anvisa-row{flex-direction:column;align-items:stretch}
+  .anvisa-import .anvisa-actions{flex-direction:column;align-items:stretch}
+  .anvisa-import .anvisa-actions .btn{width:100%;min-height:48px;text-align:center}
+}
+
 @media print{ @page{size:A4;margin:13mm 13mm 14mm}body{background:#fff;color:#142b47}.app-shell,.bottomnav,.toast{display:none!important}#print-root{display:block!important}.print-page{font:11pt/1.45 Arial,sans-serif;color:#182a43}.print-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #10b6b0;padding-bottom:14px;margin-bottom:20px}.print-head img{width:67px;height:67px;object-fit:contain;border-radius:12px}.print-head strong{font-size:18pt;display:block;color:#0b315a}.print-head small{display:block;font-size:9pt;color:#50657c}.print-institution{font-size:9pt;margin-top:4px}.print-h{font-size:16pt;color:#0e365a;text-align:center;border-bottom:1px solid #dae9ee;padding-bottom:12px;margin-bottom:17px}.print-section{padding:8px 0;border-bottom:1px solid #e2eaf2}.print-label{font-weight:700;color:#174568}.print-table{width:100%;border-collapse:collapse;margin:14px 0}.print-table td,.print-table th{border-bottom:1px solid #dce7ef;padding:8px;text-align:left}.print-foot{margin-top:55px;text-align:center}.print-sign{border-top:1px solid #52687d;display:inline-block;padding:6px 35px 0}.print-note{font-size:9pt;color:#a45324;margin:8px 0}}
 
