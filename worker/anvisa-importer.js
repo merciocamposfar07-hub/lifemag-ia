@@ -1,116 +1,114 @@
-// Importação de edições vigentes via PDF alojado em fonte pública conhecida.
-// Não envia textos ao repositório GitHub e não recebe URLs arbitrárias.
-// O conteúdo extraído fica em quarentena no SQLite, não em fontes clínicas aprovadas.
+// Importador de PDFs oficiais da Anvisa para biblioteca privada (não Github).
+// O texto é mantido sob 'pending_review' até conferir a monografia com o PDF.
+// Aceita somente documentos constantes do catálogo de edições vigentes 2026.
 import {ANVISA_CATALOG} from './anvisa-catalog.js';
-
-const MAX_BYTES=46*1024*1024; // margem para o limite de memória Workers Free (128 MB)
+export const MAX_COMPENDIUM_BYTES=46*1024*1024; // margem para 128 MiB de RAM Workers Free
 const MAX_MARKDOWN=20*1024*1024;
-const sha256=async input=>{
+const hashBytes=async input=>{
  const hash=await crypto.subtle.digest('SHA-256',input);
  return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
 };
-const splitMarkdown=content=>{
- const clean=String(content||'').replace(/\r\n/g,'\n').trim();
+export function splitScientificMarkdown(source){
+ const clean=String(source||'').replace(/\r\n/g,'\n').trim();
  if(clean.length<120)return [];
  const paragraphs=clean.split(/\n{2,}/).map(x=>x.trim()).filter(Boolean);
- const parts=[],chunkLimit=3500;
- let accumulator='',heading='Trecho introdutório';
+ const parts=[];let text='',heading='Trecho introdutório';
  const flush=()=>{
-  if(accumulator.trim().length>=30){
-    parts.push({heading:(heading||'Trecho do compêndio').slice(0,220),
-      body:accumulator.trim()});
-  }
-  accumulator='';
+  if(text.trim().length>=30)parts.push({heading:heading.slice(0,220),body:text.trim()});
+  text='';
  };
  for(const paragraph of paragraphs){
-  if(paragraph.length<240&&/^#{1,5}\s/.test(paragraph)){
-   flush();
-   heading=paragraph.replace(/^#{1,5}\s/,'').slice(0,220);
-   continue;
+  if(paragraph.length<200&&/^#{1,5}\s/.test(paragraph)){
+   flush();heading=paragraph.replace(/^#{1,5}\s/,'').slice(0,220);continue;
   }
   let remaining=paragraph;
-  while(remaining.length){
-   const room=chunkLimit-accumulator.length;
-   if(room<=80){flush();continue}
+  while(remaining){
+   const room=3500-text.length;
+   if(room<130){flush();continue}
    if(remaining.length<=room){
-    accumulator+=(accumulator?'\n\n':'')+remaining;
-    break;
+    text+=(text?'\n\n':'')+remaining;break;
    }
-   // Preservar todo o texto, sem cortes silenciosos. Em texto longo,
-   // dividir no limite de caracteres, registrando continuação no título.
-   const split=Math.max(600,remaining.lastIndexOf(' ',room));
-   const safe=Math.min(room,split);
-   accumulator+=(accumulator?'\n\n':'')+remaining.slice(0,safe);
+   const lastSpace=remaining.lastIndexOf(' ',room);
+   const cut=lastSpace>=600?lastSpace:room;
+   text+=(text?'\n\n':'')+remaining.slice(0,cut);
    flush();
-   remaining=remaining.slice(safe).trimStart();
+   remaining=remaining.slice(cut).trimStart();
   }
  }
  flush();
  return parts;
-};
+}
+export async function convertAnvisaDocument(id,buf,env,identity,provenance){
+ const entry=ANVISA_CATALOG.find(x=>x.id===id);
+ if(!entry)return {ok:false,status:400,error:'Compêndio não cadastrado'};
+ if(!env.SCIENCE_LIBRARY||typeof env.AI?.toMarkdown!=='function')
+  return {ok:false,status:503,error:'Biblioteca SQLite ou conversor PDF não disponível'};
+ if(!(buf instanceof ArrayBuffer)||buf.byteLength<800||buf.byteLength>MAX_COMPENDIUM_BYTES)
+  return {ok:false,status:413,error:'PDF excede limite seguro de 46 MiB por arquivo no plano Free; dividir este volume em partes'};
+ const signature=String.fromCharCode(...new Uint8Array(buf,0,5));
+ if(signature!=='%PDF-')return {ok:false,status:422,error:'Arquivo recebido não tem assinatura PDF'};
+ let converted;
+ try{
+  converted=await env.AI.toMarkdown(
+   {name:id+'.pdf',blob:new Blob([buf],{type:'application/pdf'})},
+   {conversionOptions:{pdf:{metadata:false}}}
+  );
+ }catch(_){return {ok:false,status:502,error:'A Cloudflare não conseguiu converter este PDF; não foi indexado'};}
+ const output=Array.isArray(converted)?converted[0]:converted;
+ if(!output||output.format==='error'||typeof output.data!=='string')
+  return {ok:false,status:502,error:'Falha da conversão: '+String(output?.error||'arquivo sem texto').slice(0,180)};
+ if(output.data.length>MAX_MARKDOWN)
+  return {ok:false,status:413,error:'Texto convertido excedeu limite de memória por documento'};
+ const parts=splitScientificMarkdown(output.data);
+ if(!parts.length||parts.length>6000)
+  return {ok:false,status:422,error:'Arquivo sem conteúdo recuperável ou volume maior que o limite de trechos'};
+ const pdfHash=await hashBytes(buf);
+ const jobId=id+'-'+pdfHash.slice(0,12);
+ const library=env.SCIENCE_LIBRARY.getByName('lifemag-main');
+ const start=await library.beginCompendiumExtraction({
+  id:jobId,sourceId:entry.sourceId,title:entry.title,
+  edition:entry.edition,officialUrl:entry.canonicalUrl,
+  mirrorUrl:provenance||entry.publisherPage,pdfSha256:pdfHash,
+  submittedBy:String(identity?.email||'').toLowerCase()
+ });
+ if(!start.ok)return {ok:false,status:409,error:start.error};
+ let count=0;
+ for(let index=0;index<parts.length;index+=20){
+  const next=await library.addCompendiumSegments(jobId,parts.slice(index,index+20));
+  if(!next.ok)return {ok:false,status:500,
+   error:'Importação parcial ('+count+' trechos). A etapa não foi liberada: '+next.error};
+  count=next.sections;
+ }
+ const finished=await library.finishCompendiumExtraction(jobId,count);
+ if(!finished.ok)return {ok:false,status:500,error:finished.error};
+ return {ok:true,status:202,id:jobId,sourceId:entry.sourceId,
+  title:entry.title,pdfSha256:pdfHash,pdfBytes:buf.byteLength,
+  convertedCharacters:output.data.length,sections:count,
+  reviewStatus:'pending_review',acquisition:provenance?'uploaded_pdf':'public_reference',
+  message:'Texto extraído, guardado em biblioteca privada para conferir tabelas, capítulos e unidades antes da aprovação.'};
+}
 export async function importAnvisaCompendium(key,env,identity,fetcher=fetch){
  const entry=ANVISA_CATALOG.find(x=>x.id===key);
- if(!entry)return {ok:false,status:400,error:'Documento não consta do catálogo vigente'};
- if(!env.SCIENCE_LIBRARY||typeof env.AI?.toMarkdown!=='function')
-  return {ok:false,status:503,error:'Biblioteca SQLite ou conversor PDF da Cloudflare indisponível'};
+ if(!entry)return {ok:false,status:400,error:'Documento não cadastrado'};
+ if(!entry.verifiedMirrorUrl)return {ok:false,status:409,
+  error:'Esta seção possui apenas endereço oficial do catálogo; importe o PDF por arquivo'};
  let response;
  try{
   response=await fetcher(entry.verifiedMirrorUrl,{
    method:'GET',headers:{accept:'application/pdf'},redirect:'follow',
    signal:AbortSignal.timeout(90000)
   });
- }catch(_){return {ok:false,status:502,error:'Servidor da publicação não respondeu; faça a importação a partir do PDF oficial'};}
- if(!response.ok)return {ok:false,status:502,error:'Download da edição não autorizado ou indisponível (HTTP '+response.status+')'};
+ }catch(_){return {ok:false,status:502,error:'A cópia pública não respondeu. Abra o documento oficial e envie o PDF pela opção de arquivo.'}}
+ if(!response.ok)return {ok:false,status:502,
+  error:'Servidor da publicação indisponível (HTTP '+response.status+'). Utilize importação por arquivo.'};
  const final=new URL(response.url||entry.verifiedMirrorUrl);
  if(!['fitoterapiabrasil.com.br','www.fitoterapiabrasil.com.br'].includes(final.hostname)||
-    final.protocol!=='https:'||!final.pathname.endsWith('.pdf'))
-  return {ok:false,status:502,error:'Origem do arquivo diferente da publicação cadastrada'};
- const sizeHeader=Number(response.headers.get('content-length')||0);
- if(sizeHeader>MAX_BYTES)return {ok:false,status:413,
-  error:'Este volume é muito grande para a memória do Worker Free; necessita divisão do PDF por partes'};
- let arrayBuffer;
- try{arrayBuffer=await response.arrayBuffer()}catch(_){return {ok:false,status:502,error:'Falha ao receber documento PDF'};}
- if(arrayBuffer.byteLength<800||arrayBuffer.byteLength>MAX_BYTES)
-  return {ok:false,status:413,error:'PDF fora dos limites de importação de uma requisição'};
- const magic=new Uint8Array(arrayBuffer,0,5);
- if(String.fromCharCode(...magic)!=='%PDF-')
-  return {ok:false,status:422,error:'O endereço cadastrado não entregou um arquivo PDF válido'};
- let result;
- try{
-  result=await env.AI.toMarkdown({
-   name:entry.id+'.pdf',blob:new Blob([arrayBuffer],{type:'application/pdf'})
-  },{conversionOptions:{pdf:{metadata:false}}});
- }catch(_){return {ok:false,status:502,error:'Conversor PDF da Cloudflare não conseguiu ler o arquivo'};}
- const conversion=Array.isArray(result)?result[0]:result;
- if(!conversion||conversion.format==='error'||!conversion.data)
-  return {ok:false,status:502,error:'Conversão sem texto verificável: '+String(conversion?.error||'erro desconhecido').slice(0,160)};
- const md=String(conversion.data);
- if(md.length>MAX_MARKDOWN)return {ok:false,status:413,error:'Texto extraído excedeu limite por documento'};
- const parts=splitMarkdown(md);
- if(!parts.length||parts.length>6000)return {ok:false,status:422,error:'Não foi possível separar trechos completos para a revisão'};
- const pdfHash=await sha256(arrayBuffer);
- const docId=entry.id+'-'+pdfHash.slice(0,12);
- const library=env.SCIENCE_LIBRARY.getByName('lifemag-main');
- const start=await library.beginCompendiumExtraction({
-  id:docId,sourceId:entry.sourceId,title:entry.title,
-  edition:entry.edition,officialUrl:entry.canonicalUrl,
-  mirrorUrl:entry.verifiedMirrorUrl,pdfSha256:pdfHash,
-  submittedBy:String(identity.email||'').toLowerCase()
- });
- if(!start.ok)return {ok:false,status:409,error:start.error};
- let sent=0;
- for(let offset=0;offset<parts.length;offset+=20){
-  const step=await library.addCompendiumSegments(docId,parts.slice(offset,offset+20));
-  if(!step.ok)return {ok:false,status:500,error:'Extração parcialmente gravada em '+sent+' trechos: '+step.error};
-  sent=step.sections;
- }
- const finished=await library.finishCompendiumExtraction(docId,parts.length);
- if(!finished.ok)return {ok:false,status:500,error:finished.error};
- return {
-  ok:true,status:202,id:docId,sourceId:entry.sourceId,title:entry.title,
-  pdfBytes:arrayBuffer.byteLength,pdfSha256:pdfHash,
-  sections:parts.length,convertedCharacters:md.length,
-  reviewStatus:'pending_review',
-  info:'PDF convertido e guardado privadamente para conferência. Não está aprovado como monografia para formulações.'
- };
+   final.protocol!=='https:'||!final.pathname.endsWith('.pdf'))
+  return {ok:false,status:422,error:'A publicação retornou endereço inesperado'};
+ const size=Number(response.headers.get('content-length')||0);
+ if(size>MAX_COMPENDIUM_BYTES)return {ok:false,status:413,
+  error:'Volume maior que o limite de memória desta operação; dividir em PDFs menores'};
+ let buffer;
+ try{buffer=await response.arrayBuffer()}catch(_){return {ok:false,status:502,error:'Falha ao receber PDF'};}
+ return convertAnvisaDocument(key,buffer,env,identity,entry.verifiedMirrorUrl);
 }
