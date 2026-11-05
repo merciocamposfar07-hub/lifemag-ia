@@ -141,8 +141,11 @@ export async function importAnvisaCompendium(key,env,identity,fetcher=fetch){
  }
  const final=new URL(response.url||selected);
  const host=final.hostname;
+ const itemId=entry.canonicalUrl.split('/').pop();
  const official=host==='bibliotecadigital.anvisa.gov.br'&&
-  /^\/(?:jspui\/)?bitstream\/anvisa\/\d+\//.test(final.pathname);
+  final.pathname.startsWith('/jspui/bitstream/anvisa/'+itemId+'/')||
+  host==='bibliotecadigital.anvisa.gov.br'&&
+  final.pathname.startsWith('/bitstream/anvisa/'+itemId+'/');
  const mirror=['fitoterapiabrasil.com.br','www.fitoterapiabrasil.com.br'].includes(host);
  if(final.protocol!=='https:'||!final.pathname.toLowerCase().endsWith('.pdf')||!(official||mirror))
   return {ok:false,status:422,error:'Arquivo fora das origens oficiais permitidas'};
