@@ -116,61 +116,81 @@ export async function convertAnvisaDocument(id,buf,env,identity,provenance,partM
 export async function importAnvisaCompendium(key,env,identity,fetcher=fetch){
  const entry=ANVISA_CATALOG.find(x=>x.id===key);
  if(!entry)return {ok:false,status:400,error:'Documento não cadastrado'};
- if(Number(entry.knownSizeBytes)>MAX_COMPENDIUM_BYTES)
-  return {ok:false,status:413,error:'PDF excede 46 MiB; processamento segmentado externo ainda necessário'};
- let selected=entry.verifiedMirrorUrl||null;
- let response=null,previousError='';
- if(selected){
+ if(Number(entry.knownSizeBytes)>MAX_COMPENDIUM_BYTES)return {ok:false,status:413,
+  error:'PDF acima de 46 MiB; requer segmentação remota antes da conversão'};
+ // URLs são constantes do catálogo. Não consulta buscadores genéricos ou edições revogadas.
+ const attempts=[entry.verifiedMirrorUrl,entry.officialPdfUrl].filter(Boolean);
+ let lastError='';const visited=new Set();
+ let pdf=null,origin=null;
+ const officialId=/\/handle\/anvisa\/(\d+)$/.exec(String(entry.canonicalUrl))?.[1];
+ function permitted(target){
   try{
-   response=await fetcher(selected,{method:'GET',headers:{accept:'application/pdf'},
-    redirect:'follow',signal:AbortSignal.timeout(90000)});
-   if(!response.ok){previousError='Cópia pública HTTP '+response.status;response=null}
-  }catch(_){previousError='Cópia pública indisponível'}
+   const u=new URL(target);
+   if(u.protocol!=='https:'||!u.pathname.toLowerCase().endsWith('.pdf'))return false;
+   const name=u.hostname;
+   if(name==='bibliotecadigital.anvisa.gov.br')
+    return !!officialId&&[
+     '/jspui/bitstream/anvisa/'+officialId+'/',
+     '/bitstream/anvisa/'+officialId+'/'
+    ].some(x=>u.pathname.startsWith(x));
+   return ['fitoterapiabrasil.com.br','www.fitoterapiabrasil.com.br'].includes(name)&&
+     entry.verifiedMirrorUrl===target;
+  }catch(_){return false}
  }
- if(!response){
+ async function retrieve(url){
+  if(visited.has(url)||!permitted(url))return null;
+  visited.add(url);
+  let response;
+  try{
+   response=await fetcher(url,{method:'GET',headers:{accept:'application/pdf'},
+    redirect:'follow',signal:AbortSignal.timeout(85000)});
+  }catch(_){lastError='Servidor PDF não respondeu';return null}
+  if(!response?.ok){
+   lastError='Servidor PDF retornou HTTP '+String(response?.status||'indisponível');
+   return null;
+  }
+  const finalUrl=response.url||url;
+  if(!permitted(finalUrl)){lastError='Redirecionamento não permitido';return null}
+  const contentType=String(response.headers?.get('content-type')||'').toLowerCase();
+  if(contentType&&!contentType.includes('pdf')&&!contentType.includes('octet-stream')){
+   lastError='Servidor retornou conteúdo diferente de PDF';return null;
+  }
+  if(Number(response.headers?.get('content-length')||0)>MAX_COMPENDIUM_BYTES){
+   lastError='PDF excede 46 MiB';return null;
+  }
+  let buffer;
+  try{
+   if(!response.body)throw Error('Sem corpo');
+   const reader=response.body.getReader();const chunks=[];let length=0;
+   try{
+    for(;;){
+     const step=await reader.read();if(step.done)break;
+     length+=step.value.byteLength;
+     if(length>MAX_COMPENDIUM_BYTES){
+      lastError='PDF ultrapassou 46 MiB durante download';return null;
+     }
+     chunks.push(step.value);
+    }
+   }finally{try{await reader.cancel()}catch(_){}}
+   const data=new Uint8Array(length);let at=0;
+   for(const chunk of chunks){data.set(chunk,at);at+=chunk.length}
+   buffer=data.buffer;
+  }catch(_){lastError='Falha ao receber PDF';return null}
+  const mark=buffer.byteLength>=5?String.fromCharCode(...new Uint8Array(buffer,0,5)):'';
+  if(mark!=='%PDF-'){lastError='Arquivo não possui assinatura PDF';return null}
+  return {url:finalUrl,buffer};
+ }
+ for(const url of attempts){
+  pdf=await retrieve(url);
+  if(pdf)break;
+ }
+ if(!pdf&&officialId){
+  // Página canônica só é usada como último recurso, sem contornar erros HTTP.
   const discovered=await discoverOfficialAnvisaPdf(entry,fetcher);
-  if(!discovered.ok)return {ok:false,status:discovered.status||502,
-   error:discovered.error+(previousError?' ('+previousError+')':'')};
-  selected=discovered.url;
-  try{
-   response=await fetcher(selected,{method:'GET',headers:{accept:'application/pdf'},
-    redirect:'follow',signal:AbortSignal.timeout(90000)});
-  }catch(_){return {ok:false,status:502,error:'PDF oficial não respondeu'}}
-  if(!response.ok)return {ok:false,status:502,
-   error:'Documento oficial indisponível (HTTP '+response.status+')'};
+  if(discovered.ok)pdf=await retrieve(discovered.url);
+  else lastError+=(lastError?' / ':'')+discovered.error;
  }
- const final=new URL(response.url||selected);
- const host=final.hostname;
- const itemId=entry.canonicalUrl.split('/').pop();
- const official=host==='bibliotecadigital.anvisa.gov.br'&&
-  final.pathname.startsWith('/jspui/bitstream/anvisa/'+itemId+'/')||
-  host==='bibliotecadigital.anvisa.gov.br'&&
-  final.pathname.startsWith('/bitstream/anvisa/'+itemId+'/');
- const mirror=['fitoterapiabrasil.com.br','www.fitoterapiabrasil.com.br'].includes(host);
- if(final.protocol!=='https:'||!final.pathname.toLowerCase().endsWith('.pdf')||!(official||mirror))
-  return {ok:false,status:422,error:'Arquivo fora das origens oficiais permitidas'};
- const contentType=String(response.headers.get('content-type')||'').toLowerCase();
- if(contentType&&!contentType.includes('pdf')&&!contentType.includes('octet-stream'))
-  return {ok:false,status:422,error:'A origem não retornou PDF'};
- const size=Number(response.headers.get('content-length')||0);
- if(size>MAX_COMPENDIUM_BYTES)
-  return {ok:false,status:413,error:'Documento ultrapassa 46 MiB'};
- let buffer;
- try{
-  if(!response.body)throw Error('Sem corpo de arquivo');
-  const reader=response.body.getReader();const parts=[];let length=0;
-  try{
-   for(;;){
-    const chunk=await reader.read();if(chunk.done)break;
-    length+=chunk.value.byteLength;
-    if(length>MAX_COMPENDIUM_BYTES)
-     return {ok:false,status:413,error:'PDF ultrapassou 46 MiB durante leitura'};
-    parts.push(chunk.value);
-   }
-  }finally{try{await reader.cancel()}catch(_){}}
-  const data=new Uint8Array(length);let offset=0;
-  for(const part of parts){data.set(part,offset);offset+=part.length}
-  buffer=data.buffer;
- }catch(_){return {ok:false,status:502,error:'Falha ao receber documento PDF'};}
- return convertAnvisaDocument(key,buffer,env,identity,selected);
+ if(!pdf)return {ok:false,status:502,
+  error:'Nenhum PDF da edição 2026 acessível: '+String(lastError||'origem indisponível').slice(0,200)};
+ return convertAnvisaDocument(key,pdf.buffer,env,identity,pdf.url);
 }
