@@ -1,5 +1,5 @@
 
-/* LifeMag IA v0.4.7 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
+/* LifeMag IA v0.4.8 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
 'use strict';
 const IMG = 'assets/icone-oficial-escuro.png';
 const iconPaths = {
@@ -514,7 +514,7 @@ function science(){
    'Busca científica online configurada; teste a recuperação para confirmar o resultado atual.':
    'Serviço ainda não identificado como disponível neste domínio.'],
   ['Farmacopeia, Formulário Nacional e Fitoterápicos',
-   'Consulta online automática às páginas oficiais da Anvisa. O índice privado mantém documentos revisados; os PDFs integrais ainda precisam ser importados.'],
+   'Consulta online automática às páginas oficiais. O servidor tenta importar PDFs públicos diariamente quando o agendamento Cloudflare estiver ativo.'],
   ['Conitec / PCDT, OMS e guias brasileiros','Referências catalogadas, sem conteúdo indexado e aprovado.'],
   ['Consensus',aiSession.consensusReady?'Chave configurada; pesquisa opcional e sujeita à cota.':
    'Chave da API ainda não configurada; o Consensus conectado ao ChatGPT é independente.']
@@ -531,6 +531,11 @@ function science(){
       '<div class="listline"><strong>Anvisa online: '+E(x.anvisaOnline?.status||'não verificado')+
       '</strong><p>'+E(String(x.anvisaOnline?.reachable||0))+'/'+E(String(x.anvisaOnline?.checked||0))+
       ' páginas oficiais acessíveis; conteúdo institucional, não monografia integral.</p></div>'+
+      (Array.isArray(x.officialIndex?.autoSync)&&x.officialIndex.autoSync.length?
+       '<div class="listline"><strong>Sincronização automática de PDFs</strong>'+
+       x.officialIndex.autoSync.map(v=>'<p>'+E(v.documentId)+': '+E(v.status)+
+       ' · '+E(v.checkedAt)+' · '+E(v.message||'sem mensagem')+'</p>').join('')+'</div>':
+       '<div class="listline"><strong>PDFs em sincronização</strong><p>Nenhuma tentativa registrada; confirmar implantação do Worker e do agendamento.</p></div>')+
       '<div class="listline"><strong>Índice oficial: '+E(x.officialIndex?.status||'desconhecido')+
       '</strong><p>'+E(String(x.officialIndex?.approvedDocuments||0))+' monografias/documentos completos aprovados; '+
       E(String(x.officialIndex?.approvedPassages||0))+' trechos revisados; '+
@@ -551,7 +556,7 @@ function science(){
    }
  }
  const busy=scienceCheck.busy?'disabled':'';
- return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.4.7.')+
+ return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.4.8.')+
  '<div class="notice blue"><strong>Consulta científica automática:</strong> o LifeMag IA pesquisa artigos PubMed, o índice privado e páginas oficiais da Anvisa, sem você selecionar PDFs. Páginas institucionais não substituem monografias nem validam doses. O teste do motor usa somente caso fictício.</div>'+
  '<div class="panel"><h3>Diagnóstico de conexão</h3>'+
  '<p class="muted small">Verifique a recuperação de artigos gratuitamente. O autoteste completo também executa o modelo de IA e consome parte da franquia Workers AI.</p>'+

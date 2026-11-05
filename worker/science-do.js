@@ -81,7 +81,10 @@ export class LifeMagScientificStore extends DurableObject{
    'CREATE TABLE IF NOT EXISTS staged_compendium_parts ('+
    'document_id TEXT PRIMARY KEY,original_sha256 TEXT NOT NULL,'+
    'part_number INTEGER NOT NULL,part_count INTEGER NOT NULL,'+
-   'page_start INTEGER NOT NULL,page_end INTEGER NOT NULL,total_pages INTEGER NOT NULL);'
+   'page_start INTEGER NOT NULL,page_end INTEGER NOT NULL,total_pages INTEGER NOT NULL);'+
+   'CREATE TABLE IF NOT EXISTS auto_compendium_sync ('+
+   'document_id TEXT PRIMARY KEY,status TEXT NOT NULL,checked_at TEXT NOT NULL,'+
+   'sections INTEGER NOT NULL DEFAULT 0,message TEXT NOT NULL);'
   );
   for(const [id,name,kind,url] of SEEDS){
    this.sql.exec('INSERT OR IGNORE INTO sources(id,name,kind,url,status) VALUES(?,?,?,?,?)',
@@ -219,6 +222,20 @@ export class LifeMagScientificStore extends DurableObject{
     reviewStatus:'pending_review',clinicalApproval:false};
   });
  }
+ async recordCompendiumSync(entry){
+  if(!/^[a-z0-9-]{4,80}$/.test(String(entry?.documentId||''))||
+     !['extracted_pending_review','import_failed'].includes(entry?.status)||
+     !Number.isSafeInteger(Number(entry.sections))||Number(entry.sections)<0||
+     Number.isNaN(Date.parse(String(entry.checkedAt||''))))
+   return {ok:false,error:'Registro de sincronização inválido'};
+  this.sql.exec('INSERT INTO auto_compendium_sync(document_id,status,checked_at,sections,message) '+
+   'VALUES(?,?,?,?,?) ON CONFLICT(document_id) DO UPDATE SET '+
+   'status=excluded.status,checked_at=excluded.checked_at,'+
+   'sections=excluded.sections,message=excluded.message',
+   str(entry.documentId,80),entry.status,str(entry.checkedAt,40),
+   Number(entry.sections),str(entry.message,220));
+  return {ok:true};
+ }
  async status(){
   const counts=this.sql.exec(
    "SELECT COUNT(DISTINCT d.id) AS documents,COUNT(p.id) AS passages "+
@@ -238,7 +255,11 @@ export class LifeMagScientificStore extends DurableObject{
   const overviewSections=Number(this.sql.exec('SELECT COUNT(*) AS n FROM source_overviews').one()?.n)||0;
   const pending=this.sql.exec("SELECT COUNT(*) AS n FROM staged_compendia WHERE status='pending_review'").one()?.n||0;
   const extracting=this.sql.exec("SELECT COUNT(*) AS n FROM staged_compendia WHERE status='extracting'").one()?.n||0;
-  return {status:documents&&passages?'approved_content_available':
+  const autoSync=this.sql.exec('SELECT document_id,status,checked_at,sections,message '+
+   'FROM auto_compendium_sync ORDER BY checked_at DESC LIMIT 10').toArray()
+   .map(x=>({documentId:x.document_id,status:x.status,checkedAt:x.checked_at,
+     sections:Number(x.sections)||0,message:x.message}));
+  return {autoSync,status:documents&&passages?'approved_content_available':
    overviewSections?'official_overviews_available':'configured_empty_or_unverified',
    approvedDocuments:documents,approvedPassages:passages,overviewSections,sources,
    pendingReviewDocuments:Number(pending)||0,incompleteExtracts:Number(extracting)||0,
