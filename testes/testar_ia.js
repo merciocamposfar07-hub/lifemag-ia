@@ -70,6 +70,43 @@ async function tests(){
       headers:{origin:URL_WORKER}}),clinicalEnv,access)).status,409);
   }],
 
+  ['teste Consensus exige Access e origem e não expõe chave privada',async()=>{
+    let reservations=0,callCount=0;
+    const url='/api/science/consensus-selftest';
+    const run=(origin,context,more={})=>worker.fetch(
+      request(url,{method:'POST',headers:{origin}}),{...env,...more},context);
+    assert.equal((await run(URL_WORKER,{})).status,401);
+    assert.equal((await run('https://outro-site.example',access)).status,403);
+    const disabled=await run(URL_WORKER,access);
+    assert.equal(disabled.status,200);
+    assert.equal((await disabled.json()).status,'not_configured');
+    const configured={CONSENSUS_API_KEY:'segredo-interno-de-teste',
+      SCIENCE_LIBRARY:{getByName:()=>({
+       reserveConsensusSearch:async()=>{reservations++;
+        return {allowed:true,used:reservations,monthlyLimit:20};}
+      })}};
+    const old=globalThis.fetch;
+    globalThis.fetch=async (target,options)=>{
+      if(String(target).startsWith('https://api.consensus.app/v1/search?')){
+        callCount++;
+        assert.equal(options.headers['x-api-key'],'segredo-interno-de-teste');
+        return Response.json({results:[{title:'Riboflavin clinical study',
+         url:'https://consensus.app/papers/riboflavin-study',
+         abstract:'Riboflavin 400 mg was evaluated for migraine'}]});
+      }
+      return old(target,options);
+    };
+    try{
+      const response=await run(URL_WORKER,access,configured);
+      assert.equal(response.status,200);
+      const body=await response.json();
+      assert.equal(body.ok,true);assert.equal(body.status,'ok');
+      assert.equal(body.articles,1);
+      assert.equal(body.used,1);
+      assert.equal(JSON.stringify(body).includes('segredo-interno'),false);
+      assert.equal(reservations,1);assert.equal(callCount,1);
+    }finally{globalThis.fetch=old}
+  }],
   ['sincronização dos compêndios requer login e origem legítima',async()=>{
     let enqueued=0;
     const configured={...env,INGEST_COORDINATOR:{

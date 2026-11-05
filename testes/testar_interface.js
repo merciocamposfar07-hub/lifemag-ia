@@ -88,6 +88,12 @@ const cases = [
     assert.match(js,/if\(b\.dataset\.deletePatient\)\{deleteSelectedPatient\(b\.dataset\.deletePatient\)/);
     assert.match(css,/\.person-row \.patient-row-actions/);
   }],
+  ['Consensus tem verificação dedicada com custo e status transparentes', () => {
+    assert.match(js,/data-test-consensus="1"/);
+    assert.match(js,/testConsensusConnection\(\)/);
+    assert.match(js,/\/api\/science\/consensus-selftest/);
+    assert.match(js,/Testar Consensus \(1 chamada\)/);
+  }],
   ['cadastro selecionado pode ser editado e excluído', () => {
     assert.match(js,/data-action="delete-patient"/);
     assert.match(js,/data-select-patient/);
