@@ -1,5 +1,5 @@
 
-/* LifeMag IA v0.4.8 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
+/* LifeMag IA v0.4.9 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
 'use strict';
 const IMG = 'assets/icone-oficial-escuro.png';
 const iconPaths = {
@@ -514,7 +514,7 @@ function science(){
    'Busca científica online configurada; teste a recuperação para confirmar o resultado atual.':
    'Serviço ainda não identificado como disponível neste domínio.'],
   ['Farmacopeia, Formulário Nacional e Fitoterápicos',
-   'Consulta online automática às páginas oficiais. O servidor tenta importar gradualmente PDFs públicos a cada hora, sem download manual; erros aguardam 12 horas para nova tentativa.'],
+   'Consulta online automática às páginas oficiais. O servidor tenta importar automaticamente PDFs acessíveis dos dez arquivos oficiais; o volume de 55 MB exige processamento segmentado. Erros aguardam 12 horas para nova tentativa.'],
   ['Conitec / PCDT, OMS e guias brasileiros','Referências catalogadas, sem conteúdo indexado e aprovado.'],
   ['Consensus',aiSession.consensusReady?'Chave configurada; pesquisa opcional e sujeita à cota.':
    'Chave da API ainda não configurada; o Consensus conectado ao ChatGPT é independente.']
@@ -556,7 +556,7 @@ function science(){
    }
  }
  const busy=scienceCheck.busy?'disabled':'';
- return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.4.8.')+
+ return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.4.9.')+
  '<div class="notice blue"><strong>Consulta científica automática:</strong> o LifeMag IA pesquisa artigos PubMed, o índice privado e páginas oficiais da Anvisa, sem você selecionar PDFs. Páginas institucionais não substituem monografias nem validam doses. O teste do motor usa somente caso fictício.</div>'+
  '<div class="panel"><h3>Diagnóstico de conexão</h3>'+
  '<p class="muted small">Verifique a recuperação de artigos gratuitamente. O autoteste completo também executa o modelo de IA e consome parte da franquia Workers AI.</p>'+
