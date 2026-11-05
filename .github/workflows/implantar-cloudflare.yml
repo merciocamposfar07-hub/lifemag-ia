@@ -51,6 +51,8 @@ jobs:
           node --check testes/testar_sqlite_real.mjs
           node --check testes/testar_prontuario_seguro.mjs
           node --check worker/clinical-draft.js
+          node --check worker/quick-nutrients.js
+          node --check testes/testar_nutrientes_rapido.js
           node --check worker/consensus.js
           node --check testes/testar_formula.js
           node --check testes/testar_consensus.js
@@ -70,6 +72,7 @@ jobs:
           node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_coordenador.js
           node testes/testar_descoberta_anvisa.js
           node testes/testar_formula.js
+          node testes/testar_nutrientes_rapido.js
           node testes/testar_consensus.js
           node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_diagnostico.js
           node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_sqlite_real.mjs

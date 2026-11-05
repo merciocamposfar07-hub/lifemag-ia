@@ -96,6 +96,13 @@ const cases = [
     assert.match(js,/nenhum exame é salvo ou enviado/);
     assert.doesNotMatch(js,/persist\(examSession/);
   }],
+  ['conversa oferece atalho para preparar revisão magistral sem trocar de telas', () => {
+    assert.match(js,/data-fast-recipe/);
+    assert.match(js,/id="quick-recipe-form"/);
+    assert.match(js,/linkAnonymousDraftToPatient\(data,saved\.id,pid\)/);
+    assert.match(js,/useVisit\(v\);setPage\('editor'\)/);
+    assert.match(css,/\.research-page \.quick-recipe-form/);
+  }],
   ['rascunho anônimo pode ser salvo e reaberto na IA', () => {
     assert.match(js,/data-save-anon-draft/);
     assert.match(js,/data-open-anon-draft/);

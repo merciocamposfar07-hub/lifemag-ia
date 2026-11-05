@@ -174,6 +174,21 @@ async function tests(){
      assert.match(result.answer,/INFORMAÇÕES RECOMENDADAS/);
     }finally{globalThis.fetch=previous}
   }],
+  ['resultado B12 200 e D 30 recebe resposta imediata sem custo de IA ou consulta externa',async()=>{
+    let aiUsed=false;
+    const isolated={...env,AI:{run:async()=>{aiUsed=true;throw Error('Sem IA externa neste caminho')}}};
+    const r=await worker.fetch(request('/api/assist',{method:'POST',
+      body:{question:'Homem 41 anos, fadiga, B12 em 200, vitamina D em 30.'}}),isolated,access);
+    assert.equal(r.status,200);
+    const out=await r.json();
+    assert.equal(aiUsed,false);
+    assert.equal(out.model,'curated_nutrient_guidance_v1');
+    assert.equal(out.draft.decision,'preliminary_draft');
+    assert.equal(out.draft.canIssuePrescription,false);
+    assert.match(out.answer,/1.000 mcg/);
+    assert.match(out.answer,/600 UI/);
+    assert.ok(out.sources.some(s=>s.url.includes('nice.org.uk')));
+  }],
   ['sem Access: nenhum arquivo ou API permitido',async()=>{
     assert.equal((await worker.fetch(request('/'),env,{})).status,401);
     assert.equal((await worker.fetch(request('/api/capabilities'),env,{})).status,401);
