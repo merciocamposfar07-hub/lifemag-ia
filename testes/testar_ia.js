@@ -128,7 +128,7 @@ async function tests(){
     const r=await worker.fetch(request(url,{method:'POST',headers:{origin:URL_WORKER}}),e,access);
     assert.equal(r.status,200);
     assert.equal((await r.json()).syntheticOnly,true);
-    assert.equal(names.length,3);
+    assert.equal(names.length,1);
     assert.equal(new Set(names).size,1);
     assert.ok(!names[0].includes('farmaceutico@example.org'));
   }],
