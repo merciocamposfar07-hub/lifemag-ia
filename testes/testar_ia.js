@@ -27,6 +27,49 @@ async function tests(){
   headers:{'content-type':'application/json',...headers},
   ...(body?{body:JSON.stringify(body)}:{})});
  const cases=[
+  ['prontuário clínico exige identidade, origem e isola profissional',async()=>{
+    const stores=new Map();
+    const clinicalEnv={...env,CLINICAL_RECORDS:{getByName:key=>{
+      if(!stores.has(key)){
+       let current={ok:true,revision:0,state:null};
+       stores.set(key,{
+        read:async()=>current,
+        save:async input=>{
+         if(current.revision!==input.revision)
+          return {ok:false,status:409,error:'Conflito de versão'};
+         current={ok:true,revision:current.revision+1,state:input.state};
+         return {ok:true,revision:current.revision,updatedAt:'2026-11-05T12:00:00Z'};
+        }
+       });
+      }
+      return stores.get(key);
+    }}};
+    const url='/api/clinical/state';
+    assert.equal((await worker.fetch(request(url),clinicalEnv,{})).status,401);
+    const before=await worker.fetch(request(url),clinicalEnv,access);
+    assert.equal(before.status,200);
+    assert.equal((await before.json()).state,null);
+    const patient={id:'pac_exemplo',name:'Paciente demonstrativo',phone:'81900000000'};
+    const state={schema:1,patients:[patient],visits:[],anonymousDrafts:[],settings:{}};
+    const payload={revision:0,state};
+    assert.equal((await worker.fetch(request(url,{method:'PUT',body:payload,
+      headers:{origin:'https://atacante.example'}}),clinicalEnv,access)).status,403);
+    assert.equal((await worker.fetch(request(url,{method:'PUT',body:payload}),
+      clinicalEnv,{})).status,401);
+    const allowed=await worker.fetch(request(url,{method:'PUT',body:payload,
+      headers:{origin:URL_WORKER}}),clinicalEnv,access);
+    assert.equal(allowed.status,200);
+    assert.equal((await allowed.json()).revision,1);
+    const another={access:{aud:'aud-exclusivo-lifemag',
+      getIdentity:async()=>({email:'outro-farmaceutico@example.org'})}};
+    assert.equal((await (await worker.fetch(request(url),clinicalEnv,another)).json()).state,null);
+    assert.equal((await (await worker.fetch(request(url),clinicalEnv,access)).json())
+      .state.patients[0].name,'Paciente demonstrativo');
+    assert.equal(stores.size,2);
+    assert.equal((await worker.fetch(request(url,{method:'PUT',body:payload,
+      headers:{origin:URL_WORKER}}),clinicalEnv,access)).status,409);
+  }],
+
   ['sincronização dos compêndios requer login e origem legítima',async()=>{
     let enqueued=0;
     const configured={...env,INGEST_COORDINATOR:{

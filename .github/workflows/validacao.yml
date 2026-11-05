@@ -29,6 +29,7 @@ jobs:
           node --check worker/index.js
           node --check worker/science-index.js
           node --check worker/science-do.js
+          node --check worker/clinical-records.js
           node --check worker/anvisa-catalog.js
           node --check worker/anvisa-live.js
           node --check worker/anvisa-auto-sync.js
@@ -43,6 +44,7 @@ jobs:
           node --check testes/testar_sha256_stream.js
           node --check testes/testar_importacao_anvisa.js
           node --check testes/testar_sqlite_real.mjs
+          node --check testes/testar_prontuario_seguro.mjs
           node --check worker/clinical-draft.js
           node --check worker/consensus.js
           node --check testes/testar_formula.js
@@ -70,6 +72,7 @@ jobs:
           node testes/testar_consensus.js
           node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_diagnostico.js
           node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_sqlite_real.mjs
+          node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_prontuario_seguro.mjs
           node testes/testar_preparo_d1.js
       - name: Testar recuperação REAL de artigos PubMed pela internet
         run: node testes/testar_evidencias_reais.mjs
