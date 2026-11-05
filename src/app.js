@@ -1,5 +1,5 @@
 
-/* LifeMag IA v0.5.6 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
+/* LifeMag IA v0.6.0 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
 'use strict';
 const IMG = 'assets/icone-oficial-escuro.png';
 const iconPaths = {
@@ -31,7 +31,67 @@ const iconPaths = {
 const I = (name,size=20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name]||iconPaths.info}</svg>`;
 const E = x => String(x??'').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const S = (name,value='',opts='')=>`<div class="field"><label for="${E(name)}">${E(opts||name)}</label><input id="${E(name)}" name="${E(name)}" value="${E(value)}"></div>`;
-const data = readStore();
+// Pacientes reais NÃO entram no localStorage na versão protegida.
+const clinicalCloudMode=location.hostname==='lifemag-ia-clinico.merciocamposfar07.workers.dev';
+const data=clinicalCloudMode?initialState():readStore();
+const clinicalStatus={loading:clinicalCloudMode,ready:!clinicalCloudMode,
+ revision:0,pending:0,error:null,updatedAt:null};
+let clinicalSaveQueue=Promise.resolve();
+function clinicalSyncLabel(){
+ if(clinicalStatus.error)return 'Armazenamento indisponível. Atualize a página; não insira dados.';
+ if(clinicalStatus.pending)return 'Salvando no prontuário protegido...';
+ return clinicalStatus.ready?'Dados sincronizados no servidor seguro':'Conectando armazenamento clínico...';
+}
+function updateClinicalSyncUi(){
+ const el=document.getElementById('clinical-sync-state');
+ if(el)el.textContent=clinicalSyncLabel();
+}
+async function initializeClinicalRecords(){
+ if(!clinicalCloudMode)return;
+ try{
+  const response=await fetch('/api/clinical/state',{
+   credentials:'same-origin',headers:{accept:'application/json'}});
+  const result=await response.json();
+  if(!response.ok||result.ok!==true||!Number.isSafeInteger(result.revision))
+   throw Error(String(result.error||'Falha ao abrir prontuário'));
+  const next={...initialState(),...(result.state||{})};
+  if(!Array.isArray(next.patients)||!Array.isArray(next.visits))
+   throw Error('Estrutura de dados clínicos inválida');
+  Object.assign(data,next);
+  clinicalStatus.revision=result.revision;
+  clinicalStatus.updatedAt=result.updatedAt||null;
+  clinicalStatus.error=null;
+  clinicalStatus.ready=true;
+ }catch(error){
+  clinicalStatus.error=String(error?.message||'Prontuário protegido indisponível').slice(0,160);
+  clinicalStatus.ready=false;
+ }finally{clinicalStatus.loading=false;render()}
+}
+function persistClinicalState(action='update'){
+ if(!clinicalStatus.ready){toast('Prontuário indisponível. Nenhum dado foi salvo.');return}
+ const snapshot=JSON.parse(JSON.stringify(data));
+ clinicalStatus.pending++;
+ updateClinicalSyncUi();
+ clinicalSaveQueue=clinicalSaveQueue.then(async()=>{
+  if(!clinicalStatus.ready)return;
+  const response=await fetch('/api/clinical/state',{
+   method:'PUT',credentials:'same-origin',
+   headers:{'content-type':'application/json'},
+   body:JSON.stringify({revision:clinicalStatus.revision,state:snapshot,action})
+  });
+  const result=await response.json();
+  if(!response.ok||result.ok!==true)
+   throw Error(String(result.error||'Não foi possível salvar no servidor'));
+  clinicalStatus.revision=result.revision;
+  clinicalStatus.updatedAt=result.updatedAt||null;
+ }).catch(error=>{
+  clinicalStatus.error=String(error?.message||'Falha de armazenamento').slice(0,180);
+  clinicalStatus.ready=false;
+  toast('Falha ao salvar: ' + clinicalStatus.error);
+  render();
+ }).finally(()=>{clinicalStatus.pending=Math.max(0,clinicalStatus.pending-1);updateClinicalSyncUi()});
+}
+
 const VALID_PAGES = ['home','patients','conversation','editor','formulas','prescriptions','followup','simulator','science','docs','settings'];
 const pageFromUrl = () => { const page = decodeURIComponent(location.hash.replace(/^#\//,'')); return VALID_PAGES.includes(page) ? page : 'home'; };
 const ui = { page:pageFromUrl(), patientId:null, visitId:null, notices:[], search:'', toastTimer:0, doc:'prescription' };
@@ -316,7 +376,10 @@ function importFormulaDraft(message){
   toast('Rascunho importado. Revise composição, doses, posologia e interações.');
 }
 
-const persist = () => { try{writeStore(data);}catch(e){toast('Não foi possível salvar no navegador.');}};
+const persist = (action='update') => {
+ if(clinicalCloudMode){persistClinicalState(action);return;}
+ try{writeStore(data)}catch(_){toast('Não foi possível salvar no navegador.')}
+};
 const patient = () => data.patients.find(p=>p.id===ui.patientId) || null;
 const visit = () => data.visits.find(v=>v.id===ui.visitId) || null;
 const patientFor = v => data.patients.find(p=>p.id===v.patientId)||null;
@@ -343,7 +406,7 @@ function startVisit(pid){if(!pid){toast('Cadastre ou selecione um paciente antes
 function pageLabel(){return {home:'Início',patients:'Pacientes',conversation:'Conversa Inteligente',editor:'Studio Magistral',formulas:'Minhas fórmulas',prescriptions:'Receituário',followup:'Acompanhamento',simulator:'Simulador',science:'Central Científica',docs:'Documentos',settings:'Configurações'}[ui.page]||'LifeMag IA';}
 function layout(){const count=getAlerts().length;return `<div class="app-shell ${ui.page==='home'?'is-home':''}">
 <aside class="side">${renderBrand()}<div class="side-label">ESPAÇO CLÍNICO</div><nav aria-label="Navegação principal">${navTop.map(([p,label,ic])=>`<button class="nav-item ${p===ui.page?'active':''}" data-page="${p}">${I(ic)} ${label}</button>`).join('')}</nav><div class="side-label">FERRAMENTAS ESPECIALIZADAS</div><nav aria-label="Ferramentas">${navBottom.map(([p,label,ic])=>`<button class="nav-item ${p===ui.page?'active':''}" data-page="${p}">${I(ic)} ${label}${p==='followup'&&count?` <span class="badge warn">${count}</span>`:''}</button>`).join('')}<button class="nav-item ${ui.page==='simulator'?'active':''}" data-page="simulator">${I('compare')} Simulador</button><button class="nav-item ${ui.page==='settings'?'active':''}" data-page="settings">${I('settings')} Configurações</button></nav><div class="side-footer">${I('shield',16)} <strong>Protótipo de desenvolvimento</strong><br>Utilize apenas dados fictícios. Sem proteção de prontuários ou validação clínica.</div></aside>
-<main class="main"><header class="topbar"><div class="mobile-brand">${renderBrand()}</div><span class="kicker">PAINEL CLÍNICO / ${E(pageLabel())}</span><div class="top-actions"><span class="badge neutral">v0.3.0</span><button class="round-icon" data-page="followup" aria-label="Acompanhamentos">${I('bell')}${count?`<span class="count-dot">${count}</span>`:''}</button><button class="round-icon" data-page="settings" aria-label="Foto e dados profissionais">${professionalPhotoSrc()?`<img class="profile-mini" src="${professionalPhotoSrc()}" alt="" />`:I('settings')}</button></div></header>${pageContent()}</main></div>
+<main class="main"><header class="topbar"><div class="mobile-brand">${renderBrand()}</div><span class="kicker">PAINEL CLÍNICO / ${E(pageLabel())}</span><div class="top-actions"><span class="badge neutral">v0.6.0</span><button class="round-icon" data-page="followup" aria-label="Acompanhamentos">${I('bell')}${count?`<span class="count-dot">${count}</span>`:''}</button><button class="round-icon" data-page="settings" aria-label="Foto e dados profissionais">${professionalPhotoSrc()?`<img class="profile-mini" src="${professionalPhotoSrc()}" alt="" />`:I('settings')}</button></div></header>${clinicalCloudMode?'<p class="clinical-sync" id="clinical-sync-state" role="status">'+E(clinicalSyncLabel())+'</p>':''}${pageContent()}</main></div>
 <nav class="bottomnav" aria-label="Navegação principal e ferramentas"><button class="${ui.page==='home'?'active':''}" data-page="home" aria-label="Voltar ao início">${I('home')}<span>Início</span></button>${navBottom.map(([p,label,ic])=>`<button class="${p===ui.page?'active':''} ${p==='conversation'?'ai-center':''}" data-page="${p}" ${p==='conversation'?'aria-label="Abrir Conversa Inteligente"':''}>${p==='conversation'?`<span class="ai-orb">${I('sparkles',29)}</span>`:I(ic)}<span>${label}</span></button>`).join('')}</nav>`;}
 function pageHeader(title,desc,right=''){return `<div class="pageheader"><div><h1>${title}</h1><p>${desc}</p></div><div>${right}</div></div>`;}
 function empty(title,desc,iconName='info'){return `<div class="empty">${I(iconName,32)}<strong>${E(title)}</strong><br>${E(desc)}</div>`;}
@@ -469,7 +532,7 @@ function deleteSelectedPatient(){
 
 function scientificOnly(){
   const online=aiSession.ready;
-  const indicator=online?'Motor de IA habilitado':'IA ainda indisponível';
+  const indicator=online?'Motor científico conectado':'Serviço científico indisponível';
   const history=anonymousResearch.chat.map(m=>{
     const label=m.role==='assistant'?'LIFEMAG IA — REVISÃO PROFISSIONAL':'FARMACÊUTICO';
     const sources=Array.isArray(m.sources)&&m.sources.length
@@ -615,7 +678,7 @@ function science(){
    }
  }
  const busy=scienceCheck.busy?'disabled':'';
- return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.5.6.')+
+ return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.6.0.')+
  '<div class="notice blue"><strong>Consulta científica automática:</strong> o LifeMag IA pesquisa artigos PubMed, o índice privado e páginas oficiais da Anvisa, sem você selecionar PDFs. Páginas institucionais não substituem monografias nem validam doses. O teste do motor usa somente caso fictício.</div>'+
  '<div class="panel"><h3>Diagnóstico de conexão</h3>'+
  '<p class="muted small">Verifique a recuperação de artigos gratuitamente. O autoteste completo também executa o modelo de IA e consome parte da franquia Workers AI.</p>'+
@@ -761,7 +824,7 @@ function processProfessionalPhoto(file) {
         if(!/^data:image\/jpeg;base64,/i.test(photo)) throw Error('encoding');
         const prev=data.settings.photoData;
         data.settings.photoData=photo;
-        try{writeStore(data);}catch(error){data.settings.photoData=prev;throw error;}
+        try{persist();}catch(error){data.settings.photoData=prev;throw error;}
         render();toast('Foto profissional atualizada.');
       }catch(error){toast('Não foi possível armazenar a foto neste navegador.');}
     };
@@ -770,13 +833,28 @@ function processProfessionalPhoto(file) {
   reader.readAsDataURL(file);
 }
 function pageContent(){switch(ui.page){case'patients':return patients();case'conversation':return conversation();case'editor':return editor();case'formulas':return formulas();case'prescriptions':return prescriptions();case'followup':return followup();case'simulator':return simulator();case'science':return science();case'docs':return docs();case'settings':return settings();default:return home();}}
-function render(){document.getElementById('app').innerHTML=layout();}
+function render(){
+ const root=document.getElementById('app');
+ if(clinicalCloudMode&&!clinicalStatus.ready){
+  const msg=clinicalStatus.error||
+   'Carregando acesso protegido aos dados clínicos...';
+  root.innerHTML='<main class="clinical-gate" role="status">'+
+   '<img src="'+IMG+'" alt="LifeMag IA" width="62" height="62">'+
+   '<h1>LifeMag IA</h1><p>'+E(msg)+'</p>'+
+   '<p>O cadastro de pacientes fica bloqueado até o armazenamento responder.</p>'+
+   (clinicalStatus.error?'<button class="btn primary" data-clinical-reload="1">Reabrir prontuário</button>':'')+
+   '</main>';
+  return;
+ }
+ root.innerHTML=layout();
+ updateClinicalSyncUi();
+}
 function readForm(form){return Object.fromEntries(new FormData(form).entries());}
 function trimForm(obj){for(const k of Object.keys(obj))if(typeof obj[k]==='string')obj[k]=obj[k].trim();return obj;}
 function saveFormula(form){const v=visit();if(!v)return;const next=trimForm(readForm(form));if(Number(next.duration)<1||Number(next.duration)>3650){toast('A duração deve ser maior que zero.');return;}Object.assign(v,next);v.duration=Number(next.duration)||15;v.revisions.push({ savedAt:new Date().toISOString(), ingredients:JSON.parse(JSON.stringify(v.ingredients)), formulaName:v.formulaName, posology:v.posology });persist();toast('Formulação salva com versão registrada.');render();}
 function preview(doc,chosen=visit()){const v=chosen,p=v&&patientFor(v);if(!v||!p){toast('Selecione primeiro um atendimento.');return;}if(doc==='prescription'&&v.aiDraftPendingReview){toast('Receituário bloqueado: conclua primeiro a revisão farmacêutica da proposta da IA.');setPage('editor');return;}if(doc==='service'&&(!data.settings.cnpj||!data.settings.businessPhone)){toast('Preencha CNPJ e telefone institucional confirmados antes deste modelo.');setPage('settings');return;}if(doc==='prescription'&&(!v.ingredients.length||!v.posology||!v.quantity)){toast('Complete substâncias, quantidade e posologia antes do receituário.');setPage('editor');return;}ui.doc=doc;document.getElementById('print-root').innerHTML=renderPaper(doc,v,p);window.print();}
 function renderPaper(doc,v,p){const s=data.settings, names={clinical:'FICHA CLÍNICA / CADASTRO',prescription:'RECEITUÁRIO MAGISTRAL',attendance:'DECLARAÇÃO DE COMPARECIMENTO',service:'DECLARAÇÃO DE SERVIÇO FARMACÊUTICO',protocol:'PROTOCOLO COMPLEMENTAR'};const line=(label,value)=>`<div class="print-section"><span class="print-label">${label}:</span> ${E(value||'—')}</div>`;const header=`<div class="print-head"><img src="${IMG}" alt="Logo oficial LifeMag IA"/><div><strong>LifeMag IA</strong><small>Prescrição Magistral Inteligente</small><div class="print-institution"><b>${E(s.workplace)}</b><br>${E(s.address)}<br>${E(s.professional)} — ${E(s.role)} — ${E(s.crf)}</div></div></div>`;const common=line('Paciente',p.name)+line('Data do atendimento',fmtDate(v.date))+line('Telefone',p.phone);let body='';if(doc==='prescription'){body=common+line('Endereço do paciente',p.address)+`<table class="print-table"><thead><tr><th>Substância</th><th>Dose</th></tr></thead><tbody>${v.ingredients.map(i=>`<tr><td>${E(i.name)}</td><td>${E(i.dose)} ${E(i.unit||'mg')}</td></tr>`).join('')}</tbody></table>`+line('Apresentação',v.presentation)+line('Via de administração',v.route)+line('Quantidade para manipular',v.quantity)+line('Posologia',v.posology)+line('Horários',v.schedules)+line('Relação com refeições',v.meals)+line('Duração',v.duration+' dias')+line('Orientações',v.observations);}else if(doc==='clinical'){body=common+line('Nascimento',fmtDate(p.dob))+line('Endereço',p.address)+line('Peso (kg)',p.weight)+line('Altura (cm)',p.height)+line('Observações gerais do cadastro',p.notes)+line('Motivo da consulta e objetivo clínico',normalizeClinicalAssessment(v.assessment).chiefComplaint)+line('Sintomas e evolução',normalizeClinicalAssessment(v.assessment).symptoms)+line('Histórico clínico',normalizeClinicalAssessment(v.assessment).clinicalHistory)+line('Medicamentos em uso',normalizeClinicalAssessment(v.assessment).medications)+line('Alergias e reações',normalizeClinicalAssessment(v.assessment).allergies)+line('Exames e resultados',normalizeClinicalAssessment(v.assessment).labResults)+line('Restrições e riscos',normalizeClinicalAssessment(v.assessment).riskFactors)+line('Plano de acompanhamento',normalizeClinicalAssessment(v.assessment).followUpPlan);}else if(doc==='attendance'){body=common+line('Horário de entrada','_________')+line('Horário de saída','_________')+`<p>Declaramos, para fins de comprovação, que a pessoa identificada compareceu ao atendimento farmacêutico no período efetivamente confirmado.</p>`;}else if(doc==='service'){body=common+line('CNPJ',s.cnpj)+line('Telefone institucional',s.businessPhone)+line('Serviço efetivamente realizado','_____________________________________________')+line('Resultado/observações','_____________________________________________');}else{body=common+line('Formulação vinculada',v.formulaName)+line('Orientações educativas complementares',v.protocol||'Não informado')+`<p>Intensidade progressiva, iniciando leve e evoluindo gradualmente conforme condicionamento e tolerância, se aplicável.</p>`;}return `<article class="print-page">${header}<h1 class="print-h">${names[doc]}</h1><p class="print-note"><b>RASCUNHO DE TESTE — NÃO ASSINADO — NÃO VÁLIDO PARA USO CLÍNICO</b></p>${body}<div class="print-foot"><div class="print-sign"><b>${E(s.professional)}</b><br>${E(s.role)} — ${E(s.crf)}<br><small>Campo reservado à assinatura válida</small></div></div></article>`;}
-function handleClick(event){const b=event.target.closest('[data-science-sync],[data-page],[data-action],[data-select-patient],[data-review-visit],[data-open-visit],[data-add-ingredient],[data-remove-ingredient],[data-print-visit],[data-complete],[data-doc],[data-science-check],[data-import-draft],[data-save-anon-draft],[data-open-anon-draft],[data-link-anon-draft],[data-delete-anon-draft],[data-ingest-anvisa],[data-anvisa-batch]');if(!b)return;if(b.dataset.importDraft){const v=visit();importFormulaDraft(v?.chat?.find(m=>m.id===b.dataset.importDraft));return;}if(b.dataset.saveAnonDraft){saveAnonymousCase(b.dataset.saveAnonDraft);return}
+function handleClick(event){const b=event.target.closest('[data-clinical-reload],[data-science-sync],[data-page],[data-action],[data-select-patient],[data-review-visit],[data-open-visit],[data-add-ingredient],[data-remove-ingredient],[data-print-visit],[data-complete],[data-doc],[data-science-check],[data-import-draft],[data-save-anon-draft],[data-open-anon-draft],[data-link-anon-draft],[data-delete-anon-draft],[data-ingest-anvisa],[data-anvisa-batch]');if(!b)return;if(b.dataset.clinicalReload){clinicalStatus.error=null;clinicalStatus.ready=false;void initializeClinicalRecords();return;}if(b.dataset.importDraft){const v=visit();importFormulaDraft(v?.chat?.find(m=>m.id===b.dataset.importDraft));return;}if(b.dataset.saveAnonDraft){saveAnonymousCase(b.dataset.saveAnonDraft);return}
 if(b.dataset.openAnonDraft){openAnonymousCase(b.dataset.openAnonDraft);return}
 if(b.dataset.linkAnonDraft){linkAnonymousCase(b.dataset.linkAnonDraft);return}
 if(b.dataset.deleteAnonDraft){deleteAnonymousCase(b.dataset.deleteAnonDraft);return}
@@ -784,7 +862,7 @@ if(b.dataset.anvisaBatch){void prepareAnvisaBatch();return;}
 if(b.dataset.ingestAnvisa){void ingestAnvisaDocument(b.dataset.ingestAnvisa);return;}
 if(b.dataset.scienceSync){void requestAnvisaSynchronization();return;}
 if(b.dataset.scienceCheck){void checkScientificServices(b.dataset.scienceCheck);return;}if(b.dataset.page){setPage(b.dataset.page);return;}if(b.dataset.selectPatient){ui.patientId=b.dataset.selectPatient;ui.visitId=null;render();return;}if(b.dataset.reviewVisit){const v=data.visits.find(x=>x.id===b.dataset.reviewVisit);if(v){useVisit(v);setPage('conversation');}return;}if(b.dataset.openVisit){const v=data.visits.find(x=>x.id===b.dataset.openVisit);if(v){useVisit(v);setPage('editor');}return;}if(b.dataset.printVisit){const v=data.visits.find(x=>x.id===b.dataset.printVisit);if(v){useVisit(v);preview('prescription',v);}return;}if(b.dataset.doc){preview(b.dataset.doc);return;}if(b.dataset.removeIngredient){const v=visit();if(!v)return;v.ingredients=v.ingredients.filter(i=>i.id!==b.dataset.removeIngredient);if(v.aiDraftImportedAt)v.aiDraftPendingReview=true;persist();render();return;}if(b.dataset.complete){const v=data.visits.find(x=>x.id===b.dataset.complete);if(v){v.status=v.status==='finalizado'?'em acompanhamento':'finalizado';persist();render();}return;}
-const a=b.dataset.action;if(a==='delete-patient'){deleteSelectedPatient();return;}if(a==='new-visit')startVisit(ui.patientId||(data.patients.length===1?data.patients[0]?.id:null));if(a==='clear-patient'){ui.patientId=null;render();}if(a==='add-ingredient'){const v=visit();if(v){v.ingredients.push({id:uid('ing'),name:'',dose:'',unit:'mg',role:'',target:'',evidence:''});if(v.aiDraftImportedAt)v.aiDraftPendingReview=true;persist();render();}}if(a==='confirm-ai-review'){const v=visit();if(!v?.aiDraftPendingReview)return;if(!v.ingredients.length||!v.quantity||!v.posology){toast('Complete composição, quantidade e posologia antes de confirmar.');return;}if(!confirm('Confirma ter revisado clinicamente doses, interações, contraindicações, formulação e orientações? Isso não constitui assinatura digital.'))return;v.aiDraftPendingReview=false;v.aiDraftReviewedAt=new Date().toISOString();persist();render();toast('Revisão registrada. Documentos ainda exigem assinatura profissional.');return;}if(a==='save-protocol'){const v=visit();if(v){v.protocol=document.getElementById('protocol-text')?.value||'';persist();toast('Protocolo educativo salvo.');}}if(a==='test-sound'){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error();const c=new AC(),o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=660;g.gain.setValueAtTime(.10,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.25);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.25);o.onended=()=>c.close();toast('Som de demonstração reproduzido.');}catch(e){toast('Som indisponível neste navegador.');}}if(a==='remove-photo'){delete data.settings.photoData;persist();render();toast('Foto removida.');}if(a==='clear-demo'){if(confirm('Apagar os dados locais desta demonstração?')){localStorage.removeItem(STORAGE_KEY);Object.assign(data,initialState());ui.patientId=null;ui.visitId=null;setPage('home');toast('Demonstração limpa.');}}}
+const a=b.dataset.action;if(a==='delete-patient'){deleteSelectedPatient();return;}if(a==='new-visit')startVisit(ui.patientId||(data.patients.length===1?data.patients[0]?.id:null));if(a==='clear-patient'){ui.patientId=null;render();}if(a==='add-ingredient'){const v=visit();if(v){v.ingredients.push({id:uid('ing'),name:'',dose:'',unit:'mg',role:'',target:'',evidence:''});if(v.aiDraftImportedAt)v.aiDraftPendingReview=true;persist();render();}}if(a==='confirm-ai-review'){const v=visit();if(!v?.aiDraftPendingReview)return;if(!v.ingredients.length||!v.quantity||!v.posology){toast('Complete composição, quantidade e posologia antes de confirmar.');return;}if(!confirm('Confirma ter revisado clinicamente doses, interações, contraindicações, formulação e orientações? Isso não constitui assinatura digital.'))return;v.aiDraftPendingReview=false;v.aiDraftReviewedAt=new Date().toISOString();persist();render();toast('Revisão registrada. Documentos ainda exigem assinatura profissional.');return;}if(a==='save-protocol'){const v=visit();if(v){v.protocol=document.getElementById('protocol-text')?.value||'';persist();toast('Protocolo educativo salvo.');}}if(a==='test-sound'){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error();const c=new AC(),o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=660;g.gain.setValueAtTime(.10,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.25);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.25);o.onended=()=>c.close();toast('Som de demonstração reproduzido.');}catch(e){toast('Som indisponível neste navegador.');}}if(a==='remove-photo'){delete data.settings.photoData;persist();render();toast('Foto removida.');}if(a==='clear-demo'){if(confirm('Apagar os dados locais desta demonstração?')){if(!clinicalCloudMode)localStorage.removeItem(STORAGE_KEY);Object.assign(data,initialState());if(clinicalCloudMode)persist('delete');ui.patientId=null;ui.visitId=null;setPage('home');toast(clinicalCloudMode?'Exclusão solicitada ao banco seguro. Confirme a sincronização.':'Demonstração limpa.');}}}
 async function submitScientificManifest(form){
  if(!aiSession.indexReady){toast('Biblioteca científica ainda não está conectada.');return}
  const file=form.elements.namedItem('manifestFile')?.files?.[0];
@@ -898,8 +976,14 @@ if(['patient-exam-gallery','patient-exam-camera'].includes(control.id)){
 }
 if(control.id==='professional-photo-input'){processProfessionalPhoto(control.files?.[0]);return;}if(control.dataset.ingField){const outer=control.closest('[data-ingredient-id]');const v=visit();const x=v?.ingredients.find(i=>i.id===outer.dataset.ingredientId);if(x){x[control.dataset.ingField]=control.value;if(v.aiDraftImportedAt)v.aiDraftPendingReview=true;persist();}return;}if(control.closest?.('#formula-form') && control.name){const v=visit();if(v){v[control.name]=control.value;if(v.aiDraftImportedAt)v.aiDraftPendingReview=true;persist();}return;}if(control.id==='sim-visit'){const v=data.visits.find(x=>x.id===control.value);if(v){useVisit(v);render();}}if(control.id==='doc-visit'){const v=data.visits.find(x=>x.id===control.value);if(v){useVisit(v);render();}}}
 window.addEventListener('popstate',()=>{ui.page=pageFromUrl();render();scrollTo(0,0);});
+addEventListener('beforeunload',event=>{
+ if(clinicalCloudMode&&clinicalStatus.pending>0){
+  event.preventDefault();event.returnValue='';
+ }
+});
 document.addEventListener('click',handleClick);document.addEventListener('submit',handleSubmit);document.addEventListener('change',handleChange);document.addEventListener('input',e=>{if(e.target.id==='patient-filter'){ui.search=e.target.value;const root=document.getElementById('patient-results');if(root)root.innerHTML=data.patients.filter(x=>(x.name+' '+x.phone).toLowerCase().includes(ui.search.toLowerCase())).map(patientCard).join('')||empty('Nenhum resultado','Revise a busca.');}});
 // Uma demonstração contém apenas dados explicitamente criados pelo usuário; não há pacientes reais embutidos.
 render();
+void initializeClinicalRecords();
 void initializeScientificAssistant();
 
