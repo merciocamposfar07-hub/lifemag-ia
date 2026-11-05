@@ -1,4 +1,4 @@
-# LifeMag IA v0.4.6 — importação dos compêndios da Anvisa (04/11/2026)
+# LifeMag IA v0.4.9 — integração dos compêndios da Anvisa (04/11/2026)
 
 ## Objetivo e limites
 Criar uma **biblioteca privada pesquisável** a partir de PDFs das edições **vigentes em 2026** da Farmacopeia Brasileira, do Formulário Nacional e do Formulário de Fitoterápicos. O GitHub mantém **apenas código, metadados e URLs**: NÃO publica os PDFs nem o texto integral extraído.
@@ -98,3 +98,18 @@ O fluxo de CI foi inicialmente bloqueado por um literal SQL incorreto (`"extract
 - `auto_compendium_sync` registra `extracted_pending_review` ou `import_failed` com data, mensagem e quantidade de trechos. A Central Científica apresenta os registros reais quando disponíveis, sem confundir falhas com importações concluídas.
 - Esse agendamento poderá consumir franquia da Cloudflare AI. O script não afirma que o PDF foi obtido nem altera seu estado para `approved` sem revisão.
 - Testes: `testes/testar_anvisa_online.js` e `testes/testar_auto_sync.js`. Não são testes da execução remota nem das páginas integrais convertidas.
+
+
+## v0.4.9 — coleta progressiva sem seleção manual
+
+- O projeto está ligado ao Worker Cloudflare chamado **lifemag-ia-clinico**, com checks de implantação na integração oficial do GitHub.
+- O cron é configurado para executar na hora 17 de cada hora, em **UTC**: expressão `17 * * * *`. A execução efetiva deve ser confirmada pelo registro na base SQLite; build bem-sucedido não implica extração.
+- Prioridade: Formulário Nacional 3ª edição, Formulário de Fitoterápicos 3ª edição e Farmacopeia Brasileira 8ª edição Volume I. Depois tenta outros seis volumes elegíveis, respeitando limite de arquivo.
+- Se uma URL de cópia pública falhar ou não existir, o servidor tenta a página canônica da Biblioteca Digital e procura exclusivamente um link PDF HTTPS cujo identificador corresponda ao mesmo handle oficial. **HTTP 403 não é contornado.**
+- Registro em SQLite: `in_progress` (início), `import_failed` (falha explícita), `extracted_pending_review` (conteúdo convertido e ainda não revisado). Repetições de erro respeitam janela de 12 horas.
+- O arquivo conhecido de **plantas medicinais, cerca de 55 MB**, permanece acima do limite seguro configurado de 46 MiB. O divisor de arquivos está implementado, mas ainda não há execução remota automatizada de segmentação.
+- O Cloudflare Workers Free tem **128 MB de memória por isolate** e restrições de CPU por invocação. Nem o resultado verde da CI nem um PDF registrado no catálogo garantem a conversão real.
+- Dados científicos somente podem ser considerados monografia aprovada após conferência de integridade, edição, unidades, tabelas, termos de uso e revisão profissional. Páginas institucionais online fornecem somente contexto, não monografia integral.
+- Verificações: `testar_auto_sync.js`, `testar_importacao_anvisa.js`, `testar_descoberta_anvisa.js`, `testar_sqlite_real.mjs` e suite de interface.
+
+**PENDÊNCIAS:** observar a primeira execução real do cron no endpoint autenticado `/api/source-status`, confirmar a quantidade efetivamente convertida e resolver a obtenção e segmentação dos volumes maiores sem transferência manual pelo usuário.
