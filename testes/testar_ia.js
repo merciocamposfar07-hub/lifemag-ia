@@ -132,6 +132,22 @@ async function tests(){
     assert.equal(new Set(names).size,1);
     assert.ok(!names[0].includes('farmaceutico@example.org'));
   }],
+  ['caso do vídeo solicita esclarecimentos sem inventar alerta nem consumir IA',async()=>{
+    let aiUsed=false;
+    const clinical={...env,AI:{run:async()=>{aiUsed=true;throw Error('Não deveria chamar IA')}}};
+    const q='Homem de 41 anos, 68,0 de peso, não tem alergias e não faz uso de medicação contínua. Sente indisposição, cansaço, fadiga. Qual formulação sugerida?';
+    const response=await worker.fetch(request('/api/assist',{method:'POST',
+     body:{question:q,useConsensus:'auto'}}),clinical,access);
+    assert.equal(response.status,200);
+    const result=await response.json();
+    assert.equal(aiUsed,false);
+    assert.equal(result.draft.decision,'insufficient_info');
+    assert.deepEqual(result.draft.red_flags,[]);
+    assert.ok(result.answer.includes('Há quanto tempo'));
+    assert.ok(!result.answer.includes('QUANTIDADE PARA MANIPULAR'));
+    assert.equal(result.sources.length,0);
+    assert.equal(result.needsMoreInfo,true);
+  }],
   ['sem Access: nenhum arquivo ou API permitido',async()=>{
     assert.equal((await worker.fetch(request('/'),env,{})).status,401);
     assert.equal((await worker.fetch(request('/api/capabilities'),env,{})).status,401);
