@@ -384,8 +384,13 @@ export default {
       if(q.length<4||q.length>120)return reply({error:'Use um tema científico de 4 a 120 caracteres'},400);
       if(/\b\d{3}[. ]?\d{3}[. ]?\d{3}[- ]?\d{2}\b/.test(q)||/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/.test(q))
         return reply({error:'Não envie dados pessoais para a pesquisa científica'},400);
-      const [results,online]=await Promise.all([searchOfficialSources(q,env),searchAnvisaOnline(q)]);
-      return reply({status:results.status,results:[...(results.items||[]),...online.items].slice(0,12),
+      const [results,online,literature]=await Promise.all([
+        searchOfficialSources(q,env),searchAnvisaOnline(q),searchEvidence(q)
+      ]);
+      const peerReviewed=(literature.items||[]).map(x=>({...x,evidenceTier:'clinical_literature'}));
+      return reply({status:results.status,results:[
+        ...peerReviewed,...(results.items||[]),...online.items
+      ].slice(0,15),pubmedOnline:{status:literature.status,articles:peerReviewed.length},
         anvisaOnline:{status:online.status,checked:online.checked,reachable:online.reachable,
           retrievedContext:online.items.length,fullMonographs:false},
         reviewedCount:Number(results.reviewedCount)||0,unreviewedCount:Number(results.unreviewedCount)||0,

@@ -552,7 +552,7 @@ function science(){
  }
  const busy=scienceCheck.busy?'disabled':'';
  return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.4.7.')+
- '<div class="notice blue"><strong>Consulta científica automática:</strong> o LifeMag IA pesquisa artigos PubMed, o índice privado e páginas oficiais da Anvisa, sem você selecionar PDFs. Páginas institucionais não substituem monografias nem validam doses. O teste usa caso fictício.</div>'+
+ '<div class="notice blue"><strong>Consulta científica automática:</strong> o LifeMag IA pesquisa artigos PubMed, o índice privado e páginas oficiais da Anvisa, sem você selecionar PDFs. Páginas institucionais não substituem monografias nem validam doses. O teste do motor usa somente caso fictício.</div>'+
  '<div class="panel"><h3>Diagnóstico de conexão</h3>'+
  '<p class="muted small">Verifique a recuperação de artigos gratuitamente. O autoteste completo também executa o modelo de IA e consome parte da franquia Workers AI.</p>'+
  '<div class="btnrow"><button type="button" class="btn primary" data-science-check="sources" '+busy+'>Verificar fontes</button>'+
@@ -596,14 +596,14 @@ function science(){
  '<form id="science-search-form"><div class="field"><label for="science-search-query">Tema científico (sem dados de paciente)</label>'+
  '<input id="science-search-query" name="scienceQuery" maxlength="120" minlength="4" required value="'+E(scienceCheck.searchQuery)+'" placeholder="Ex.: Farmacopeia, fitoterápicos, alimentação"></div>'+
  '<button type="submit" class="btn primary" '+(scienceCheck.searchBusy?'disabled':'')+'>'+ 
- (scienceCheck.searchBusy?'Consultando…':'Pesquisar biblioteca')+'</button></form>'+
+ (scienceCheck.searchBusy?'Consultando…':'Pesquisar fontes científicas')+'</button></form>'+
  (scienceCheck.searchError?'<p role="alert" class="muted">'+E(scienceCheck.searchError)+'</p>':'')+
  (scienceCheck.libraryResults?'<div class="science-library-results" aria-live="polite"><p class="muted small">'+
  E(String(scienceCheck.libraryResults.results?.length||0))+' resultados · '+E(String(scienceCheck.libraryResults.reviewedCount||0))+
  ' trechos de documentos revisados · '+E(String(scienceCheck.libraryResults.unreviewedCount||0))+' trechos de PDF ainda não conferidos · '+E(String(scienceCheck.libraryResults.overviewCount||0))+
- ' sinopses institucionais · '+E(String(scienceCheck.libraryResults.anvisaOnline?.retrievedContext||0))+' páginas oficiais online relacionadas</p>'+
+ ' sinopses institucionais · '+E(String(scienceCheck.libraryResults.anvisaOnline?.retrievedContext||0))+' páginas oficiais online relacionadas · '+E(String(scienceCheck.libraryResults.pubmedOnline?.articles||0))+' artigos PubMed recuperados online</p>'+
  (scienceCheck.libraryResults.results||[]).map(x=>'<article class="listline"><div><strong>'+E(x.title)+
- '</strong><p>'+E(x.evidenceTier==='reviewed_document'?'Documento revisado':x.evidenceTier==='extracted_unreviewed'?'PDF oficial extraído — revisão pendente; não valida dose':x.evidenceTier==='official_web_context'?'Página consultada online — não é monografia integral':'Sinopse institucional (não é dose clínica)')+
+ '</strong><p>'+E(x.evidenceTier==='reviewed_document'?'Documento revisado':x.evidenceTier==='extracted_unreviewed'?'PDF oficial extraído — revisão pendente; não valida dose':x.evidenceTier==='official_web_context'?'Página consultada online — não é monografia integral':x.evidenceTier==='clinical_literature'?'Artigo PubMed com resumo (avaliar qualidade do estudo)':'Sinopse institucional (não é dose clínica)')+
  ' · '+E(x.journal||'Fonte oficial')+'</p><p>'+E(String(x.abstract||'').slice(0,800))+'</p>'+
  '<a target="_blank" rel="noopener noreferrer" href="'+E(x.url)+'">Consultar fonte oficial</a></div></article>').join('')+
  '</div>':'')+'</div>'+
