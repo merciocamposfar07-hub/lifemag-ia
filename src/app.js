@@ -399,6 +399,11 @@ function importFormulaDraft(message){
     toast('Proposta sem doses verificadas ou com alerta clínico: não foi possível importar.');
     return;
   }
+  const essential=d.ingredients.filter(x=>x.role!=='OPCIONAL');
+  if(!essential.length){
+    toast('Proposta contém somente itens opcionais. Selecione uma composição essencial antes de importar.');
+    return;
+  }
   if(v.ingredients.length&&!confirm('Substituir a composição atual por este rascunho da IA? A versão anterior será preservada no histórico.'))return;
   v.revisions.push({savedAt:new Date().toISOString(),origin:'before_ai_draft_import',
     ingredients:JSON.parse(JSON.stringify(v.ingredients)),formulaName:v.formulaName,posology:v.posology});
@@ -413,12 +418,13 @@ function importFormulaDraft(message){
     v.duration=d.initial_duration_days;
   v.observations=[
     'Rascunho para revisão — não é receita emitida.',
+    'Itens OPCIONAIS excluídos do receituário inicial por custo-benefício; podem ser adicionados após revisão.',
     d.extension_criteria?'Critérios de extensão: '+d.extension_criteria:'',
     (d.monitoring||[]).length?'Monitoramento: '+d.monitoring.join('; '):'',
     (d.interactions||[]).length?'Interações a verificar: '+d.interactions.join('; '):'',
     (d.contraindications||[]).length?'Contraindicações a verificar: '+d.contraindications.join('; '):''
   ].filter(Boolean).join('\n');
-  v.ingredients=d.ingredients.map(x=>({
+  v.ingredients=essential.map(x=>({
     id:uid('ing'),name:String(x.name||''),
     dose:String(x.dose_value||''),unit:String(x.dose_unit||'mg'),
     role:String(x.role||'OPCIONAL'),
