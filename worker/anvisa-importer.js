@@ -3,6 +3,7 @@
 // Aceita somente documentos constantes do catálogo de edições vigentes 2026.
 import {ANVISA_CATALOG} from './anvisa-catalog.js';
 import {discoverOfficialAnvisaPdf} from './anvisa-discover.js';
+import {sha256BlobHex} from './sha256-stream.js';
 export const MAX_COMPENDIUM_BYTES=46*1024*1024; // limite conservador habitual
 // Tentativa específica para plantas: o arquivo conhecido possui ~55 MB.
 // Falhas de conversão precisam aparecer no diagnóstico; nunca aprovar automaticamente.
@@ -10,10 +11,6 @@ export const MAX_PLANTS_BYTES=62*1024*1024;
 export const anvisaDocumentByteLimit=id=>
  id==='fb8-volume-ii-plantas'?MAX_PLANTS_BYTES:MAX_COMPENDIUM_BYTES;
 const MAX_MARKDOWN=20*1024*1024;
-const hashBytes=async input=>{
- const hash=await crypto.subtle.digest('SHA-256',input);
- return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
-};
 export function splitScientificMarkdown(source){
  const clean=String(source||'').replace(/\r\n/g,'\n').trim();
  if(clean.length<120)return [];
@@ -78,7 +75,7 @@ export async function convertAnvisaDocument(id,buf,env,identity,provenance,partM
  const part=checked.part;
  // Reutiliza o Blob para a conversão, sem concatenar outra cópia de 55 MB.
  let pdfHash;
- try{pdfHash=await hashBytes(buf instanceof Blob?await buf.arrayBuffer():buf)}
+ try{pdfHash=await sha256BlobHex(buf)}
  catch(_){return {ok:false,status:502,stage:'integrity',errorCode:'sha256_failed',error:'Não foi possível verificar SHA-256 do PDF'}};
  if(part&&part.pdfSha256!==pdfHash)
   return {ok:false,status:422,error:'SHA-256 divergente: esta parte não corresponde ao manifesto'};
