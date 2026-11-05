@@ -52,6 +52,10 @@ export function missingClinicalBasics(question){
   const missing=[];
   if(!/\b(?:\d{1,3}\s*anos?|adult[oa]s?|idos[oa]s?|crianc[as]|adolescente)\b/.test(normalized))
     missing.push('Faixa etária ou idade');
+  if(!/\b(?:sexo\s*[:=]?\s*(?:masculino|feminino)|paciente\s+(?:homem|mulher)|homem|mulher|masculino|feminino)\b/.test(normalized))
+    missing.push('Sexo para individualização clínica');
+  if(!/\b(?:peso\s*[:=]?\s*)?\d{2,3}(?:[.,]\d+)?\s*(?:kg|quilos?)\b/.test(normalized))
+    missing.push('Peso corporal em kg');
   if(!/\b(?:medicament|remedi|farmac|em uso|sem medicac|nao usa medicac|nao toma remedi)/.test(normalized))
     missing.push('Medicamentos e suplementos em uso, ou confirmação de ausência');
   if(!/\b(?:alergi|hipersensibil|sem alergi|nega alergi)/.test(normalized))
