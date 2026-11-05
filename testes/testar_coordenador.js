@@ -15,14 +15,16 @@ async function main(){
  };
  const env={SCIENCE_LIBRARY:{getByName:()=>library}};
  const job=new LifeMagIngestionCoordinator({storage},env);
- const first=await job.enqueue();
+ const first=await job.enqueue(true);
  assert.equal(first.status,'scheduled');
  assert.ok(alarm>Date.now());
+ assert.equal(data.get('retryFailedRequested'),true);
  assert.equal((await job.enqueue()).status,'already_scheduled');
  // Simula o disparo do alarme sem Workers AI vinculado:
  // não deve buscar PDFs nem registrar conteúdo aprovado.
  alarm=null;
  const outcome=await job.alarm();
+ assert.equal(data.get('retryFailedRequested'),false);
  assert.equal(outcome.status,'not_configured');
  assert.equal(calls[0].status,'started');
  assert.equal(calls.at(-1).status,'not_configured');

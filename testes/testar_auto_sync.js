@@ -61,6 +61,16 @@ async function main(){
   assert.equal(withheld.attempted,false);
   assert.equal(withheld.status,'retry_cooldown');
  });
+ await check('pedido explícito permite repetir Plantas antes das 12 horas',async()=>{
+  const result=await runAnvisaAutoSync(env,now,
+   async()=>({ok:false,status:502,stage:'conversion',error:'Conversor não concluiu'}),
+   {retryFailed:true});
+  assert.equal(result.attempted,true);
+  assert.equal(result.documentId,'fb8-volume-ii-plantas');
+  assert.equal(result.status,'import_failed');
+  const record=records.find(x=>x.documentId==='fb8-volume-ii-plantas');
+  assert.match(record.message,/Etapa conversion/);
+ });
  await check('erros podem voltar à fila após intervalo de segurança',async()=>{
   const later=new Date(now.getTime()+12*60*60*1000);
   const result=await runAnvisaAutoSync(env,later,async()=>({ok:false,error:'ainda sem acesso'}));

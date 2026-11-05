@@ -16,7 +16,7 @@ export const AUTO_COMPENDIA=[
  .filter(x=>x&&(!x.knownSizeBytes||x.knownSizeBytes<=anvisaDocumentByteLimit(x.id)))
  .map(x=>({id:x.id,sourceId:x.sourceId,title:x.title}));
 
-export async function runAnvisaAutoSync(env,now=new Date(),importer=importAnvisaCompendium){
+export async function runAnvisaAutoSync(env,now=new Date(),importer=importAnvisaCompendium,{retryFailed=false}={}){
  if(!env?.SCIENCE_LIBRARY||typeof env.AI?.toMarkdown!=='function')
   return {status:'not_configured',attempted:false};
  if(!AUTO_COMPENDIA.length)return {status:'no_eligible_documents',attempted:false};
@@ -36,6 +36,8 @@ export async function runAnvisaAutoSync(env,now=new Date(),importer=importAnvisa
   const row=last.get(entry.id);
   if(!row)return true;
   if(row.status==='extracted_pending_review')return false;
+  // Só a solicitação explícita pelo farmacêutico pode antecipar retry de Plantas.
+  if(retryFailed&&entry.id==='fb8-volume-ii-plantas'&&row.status==='import_failed')return true;
   const at=Date.parse(row.checkedAt);
   return Number.isNaN(at)||now.getTime()-at>=COOLDOWN_MS;
  });

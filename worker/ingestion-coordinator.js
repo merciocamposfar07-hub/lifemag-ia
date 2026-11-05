@@ -3,14 +3,15 @@
 import {DurableObject} from 'cloudflare:workers';
 import {runAnvisaAutoSync} from './anvisa-auto-sync.js';
 
-const WINDOW_MS=60*1000;
+const WINDOW_MS=10*60*1000;
 export class LifeMagIngestionCoordinator extends DurableObject{
  constructor(ctx,env){
   super(ctx,env);
   this.ctx=ctx;
   this.env=env;
  }
- async enqueue(){
+ async enqueue(retryFailed=false){
+  // Retry antecipado só ocorre a pedido do usuário autenticado; limite 10 min.
   // Cloudflare permite um alarme ativo por Durable Object.
   // Impede acionamentos repetidos e preserva franquias gratuitas.
   const pending=await this.ctx.storage.getAlarm();
@@ -20,6 +21,7 @@ export class LifeMagIngestionCoordinator extends DurableObject{
   if(last&&Date.now()-last<WINDOW_MS)
    return {status:'recently_started',scheduledFor:new Date(last).toISOString()};
   const schedule=Date.now()+1000;
+  if(retryFailed)await this.ctx.storage.put('retryFailedRequested',true);
   await this.ctx.storage.setAlarm(schedule);
   return {status:'scheduled',scheduledFor:new Date(schedule).toISOString()};
  }
@@ -31,8 +33,10 @@ export class LifeMagIngestionCoordinator extends DurableObject{
    await library.recordScheduledRun({status:'started',at:timestamp,
     detail:'Coleta automática em Durable Object iniciada'});
   }catch(_){}
+  const retryFailed=await this.ctx.storage.get('retryFailedRequested')===true;
+  await this.ctx.storage.put('retryFailedRequested',false);
   let outcome;
-  try{outcome=await runAnvisaAutoSync(this.env)}
+  try{outcome=await runAnvisaAutoSync(this.env,new Date(),undefined,{retryFailed})}
   catch(_){outcome={status:'failed',attempted:false}}
   if(library)try{
    await library.recordScheduledRun({

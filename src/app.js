@@ -1,5 +1,5 @@
 
-/* LifeMag IA v0.5.3 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
+/* LifeMag IA v0.5.4 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
 'use strict';
 const IMG = 'assets/icone-oficial-escuro.png';
 const iconPaths = {
@@ -562,7 +562,7 @@ function science(){
    }
  }
  const busy=scienceCheck.busy?'disabled':'';
- return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.5.3.')+
+ return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.5.4.')+
  '<div class="notice blue"><strong>Consulta científica automática:</strong> o LifeMag IA pesquisa artigos PubMed, o índice privado e páginas oficiais da Anvisa, sem você selecionar PDFs. Páginas institucionais não substituem monografias nem validam doses. O teste do motor usa somente caso fictício.</div>'+
  '<div class="panel"><h3>Diagnóstico de conexão</h3>'+
  '<p class="muted small">Verifique a recuperação de artigos gratuitamente. O autoteste completo também executa o modelo de IA e consome parte da franquia Workers AI.</p>'+
@@ -643,7 +643,7 @@ async function requestAnvisaSynchronization(){
   toast(data.status==='already_scheduled'?
    'A coleta automática já está agendada.':
    data.status==='recently_started'?
-   'A coleta científica foi iniciada recentemente.':
+   'A coleta científica foi iniciada recentemente (intervalo mínimo de 10 minutos).':
    'Coleta dos compêndios agendada no servidor, sem arquivos manuais.');
  }catch(error){scienceCheck.error=String(error?.message||error).slice(0,220)}
  finally{scienceCheck.busy=false;render()}

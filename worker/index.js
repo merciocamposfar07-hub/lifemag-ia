@@ -11,7 +11,7 @@ import {importAnvisaCompendium,convertAnvisaDocument,MAX_COMPENDIUM_BYTES} from 
  * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
  * Nenhum texto clínico é registrado em logs.
  */
-const RELEASE='0.5.3';
+const RELEASE='0.5.4';
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -421,7 +421,7 @@ export default {
         return reply({error:'Origem inválida para sincronizar compêndios'},403);
       if(!env.INGEST_COORDINATOR)return reply({error:'Agendador científico indisponível'},503);
       try{
-        const state=await env.INGEST_COORDINATOR.getByName('lifemag-anvisa').enqueue();
+        const state=await env.INGEST_COORDINATOR.getByName('lifemag-anvisa').enqueue(true);
         return reply({automatic:true,documentDownloadRequired:false,...state},202);
       }catch(_){return reply({error:'Não foi possível iniciar a coleta automática'},503)}
     }
