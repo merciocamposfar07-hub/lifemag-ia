@@ -21,11 +21,12 @@ async function main(){
  assert.equal((await job.enqueue()).status,'already_scheduled');
  // Simula o disparo do alarme sem Workers AI vinculado:
  // não deve buscar PDFs nem registrar conteúdo aprovado.
+ alarm=null;
  const outcome=await job.alarm();
  assert.equal(outcome.status,'not_configured');
  assert.equal(calls[0].status,'started');
  assert.equal(calls.at(-1).status,'not_configured');
- assert.equal((await job.enqueue()).status,'already_scheduled');
+ assert.equal((await job.enqueue()).status,'recently_started');
  console.log('Coordenador científico: agendamento, auditoria e bloqueio sem IA verificados');
 }
 main().catch(error=>{console.error(error);process.exitCode=1});
