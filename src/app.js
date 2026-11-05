@@ -1,5 +1,5 @@
 
-/* LifeMag IA v0.5.5 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
+/* LifeMag IA v0.5.6 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
 'use strict';
 const IMG = 'assets/icone-oficial-escuro.png';
 const iconPaths = {
@@ -524,34 +524,87 @@ function science(){
  if(result){
    const x=result;
    if(x.pubmed){
-     checkResult='<div class="listline"><strong>Versão do servidor: '+E(x.version||'não identificada')+'</strong></div>'+
-      '<div class="listline"><strong>PubMed: '+E(x.pubmed.status)+
-      '</strong><p>'+E(String(x.pubmed.articles||0))+' artigos com resumo recuperados'+
-      (x.pubmed.sample?': '+E(x.pubmed.sample.title):'')+'</p></div>'+
-      '<div class="listline"><strong>Anvisa online: '+E(x.anvisaOnline?.status||'não verificado')+
-      '</strong><p>'+E(String(x.anvisaOnline?.reachable||0))+'/'+E(String(x.anvisaOnline?.checked||0))+
-      ' páginas oficiais acessíveis; conteúdo institucional, não monografia integral.</p></div>'+
-      '<div class="listline"><strong>Agendamento Cloudflare</strong><p>'+
-        (x.officialIndex?.scheduler?
-         E(x.officialIndex.scheduler.status)+' · '+E(x.officialIndex.scheduler.lastRunAt)+
-         ' · '+E(x.officialIndex.scheduler.detail||''):
-         'Nenhuma execução do agendamento registrada no SQLite')+
-      '</p></div>'+
-      (Array.isArray(x.officialIndex?.autoSync)&&x.officialIndex.autoSync.length?
-       '<div class="listline"><strong>Sincronização automática de PDFs</strong>'+
-       x.officialIndex.autoSync.map(v=>'<p>'+E(v.documentId)+': '+E(v.status)+
-       ' · '+E(v.checkedAt)+' · '+E(v.message||'sem mensagem')+'</p>').join('')+'</div>':
-       '<div class="listline"><strong>PDFs em sincronização</strong><p>Nenhuma tentativa registrada; confirmar implantação do Worker e do agendamento.</p></div>')+
-      '<div class="listline"><strong>Índice oficial: '+E(x.officialIndex?.status||'desconhecido')+
-      '</strong><p>'+E(String(x.officialIndex?.approvedDocuments||0))+' monografias/documentos completos aprovados; '+
-      E(String(x.officialIndex?.approvedPassages||0))+' trechos revisados; '+
-      E(String(x.officialIndex?.pendingReviewDocuments||0))+' compêndios extraídos aguardando revisão; '+
-      E(String(x.officialIndex?.overviewSections||0))+' sínteses institucionais pesquisáveis (não monografias completas)</p></div>'+
-      (Array.isArray(x.officialIndex?.sources)?x.officialIndex.sources.map(src=>'<div class="listline"><strong>'+E(src.name)+'</strong><p>'+E(src.status)+' · '+E(String(src.approvedDocuments||0))+' documentos aprovados · '+E(String(src.overviewSections||0))+' sínteses disponíveis</p></div>').join(''):'')+
-      '<div class="listline"><strong>Consensus: '+E(x.consensus?.status||'indisponível')+
-      '</strong><p>Não são consumidas chamadas do Consensus neste diagnóstico.</p></div>'+
-      '<div class="listline"><strong>Workers AI: '+E(x.workersAI?.status||'indisponível')+
-      '</strong><p>Binding identificado; a execução real é verificada no teste do motor.</p></div>';
+     const ix=x.officialIndex||{};
+     const sync=Array.isArray(ix.autoSync)?ix.autoSync:[];
+     const sourceNames=Object.fromEntries(officialAnvisaDocuments.map(v=>[v[0],v[1]]));
+     const statusNames={
+       extracted_pending_review:'PDF convertido — revisão pendente',
+       import_failed:'Falha na importação',
+       in_progress:'Processamento em andamento',
+       stalled:'Tentativa interrompida — sem conclusão',
+       already_extracted_pending_review:'Documento já extraído',
+       all_extracted_pending_review:'Todos os PDFs extraídos; revisão pendente',
+       retry_cooldown:'Aguardando nova tentativa',
+       official_overviews_available:'Somente sínteses institucionais',
+       approved_content_available:'Documentos revisados disponíveis',
+       configured_empty_or_unverified:'Ainda sem documentos revisados',
+       official_overview_available:'Sínteses disponíveis',
+       content_retrievable:'Conteúdo revisado disponível',
+       external_api_registered:'Pesquisa externa vinculada',
+       official_pages_unavailable:'Páginas institucionais indisponíveis',
+       not_configured:'Não configurado',
+       finished:'Execução encerrada',
+       started:'Execução iniciada',
+       failed:'Execução interrompida',
+       ok:'Funcionando'
+     };
+     const labelFor=v=>statusNames[String(v||'')]||String(v||'Sem informação').replaceAll('_',' ');
+     const timeFor=v=>{
+       const t=new Date(String(v||''));
+       return Number.isNaN(t.getTime())?'Horário não registrado':
+        t.toLocaleString('pt-BR',{timeZone:'America/Recife',
+         day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+     };
+     const named=v=>sourceNames[String(v||'')]||String(v||'Documento científico');
+     const scheduler=ix.scheduler||null;
+     let schedulerText=scheduler?labelFor(scheduler.status)+' · '+timeFor(scheduler.lastRunAt):
+       'Nenhuma execução registrada no banco científico';
+     if(scheduler?.detail){
+       try{
+         const detail=JSON.parse(scheduler.detail);
+         schedulerText+=' · '+labelFor(detail.outcome)+(detail.documentId?' · '+named(detail.documentId):'');
+       }catch(_){schedulerText+=' · '+String(scheduler.detail).slice(0,180)}
+     }
+     const plant=sync.find(v=>v.documentId==='fb8-volume-ii-plantas');
+     const plantDetails=plant?
+       '<strong>'+E(labelFor(plant.status))+'</strong>'+
+       '<p>Último registro: '+E(timeFor(plant.checkedAt))+'</p>'+
+       '<p>'+E(String(plant.message||'Sem descrição da tentativa').slice(0,240))+'</p>':
+       '<strong>Sem tentativa registrada</strong><p>O volume de plantas permanece prioritário na fila automática.</p>';
+     const history=sync.length?
+       '<details class="science-sync-history"><summary>Ver histórico dos '+E(String(sync.length))+
+       ' documentos monitorados</summary>'+
+       sync.map(v=>'<div class="science-sync-entry"><strong>'+E(named(v.documentId))+'</strong>'+
+        '<p>'+E(labelFor(v.status))+' · '+E(timeFor(v.checkedAt))+'</p>'+
+        '<p>'+E(String(v.message||'Sem mensagem').slice(0,240))+'</p></div>').join('')+'</details>':
+       '<p>Nenhum PDF com tentativa registrada nesta biblioteca.</p>';
+     checkResult=
+      '<div class="science-data-row"><strong>Versão do servidor</strong><p>'+E(x.version||'não identificada')+'</p></div>'+
+      '<div class="science-data-row"><strong>PubMed / Europe PMC</strong><p>'+E(String(x.pubmed.articles||0))+
+       ' artigos recuperados · '+E(labelFor(x.pubmed.status))+'</p></div>'+
+      '<div class="science-data-row"><strong>Importação prioritária: Plantas Medicinais</strong>'+
+       plantDetails+'</div>'+
+      '<div class="science-data-row"><strong>Agendamento Cloudflare</strong><p>'+E(schedulerText)+'</p></div>'+
+      '<div class="science-data-row"><strong>Sincronização automática de PDFs</strong>'+
+       history+'</div>'+
+      '<div class="science-data-row"><strong>Biblioteca científica</strong>'+
+       '<p>'+E(String(ix.pendingReviewDocuments||0))+' documentos extraídos aguardando revisão</p>'+
+       '<p>'+E(String(ix.approvedDocuments||0))+' documentos aprovados · '+
+        E(String(ix.approvedPassages||0))+' trechos revisados</p></div>'+
+      '<div class="science-data-row"><strong>Anvisa online</strong><p>'+
+       E(String(x.anvisaOnline?.reachable||0))+' de '+E(String(x.anvisaOnline?.checked||0))+
+       ' páginas institucionais acessíveis. Esta consulta é separada dos PDFs extraídos.</p></div>'+
+      '<details class="science-secondary-details"><summary>Ver situação das demais fontes científicas</summary>'+
+       (Array.isArray(ix.sources)?ix.sources.map(src=>
+        '<div class="science-source-entry"><strong>'+E(src.name)+'</strong>'+
+        '<p>'+E(labelFor(src.status))+' · '+E(String(src.approvedDocuments||0))+
+        ' documentos aprovados · '+E(String(src.overviewSections||0))+' sínteses disponíveis</p></div>'
+       ).join(''):'')+
+       '<div class="science-source-entry"><strong>Consensus</strong><p>'+
+        E(labelFor(x.consensus?.status||'not_configured'))+'</p></div>'+
+       '<div class="science-source-entry"><strong>Workers AI</strong><p>'+
+        E(String(x.workersAI?.status||'não verificado').replaceAll('_',' '))+
+        ' · Execução do modelo verificada separadamente</p></div></details>';
    }else if(x.stages){
      checkResult='<div class="listline"><strong>Autoteste completo: '+(x.passed?'concluído':'não concluído')+
       '</strong><p>PubMed: '+E(x.stages.pubmed)+
@@ -562,7 +615,7 @@ function science(){
    }
  }
  const busy=scienceCheck.busy?'disabled':'';
- return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.5.5.')+
+ return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.5.6.')+
  '<div class="notice blue"><strong>Consulta científica automática:</strong> o LifeMag IA pesquisa artigos PubMed, o índice privado e páginas oficiais da Anvisa, sem você selecionar PDFs. Páginas institucionais não substituem monografias nem validam doses. O teste do motor usa somente caso fictício.</div>'+
  '<div class="panel"><h3>Diagnóstico de conexão</h3>'+
  '<p class="muted small">Verifique a recuperação de artigos gratuitamente. O autoteste completo também executa o modelo de IA e consome parte da franquia Workers AI.</p>'+

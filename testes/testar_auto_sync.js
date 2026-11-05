@@ -73,6 +73,15 @@ async function main(){
   const withheld=await runAnvisaAutoSync(env,now,async()=>{throw Error('Não repetir')});
   assert.equal(withheld.attempted,false);
  });
+ await check('pedido explícito recupera também tentativa de Plantas interrompida',async()=>{
+  const i=records.findIndex(x=>x.documentId==='fb8-volume-ii-plantas');
+  records[i]={...records[i],status:'stalled'};
+  const result=await runAnvisaAutoSync(env,now,
+   async()=>({ok:false,stage:'acquisition',error:'Fonte externa indisponível'}),
+   {retryFailed:true});
+  assert.equal(result.documentId,'fb8-volume-ii-plantas');
+  assert.equal(result.attempted,true);
+ });
  await check('pedido explícito permite repetir Plantas antes das 12 horas',async()=>{
   const result=await runAnvisaAutoSync(env,now,
    async()=>({ok:false,status:502,stage:'conversion',error:'Conversor não concluiu'}),

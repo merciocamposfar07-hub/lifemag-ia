@@ -42,7 +42,7 @@ export async function runAnvisaAutoSync(env,now=new Date(),importer=importAnvisa
   if(entry.id==='fb8-volume-ii-plantas'&&row.status==='import_failed'&&
      !String(row.message||'').startsWith('Etapa '))return true;
   // Só a solicitação explícita pelo farmacêutico pode antecipar retry de Plantas.
-  if(retryFailed&&entry.id==='fb8-volume-ii-plantas'&&row.status==='import_failed')return true;
+  if(retryFailed&&entry.id==='fb8-volume-ii-plantas'&&['import_failed','stalled'].includes(row.status))return true;
   const at=Date.parse(row.checkedAt);
   return Number.isNaN(at)||now.getTime()-at>=COOLDOWN_MS;
  });

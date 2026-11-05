@@ -55,6 +55,25 @@ await check('heartbeat do Cron fica persistido no SQLite sem aprovar monografias
  assert.equal(status.scheduler.lastRunAt,'2026-11-05T03:18:00.000Z');
  assert.equal(status.approvedDocuments,0);
 });
+await check('tentativa em andamento há muito tempo é apresentada como interrompida',async()=>{
+ const oldTime=new Date(Date.now()-50*60*1000).toISOString();
+ const saved=await store.recordCompendiumSync({
+  documentId:'fb8-volume-ii-plantas',status:'in_progress',sections:0,
+  message:'Tentativa iniciada',checkedAt:oldTime
+ });
+ assert.equal(saved.ok,true);
+ const row=(await store.listCompendiumSync()).find(x=>x.documentId==='fb8-volume-ii-plantas');
+ assert.equal(row.status,'stalled');
+ assert.match(row.message,/sem conclusão/);
+ const status=await store.status();
+ assert.equal(status.autoSync.find(x=>x.documentId==='fb8-volume-ii-plantas').status,'stalled');
+ const recent=await store.recordCompendiumSync({
+  documentId:'fb8-volume-ii-plantas',status:'in_progress',sections:0,
+  message:'Nova tentativa iniciada',checkedAt:new Date().toISOString()
+ });
+ assert.equal(recent.ok,true);
+ assert.equal((await store.listCompendiumSync())[0].status,'in_progress');
+});
 await check('SQLite criou biblioteca científica e catálogo de 8 fontes',async()=>{
  const result=await store.status();
  assert.equal(result.approvedDocuments,0);

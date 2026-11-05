@@ -33,6 +33,20 @@ const allowedOfficialUrl=value=>{
  }catch(_){return false}
 };
 const str=(value,max=300)=>String(value??'').trim().slice(0,max);
+const STALLED_AFTER_MS=45*60*1000;
+function scientificSyncRow(x,now=Date.now()){
+ const at=Date.parse(String(x.checked_at||''));
+ const stalled=x.status==='in_progress'&&Number.isFinite(at)&&now-at>STALLED_AFTER_MS;
+ return {
+  documentId:x.document_id,
+  status:stalled?'stalled':x.status,checkedAt:x.checked_at,
+  sections:Number(x.sections)||0,
+  message:stalled?
+    'Tentativa sem conclusão há mais de 45 minutos. Pode ter sido interrompida por tempo, memória ou processo externo. Não significa importação concluída.':
+    x.message
+ };
+}
+
 async function sha256Hex(input){
  const bytes=new TextEncoder().encode(String(input));
  const digest=await crypto.subtle.digest('SHA-256',bytes);
@@ -238,8 +252,7 @@ export class LifeMagScientificStore extends DurableObject{
  async listCompendiumSync(){
   return this.sql.exec('SELECT document_id,status,checked_at,sections,message '+
    'FROM auto_compendium_sync ORDER BY checked_at DESC LIMIT 20').toArray()
-   .map(x=>({documentId:x.document_id,status:x.status,checkedAt:x.checked_at,
-     sections:Number(x.sections)||0,message:x.message}));
+   .map(x=>scientificSyncRow(x));
  }
  async recordCompendiumSync(entry){
   if(!/^[a-z0-9-]{4,80}$/.test(String(entry?.documentId||''))||
@@ -276,8 +289,7 @@ export class LifeMagScientificStore extends DurableObject{
   const extracting=this.sql.exec("SELECT COUNT(*) AS n FROM staged_compendia WHERE status='extracting'").one()?.n||0;
   const autoSync=this.sql.exec('SELECT document_id,status,checked_at,sections,message '+
    'FROM auto_compendium_sync ORDER BY checked_at DESC LIMIT 10').toArray()
-   .map(x=>({documentId:x.document_id,status:x.status,checkedAt:x.checked_at,
-     sections:Number(x.sections)||0,message:x.message}));
+   .map(x=>scientificSyncRow(x));
   const schedulerRow=this.sql.exec('SELECT status,last_run_at,detail '+
     'FROM scheduled_compendium_audit WHERE task_id=?','anvisa').toArray()[0];
   const scheduler=schedulerRow?{
