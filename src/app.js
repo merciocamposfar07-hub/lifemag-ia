@@ -1,5 +1,5 @@
 
-/* LifeMag IA v0.6.2 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
+/* LifeMag IA v0.6.3 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
 'use strict';
 const IMG = 'assets/icone-oficial-escuro.png';
 const iconPaths = {
@@ -319,7 +319,15 @@ async function sendScientificQuestion(v,question,useConsensus='auto'){
       activeCase.ingredients.slice(0,10).map(x=>x.name+' '+x.dose+' '+x.unit).join('; ')+
       '. Forma: '+activeCase.presentation+'. Proposta anterior: '+activeCase.formulaName+
       '. Avalie novamente toda a segurança e evidência para a dúvida seguinte.':'';
-    const questionWithContext=(question.slice(0,1800)+context.slice(0,650)).slice(0,2450);
+    // Em pesquisa sem cadastro, manter o contexto das últimas falas ANÔNIMAS.
+    // Não incluir prontuários, nomes de pacientes, fichas ou exames anexados.
+    // O formulário já inseriu a fala atual; excluir a última para não duplicar.
+    const previous=v===anonymousResearch?v.chat.filter(m=>m.role==='user')
+      .slice(-4,-1).map(m=>String(m.text||'').slice(0,600)).join(' | '):'';
+    const clinicalHistory=previous?'DADOS CLÍNICOS ANTERIORES: '+previous+
+      '\nINFORMAÇÃO NOVA: ':'';
+    const questionWithContext=(clinicalHistory+question.slice(0,1600)+
+      context.slice(0,350)).slice(0,2450);
     const response=await fetch('/api/assist',{method:'POST',credentials:'same-origin',
       headers:{'content-type':'application/json','accept':'application/json'},
       body:JSON.stringify({question:questionWithContext,useConsensus:aiSession.consensusReady?(useConsensus===true?true:'auto'):false})});
@@ -332,7 +340,7 @@ async function sendScientificQuestion(v,question,useConsensus='auto'){
       draft:result.draft&&typeof result.draft==='object'?result.draft:null,
       createdAt:new Date().toISOString(),requiresProfessionalReview:true});
     if(v!==anonymousResearch)persist();
-    toast('Resposta recebida. Verifique as fontes e revise clinicamente.');
+    toast(result.needsMoreInfo?'Responda às perguntas na mesma conversa.':'Resposta recebida. Revise as evidências e a proposta.');
     return true;
   }catch(error){
     const reason=String(error?.message||'Serviço científico indisponível').slice(0,160);
@@ -415,7 +423,7 @@ function startVisit(pid){if(!pid){toast('Cadastre ou selecione um paciente antes
 function pageLabel(){return {home:'Início',patients:'Pacientes',conversation:'Conversa Inteligente',editor:'Studio Magistral',formulas:'Minhas fórmulas',prescriptions:'Receituário',followup:'Acompanhamento',simulator:'Simulador',science:'Central Científica',docs:'Documentos',settings:'Configurações'}[ui.page]||'LifeMag IA';}
 function layout(){const count=getAlerts().length;return `<div class="app-shell ${ui.page==='home'?'is-home':''}">
 <aside class="side">${renderBrand()}<div class="side-label">ESPAÇO CLÍNICO</div><nav aria-label="Navegação principal">${navTop.map(([p,label,ic])=>`<button class="nav-item ${p===ui.page?'active':''}" data-page="${p}">${I(ic)} ${label}</button>`).join('')}</nav><div class="side-label">FERRAMENTAS ESPECIALIZADAS</div><nav aria-label="Ferramentas">${navBottom.map(([p,label,ic])=>`<button class="nav-item ${p===ui.page?'active':''}" data-page="${p}">${I(ic)} ${label}${p==='followup'&&count?` <span class="badge warn">${count}</span>`:''}</button>`).join('')}<button class="nav-item ${ui.page==='simulator'?'active':''}" data-page="simulator">${I('compare')} Simulador</button><button class="nav-item ${ui.page==='settings'?'active':''}" data-page="settings">${I('settings')} Configurações</button></nav><div class="side-footer">${I('shield',16)} <strong>Protótipo de desenvolvimento</strong><br>Utilize apenas dados fictícios. Sem proteção de prontuários ou validação clínica.</div></aside>
-<main class="main"><header class="topbar"><div class="mobile-brand">${renderBrand()}</div><span class="kicker">PAINEL CLÍNICO / ${E(pageLabel())}</span><div class="top-actions"><span class="badge neutral">v0.6.2</span><button class="round-icon" data-page="followup" aria-label="Acompanhamentos">${I('bell')}${count?`<span class="count-dot">${count}</span>`:''}</button><button class="round-icon" data-page="settings" aria-label="Foto e dados profissionais">${professionalPhotoSrc()?`<img class="profile-mini" src="${professionalPhotoSrc()}" alt="" />`:I('settings')}</button></div></header>${clinicalCloudMode?'<p class="clinical-sync" id="clinical-sync-state" role="status">'+E(clinicalSyncLabel())+'</p>':''}${pageContent()}</main></div>
+<main class="main"><header class="topbar"><div class="mobile-brand">${renderBrand()}</div><span class="kicker">PAINEL CLÍNICO / ${E(pageLabel())}</span><div class="top-actions"><span class="badge neutral">v0.6.3</span><button class="round-icon" data-page="followup" aria-label="Acompanhamentos">${I('bell')}${count?`<span class="count-dot">${count}</span>`:''}</button><button class="round-icon" data-page="settings" aria-label="Foto e dados profissionais">${professionalPhotoSrc()?`<img class="profile-mini" src="${professionalPhotoSrc()}" alt="" />`:I('settings')}</button></div></header>${clinicalCloudMode?'<p class="clinical-sync" id="clinical-sync-state" role="status">'+E(clinicalSyncLabel())+'</p>':''}${pageContent()}</main></div>
 <nav class="bottomnav" aria-label="Navegação principal e ferramentas"><button class="${ui.page==='home'?'active':''}" data-page="home" aria-label="Voltar ao início">${I('home')}<span>Início</span></button>${navBottom.map(([p,label,ic])=>`<button class="${p===ui.page?'active':''} ${p==='conversation'?'ai-center':''}" data-page="${p}" ${p==='conversation'?'aria-label="Abrir Conversa Inteligente"':''}>${p==='conversation'?`<span class="ai-orb">${I('sparkles',29)}</span>`:I(ic)}<span>${label}</span></button>`).join('')}</nav>`;}
 function pageHeader(title,desc,right=''){return `<div class="pageheader"><div><h1>${title}</h1><p>${desc}</p></div><div>${right}</div></div>`;}
 function empty(title,desc,iconName='info'){return `<div class="empty">${I(iconName,32)}<strong>${E(title)}</strong><br>${E(desc)}</div>`;}
@@ -548,7 +556,7 @@ function scientificOnly(){
       ?'<div class="chat-sources"><strong>Fontes recuperadas:</strong>'+
         m.sources.map(ref=>'<a target="_blank" rel="noopener noreferrer" href="'+E(ref.url)+'">'+E(ref.title||'PubMed')+'</a>').join('')+'</div>'
       :'';
-    return '<article class="chat-bubble '+(m.role==='assistant'?'assistant':'user')+'"><div class="chat-label">'+label+'</div><div class="chat-text">'+E(m.text)+'</div>'+sources+(m.role==='assistant'&&m.draft?'<button type="button" class="btn compact" data-save-anon-draft="'+E(m.id)+'">Salvar proposta como rascunho anônimo</button>':'')+'</article>';
+    return '<article class="chat-bubble '+(m.role==='assistant'?'assistant':'user')+'"><div class="chat-label">'+label+'</div><div class="chat-text">'+E(m.text)+'</div>'+sources+(m.role==='assistant'&&m.draft?.decision==='draft'&&m.draft?.ingredients?.length?'<button type="button" class="btn compact" data-save-anon-draft="'+E(m.id)+'">Salvar proposta como rascunho anônimo</button>':'')+'</article>';
   }).join('');
   const disabled=aiSession.busy?'disabled':'';
   const submitLabel=aiSession.busy?'Consultando fontes...':I('send');
@@ -557,12 +565,12 @@ function scientificOnly(){
     '<div class="panel research-panel">'+
     '<div class="research-title"><h3>O que deseja pesquisar?</h3>'+
     '<span class="research-indicator '+(online?'connected':'offline')+'">'+E(indicator)+'</span></div>'+
-    '<p class="research-intro">Descreva o objetivo terapêutico e os dados clínicos anônimos disponíveis. A IA entregará primeiro uma proposta magistral estruturada, sujeita à revisão profissional.</p>'+
+    '<p class="research-intro">Descreva o objetivo terapêutico e os dados clínicos anônimos disponíveis. A IA deve considerar o que já foi informado, perguntar apenas o que faltar e, quando houver fundamentação suficiente, apresentar uma proposta magistral editável para revisão.</p>'+
     '<form id="research-form" class="chat-input research-input">'+
     '<textarea name="message" maxlength="2500" rows="3" required placeholder="Ex.: Mulher, 35 anos, 70 kg, sem medicamentos e sem alergias conhecidas, com enxaqueca. Quais opções magistrais têm evidências e doses estudadas?"></textarea>'+
     '<button type="submit" class="btn primary" '+disabled+' aria-label="Gerar proposta de formulação baseada em evidências">'+submitLabel+'</button>'+
     '</form>'+
-    '<p class="research-privacy">Somente perguntas anônimas. Sem idade, medicamentos, alergias ou evidência suficiente, a IA deve indicar o que falta antes de liberar doses.</p>'+
+    '<p class="research-privacy">Somente dados clínicos anônimos. Informe os complementos na mesma conversa; sem dados suficientes, a IA solicita esclarecimentos antes de individualizar doses.</p>'+
     (history?'<div class="research-history" role="log" aria-live="polite">'+history+'</div>':'')+
     '</div>'+
     renderAnonymousDrafts()+
@@ -687,7 +695,7 @@ function science(){
    }
  }
  const busy=scienceCheck.busy?'disabled':'';
- return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.6.2.')+
+ return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.6.3.')+
  '<div class="notice blue"><strong>Consulta científica automática:</strong> o LifeMag IA pesquisa artigos PubMed, o índice privado e páginas oficiais da Anvisa, sem você selecionar PDFs. Páginas institucionais não substituem monografias nem validam doses. O teste do motor usa somente caso fictício.</div>'+
  '<div class="panel"><h3>Diagnóstico de conexão</h3>'+
  '<p class="muted small">Verifique a recuperação de artigos gratuitamente. O autoteste completo também executa o modelo de IA e consome parte da franquia Workers AI.</p>'+
