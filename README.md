@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** v0.4.8 • consulta automática PubMed + páginas oficiais Anvisa + SQLite científico; cron Cloudflare preparado para tentar extrair gradualmente os PDFs públicos compatíveis, com erro e cobertura auditáveis. Conteúdos integrais ainda não estão confirmados nem aprovados.
+**Status:** v0.4.9 • consulta automática PubMed + páginas oficiais Anvisa + SQLite científico; cron Cloudflare preparado para tentar extrair gradualmente os PDFs públicos compatíveis, com erro e cobertura auditáveis. Conteúdos integrais ainda não estão confirmados nem aprovados.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
