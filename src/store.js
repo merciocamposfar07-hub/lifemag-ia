@@ -7,6 +7,7 @@ const initialState = () => ({
   visits: [],
   // Apenas rascunhos ANÔNIMOS de formulações; sem cadastro ou exames reais.
   anonymousDrafts: [],
+  researchMessages: [],
   settings: {
     professional: 'Dr. Mércio Campos', role: 'Farmacêutico Clínico', crf: 'CRF-PE 07880',
     workplace: 'Farmácia Barata do Trabalhador', address: 'Av. São José, 44 — Centro — Chã Grande/PE',
