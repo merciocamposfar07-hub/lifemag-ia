@@ -41,6 +41,20 @@ const source={
 };
 let ok=0;
 const check=async(name,fn)=>{await fn();ok++;console.log('PASSOU:',name)};
+await check('heartbeat do Cron fica persistido no SQLite sem aprovar monografias',async()=>{
+ const start=await store.recordScheduledRun({
+  status:'started',at:'2026-11-05T03:17:00.000Z',detail:'Coleta iniciada'
+ });
+ assert.equal(start.ok,true);
+ const done=await store.recordScheduledRun({
+  status:'finished',at:'2026-11-05T03:18:00.000Z',detail:'Falha de acesso externo registrada'
+ });
+ assert.equal(done.ok,true);
+ const status=await store.status();
+ assert.equal(status.scheduler.status,'finished');
+ assert.equal(status.scheduler.lastRunAt,'2026-11-05T03:18:00.000Z');
+ assert.equal(status.approvedDocuments,0);
+});
 await check('SQLite criou biblioteca científica e catálogo de 8 fontes',async()=>{
  const result=await store.status();
  assert.equal(result.approvedDocuments,0);

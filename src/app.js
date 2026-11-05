@@ -1,5 +1,5 @@
 
-/* LifeMag IA v0.4.9 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
+/* LifeMag IA v0.5.1 — pesquisa científica autenticada, biblioteca SQLite e rascunhos para revisão; NÃO usar pacientes reais. */
 'use strict';
 const IMG = 'assets/icone-oficial-escuro.png';
 const iconPaths = {
@@ -531,6 +531,12 @@ function science(){
       '<div class="listline"><strong>Anvisa online: '+E(x.anvisaOnline?.status||'não verificado')+
       '</strong><p>'+E(String(x.anvisaOnline?.reachable||0))+'/'+E(String(x.anvisaOnline?.checked||0))+
       ' páginas oficiais acessíveis; conteúdo institucional, não monografia integral.</p></div>'+
+      '<div class="listline"><strong>Agendamento Cloudflare</strong><p>'+
+        (x.officialIndex?.scheduler?
+         E(x.officialIndex.scheduler.status)+' · '+E(x.officialIndex.scheduler.lastRunAt)+
+         ' · '+E(x.officialIndex.scheduler.detail||''):
+         'Nenhuma execução do agendamento registrada no SQLite')+
+      '</p></div>'+
       (Array.isArray(x.officialIndex?.autoSync)&&x.officialIndex.autoSync.length?
        '<div class="listline"><strong>Sincronização automática de PDFs</strong>'+
        x.officialIndex.autoSync.map(v=>'<p>'+E(v.documentId)+': '+E(v.status)+
@@ -556,7 +562,7 @@ function science(){
    }
  }
  const busy=scienceCheck.busy?'disabled':'';
- return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.4.9.')+
+ return pageHeader('Central de Atualização Científica','Conexões científicas automáticas do motor magistral · v0.5.1.')+
  '<div class="notice blue"><strong>Consulta científica automática:</strong> o LifeMag IA pesquisa artigos PubMed, o índice privado e páginas oficiais da Anvisa, sem você selecionar PDFs. Páginas institucionais não substituem monografias nem validam doses. O teste do motor usa somente caso fictício.</div>'+
  '<div class="panel"><h3>Diagnóstico de conexão</h3>'+
  '<p class="muted small">Verifique a recuperação de artigos gratuitamente. O autoteste completo também executa o modelo de IA e consome parte da franquia Workers AI.</p>'+

@@ -84,7 +84,10 @@ export class LifeMagScientificStore extends DurableObject{
    'page_start INTEGER NOT NULL,page_end INTEGER NOT NULL,total_pages INTEGER NOT NULL);'+
    'CREATE TABLE IF NOT EXISTS auto_compendium_sync ('+
    'document_id TEXT PRIMARY KEY,status TEXT NOT NULL,checked_at TEXT NOT NULL,'+
-   'sections INTEGER NOT NULL DEFAULT 0,message TEXT NOT NULL);'
+   'sections INTEGER NOT NULL DEFAULT 0,message TEXT NOT NULL);'+
+   'CREATE TABLE IF NOT EXISTS scheduled_compendium_audit ('+
+   'task_id TEXT PRIMARY KEY,status TEXT NOT NULL,'+
+   'last_run_at TEXT NOT NULL,detail TEXT NOT NULL);'
   );
   for(const [id,name,kind,url] of SEEDS){
    this.sql.exec('INSERT OR IGNORE INTO sources(id,name,kind,url,status) VALUES(?,?,?,?,?)',
@@ -222,6 +225,16 @@ export class LifeMagScientificStore extends DurableObject{
     reviewStatus:'pending_review',clinicalApproval:false};
   });
  }
+ async recordScheduledRun(event){
+  if(!['started','finished','failed','not_configured'].includes(event?.status)||
+    Number.isNaN(Date.parse(String(event?.at||''))))
+   return {ok:false,error:'Evento de agendamento inválido'};
+  this.sql.exec('INSERT INTO scheduled_compendium_audit(task_id,status,last_run_at,detail)'+
+    ' VALUES(?,?,?,?) ON CONFLICT(task_id) DO UPDATE SET '+
+    'status=excluded.status,last_run_at=excluded.last_run_at,detail=excluded.detail',
+    'anvisa',event.status,str(event.at,45),str(event.detail,220));
+  return {ok:true};
+ }
  async listCompendiumSync(){
   return this.sql.exec('SELECT document_id,status,checked_at,sections,message '+
    'FROM auto_compendium_sync ORDER BY checked_at DESC LIMIT 20').toArray()
@@ -265,7 +278,13 @@ export class LifeMagScientificStore extends DurableObject{
    'FROM auto_compendium_sync ORDER BY checked_at DESC LIMIT 10').toArray()
    .map(x=>({documentId:x.document_id,status:x.status,checkedAt:x.checked_at,
      sections:Number(x.sections)||0,message:x.message}));
-  return {autoSync,status:documents&&passages?'approved_content_available':
+  const schedulerRow=this.sql.exec('SELECT status,last_run_at,detail '+
+    'FROM scheduled_compendium_audit WHERE task_id=?','anvisa').toArray()[0];
+  const scheduler=schedulerRow?{
+    status:schedulerRow.status,lastRunAt:schedulerRow.last_run_at,
+    detail:schedulerRow.detail
+  }:null;
+  return {autoSync,scheduler,status:documents&&passages?'approved_content_available':
    overviewSections?'official_overviews_available':'configured_empty_or_unverified',
    approvedDocuments:documents,approvedPassages:passages,overviewSections,sources,
    pendingReviewDocuments:Number(pending)||0,incompleteExtracts:Number(extracting)||0,
