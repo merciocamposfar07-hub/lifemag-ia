@@ -230,7 +230,7 @@ export class LifeMagScientificStore extends DurableObject{
  }
  async recordCompendiumSync(entry){
   if(!/^[a-z0-9-]{4,80}$/.test(String(entry?.documentId||''))||
-     !['extracted_pending_review','import_failed'].includes(entry?.status)||
+     !['extracted_pending_review','import_failed','in_progress'].includes(entry?.status)||
      !Number.isSafeInteger(Number(entry.sections))||Number(entry.sections)<0||
      Number.isNaN(Date.parse(String(entry.checkedAt||''))))
    return {ok:false,error:'Registro de sincronização inválido'};
