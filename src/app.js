@@ -463,7 +463,7 @@ function science(){
  (checkResult?'<div class="science-check-result" aria-live="polite">'+checkResult+'</div>':'')+
  '</div>'+
  '<div class="panel anvisa-import" style="margin-top:14px"><h3>Importação dos compêndios da Anvisa — edições 2026</h3>'+
- '<p class="muted small">Arquivos cadastrados de fontes públicas. O Worker poderá obter e converter os PDFs em texto pesquisável, que ficará em quarentena até revisão. Isso não libera uma monografia automaticamente.</p>'+
+ '<p class="muted small">O Worker converterá os PDFs em texto para a biblioteca privada. A extração preserva conteúdo para pesquisa, mas tabelas, unidades e capítulos devem ser conferidos antes de liberar doses. Limite atual: 46 MiB por PDF.</p>'+
  officialAnvisaDocuments.map(([id,title,desc,hasMirror])=>{
    const job=anvisaImport.records.find(x=>x.id.startsWith(id+'-'));
    const disabled=anvisaImport.busy||!aiSession.indexReady;
@@ -489,10 +489,10 @@ function science(){
  (scienceCheck.searchError?'<p role="alert" class="muted">'+E(scienceCheck.searchError)+'</p>':'')+
  (scienceCheck.libraryResults?'<div class="science-library-results" aria-live="polite"><p class="muted small">'+
  E(String(scienceCheck.libraryResults.results?.length||0))+' resultados · '+E(String(scienceCheck.libraryResults.reviewedCount||0))+
- ' trechos de documentos revisados · '+E(String(scienceCheck.libraryResults.overviewCount||0))+
+ ' trechos de documentos revisados · '+E(String(scienceCheck.libraryResults.unreviewedCount||0))+' trechos de PDF ainda não conferidos · '+E(String(scienceCheck.libraryResults.overviewCount||0))+
  ' sinopses institucionais</p>'+
  (scienceCheck.libraryResults.results||[]).map(x=>'<article class="listline"><div><strong>'+E(x.title)+
- '</strong><p>'+E(x.evidenceTier==='reviewed_document'?'Documento revisado':'Sinopse institucional (não é dose clínica)')+
+ '</strong><p>'+E(x.evidenceTier==='reviewed_document'?'Documento revisado':x.evidenceTier==='extracted_unreviewed'?'PDF oficial extraído — revisão pendente; não valida dose':'Sinopse institucional (não é dose clínica)')+
  ' · '+E(x.journal||'Fonte oficial')+'</p><p>'+E(String(x.abstract||'').slice(0,800))+'</p>'+
  '<a target="_blank" rel="noopener noreferrer" href="'+E(x.url)+'">Consultar fonte oficial</a></div></article>').join('')+
  '</div>':'')+'</div>'+
