@@ -5,8 +5,8 @@ import {ANVISA_CATALOG} from './anvisa-catalog.js';
 import {importAnvisaCompendium,MAX_COMPENDIUM_BYTES} from './anvisa-importer.js';
 
 export const AUTO_COMPENDIA = ANVISA_CATALOG
- .filter(x=>x.verifiedMirrorUrl&&x.knownSizeBytes&&
-   x.knownSizeBytes<=MAX_COMPENDIUM_BYTES)
+ .filter(x=>x.verifiedMirrorUrl&&
+   (x.knownSizeBytes==null||x.knownSizeBytes<=MAX_COMPENDIUM_BYTES))
  .map(x=>({id:x.id,sourceId:x.sourceId,title:x.title}));
 
 // A cada dia, tenta somente UM documento: reduz consumo de RAM e de Workers AI.
