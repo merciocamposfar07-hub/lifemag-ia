@@ -71,7 +71,7 @@ export class LifeMagClinicalRecords extends DurableObject{
   const next=existing+1;
   const at=new Date().toISOString();
   // Durable Object serializa os pedidos de atualização deste profissional.
-  this.ctx.storage.transactionSync(()=>{
+  try{this.ctx.storage.transactionSync(()=>{
    const current=this.sql.exec('SELECT revision FROM clinical_state WHERE id=1').toArray()[0];
    if((Number(current?.revision)||0)!==revision)throw Error('REVISION_CONFLICT');
    this.sql.exec('INSERT INTO clinical_state (id,revision,payload,updated_at) VALUES (1,?,?,?) '+
@@ -79,7 +79,11 @@ export class LifeMagClinicalRecords extends DurableObject{
     'payload=excluded.payload,updated_at=excluded.updated_at',next,json,at);
    this.sql.exec('INSERT INTO clinical_audit (revision,action,at,patient_count,visit_count) '+
     'VALUES (?,?,?,?,?)',next,action,at,state.patients.length,state.visits.length);
-  });
+  });}catch(error){
+   if(error?.message==='REVISION_CONFLICT')
+    return {ok:false,status:409,error:'Conflito entre sessões: atualização recusada'};
+   throw error;
+  }
   return {ok:true,revision:next,updatedAt:at};
  }
  async audit(){

@@ -2,6 +2,7 @@ import {STATIC_ASSETS} from './assets.generated.mjs';
 import {searchIndexedEvidence} from './science-index.js';
 export {LifeMagScientificStore} from './science-do.js';
 export {LifeMagIngestionCoordinator} from './ingestion-coordinator.js';
+export {LifeMagClinicalRecords} from './clinical-records.js';
 import {searchConsensus} from './consensus.js';
 import {FORMULA_SCHEMA,normalizeDraft,draftAsText} from './clinical-draft.js';
 import {ANVISA_CATALOG} from './anvisa-catalog.js';
@@ -11,7 +12,7 @@ import {importAnvisaCompendium,convertAnvisaDocument,MAX_COMPENDIUM_BYTES} from 
  * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
  * Nenhum texto clínico é registrado em logs.
  */
-const RELEASE='0.5.6';
+const RELEASE='0.6.0';
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -42,6 +43,13 @@ async function verifyAccess(request,env,ctx){
     }
     return {email,aud:ctx.access.aud};
   }catch(_){return null}
+}
+async function personalClinicalStore(env,identity){
+ if(!env.CLINICAL_RECORDS)return null;
+ const bytes=new TextEncoder().encode(identity.email);
+ const hash=await crypto.subtle.digest('SHA-256',bytes);
+ const hex=Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
+ return env.CLINICAL_RECORDS.getByName('professional-'+hex);
 }
 function stripMarkup(s){
   return String(s||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
@@ -380,10 +388,43 @@ export default {
     if(!identity)return reply({error:'Acesso profissional não autenticado pelo Cloudflare Access'},401);
     if(url.pathname==='/api/capabilities'&&request.method==='GET'){
       return reply({ready:!!env.AI,science:'Europe PMC (resumos indexados no PubMed)',
-        official:OFFICIAL,model:MODEL,version:RELEASE,clinicalRecordStorage:false,authenticated:true,
+        official:OFFICIAL,model:MODEL,version:RELEASE,clinicalRecordStorage:!!env.CLINICAL_RECORDS,authenticated:true,
         internalScienceIndex:env.SCIENCE_LIBRARY?'durable_sqlite_configured':env.SCIENCE_DB?'binding_configured':'not_configured',consensus:env.CONSENSUS_API_KEY?'key_configured':'not_configured',
         formulaDraft:'structured_review_only',automaticAnvisaOnline:true,
         anvisaOnlineCoverage:'institutional_pages_only_no_full_monographs'})
+    }
+    if(url.pathname==='/api/clinical/state'&&request.method==='GET'){
+      try{
+        const store=await personalClinicalStore(env,identity);
+        if(!store)return reply({error:'Armazenamento clínico indisponível'},503);
+        const result=await store.read();
+        return reply(result,result.ok?200:503);
+      }catch(_){return reply({error:'Não foi possível consultar o registro clínico seguro'},503)}
+    }
+    if(url.pathname==='/api/clinical/state'&&request.method==='PUT'){
+      if(request.headers.get('origin')!==url.origin)
+        return reply({error:'Origem não autorizada para dados clínicos'},403);
+      if(!String(request.headers.get('content-type')||'').toLowerCase().includes('application/json'))
+        return reply({error:'Envie dados clínicos em JSON'},415);
+      const maximum=2*1024*1024+1024;
+      if(Number(request.headers.get('content-length')||0)>maximum)
+        return reply({error:'Registro clínico excede tamanho máximo'},413);
+      let params;
+      try{
+        const raw=await request.text();
+        if(raw.length>maximum)throw Error('size');
+        params=JSON.parse(raw);
+      }catch(_){return reply({error:'Dados clínicos ilegíveis ou maiores que o limite'},400)}
+      try{
+        const store=await personalClinicalStore(env,identity);
+        if(!store)return reply({error:'Armazenamento clínico indisponível'},503);
+        const saved=await store.save({
+          revision:params?.revision,
+          state:params?.state,
+          action:params?.action==='delete'?'delete':'update'
+        });
+        return reply(saved,saved.ok?200:saved.status||503);
+      }catch(_){return reply({error:'Não foi possível persistir o registro clínico'},503)}
     }
     if(url.pathname==='/api/science/search'&&request.method==='GET'){
       const q=String(url.searchParams.get('q')||'').trim();

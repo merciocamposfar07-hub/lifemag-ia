@@ -14,6 +14,10 @@
       {
         "name": "INGEST_COORDINATOR",
         "class_name": "LifeMagIngestionCoordinator"
+      },
+      {
+        "name": "CLINICAL_RECORDS",
+        "class_name": "LifeMagClinicalRecords"
       }
     ]
   },
@@ -23,6 +27,10 @@
       "storage": "sqlite"
     },
     "LifeMagIngestionCoordinator": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    "LifeMagClinicalRecords": {
       "type": "durable-object",
       "storage": "sqlite"
     }
