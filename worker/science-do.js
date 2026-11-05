@@ -116,7 +116,7 @@ export class LifeMagScientificStore extends DurableObject{
    this.sql.exec('DELETE FROM staged_compendia WHERE id=?',meta.id);
    this.sql.exec(
     'INSERT INTO staged_compendia(id,source_id,title,edition,official_url,mirror_url,pdf_sha256,'+
-    'submitted_by,status,sections,created_at) VALUES(?,?,?,?,?,?,?,?,"extracting",0,?)',
+    "submitted_by,status,sections,created_at) VALUES(?,?,?,?,?,?,?,?,'extracting',0,?)",
     str(meta.id,80),str(meta.sourceId,90),str(meta.title,300),
     str(meta.edition,80),str(meta.officialUrl,600),str(meta.mirrorUrl,600),
     str(meta.pdfSha256,64),str(meta.submittedBy,130),
