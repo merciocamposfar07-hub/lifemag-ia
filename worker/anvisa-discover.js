@@ -53,7 +53,8 @@ export async function discoverOfficialAnvisaPdf(entry,fetcher=fetch){
   let url;
   try{url=new URL(raw,page.href)}catch(_){continue}
   if(url.protocol!=='https:'||url.hostname!==HOST)continue;
-  const path=decodeURIComponent(url.pathname);
+  let path;
+  try{path=decodeURIComponent(url.pathname)}catch(_){continue}
   const prefix=new RegExp('^/(?:jspui/)?bitstream/anvisa/'+itemId+'/');
   if(prefix.test(path)&&path.toLowerCase().endsWith('.pdf'))
    return {ok:true,url:url.href,provenance:page.href};
