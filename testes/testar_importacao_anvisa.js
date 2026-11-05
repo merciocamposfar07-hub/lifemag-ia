@@ -62,13 +62,36 @@ async function main(){
   assert.equal((await convertAnvisaDocument(source.id,new ArrayBuffer(10),env,identity)).status,413);
   assert.equal((await convertAnvisaDocument('inventado',buffer,env,identity)).status,400);
  });
- await check('volume sem espelho tenta apenas página oficial e respeita HTTP 403',async()=>{
+ await check('volume sem espelho tenta PDF oficial e respeita HTTP 403',async()=>{
   let requests=0;
   const result=await importAnvisaCompendium('fb8-volume-ii-insumos',env,identity,
    async()=>{requests++;return new Response('Forbidden',{status:403})});
   assert.equal(result.ok,false);assert.equal(result.status,502);
   assert.match(result.error,/HTTP 403/);
-  assert.equal(requests,1);
+  assert.equal(requests,2);
+ });
+ await check('URL oficial direta converte mesmo se a página canônica estiver inacessível',async()=>{
+  const urls=[];const entry=ANVISA_CATALOG.find(x=>x.id==='fb8-volume-ii-insumos');
+  const result=await importAnvisaCompendium(entry.id,env,identity,async url=>{
+   urls.push(String(url));
+   return new Response(buffer,{status:200,headers:{'content-type':'application/pdf'}});
+  });
+  assert.equal(result.ok,true);
+  assert.equal(urls.length,1);
+  assert.equal(urls[0],entry.officialPdfUrl);
+  assert.equal(result.reviewStatus,'pending_review');
+  assert.equal(approved,0);
+ });
+ await check('servidor não aceita PDF redirecionado para outro volume oficial',async()=>{
+  const entry=ANVISA_CATALOG.find(x=>x.id==='fb8-volume-ii-dispositivos');
+  const forbidden='https://bibliotecadigital.anvisa.gov.br/jspui/bitstream/anvisa/21042/3/outro.pdf';
+  const result=await importAnvisaCompendium(entry.id,env,identity,async url=>{
+   if(String(url)===entry.canonicalUrl)return new Response('Acesso negado',{status:403});
+   return {ok:true,url:forbidden,headers:new Headers({'content-type':'application/pdf'}),
+    body:new ReadableStream({start(c){c.enqueue(new Uint8Array(buffer));c.close()}})};
+  });
+  assert.equal(result.ok,false);
+  assert.match(result.error,/Redirecionamento|HTTP 403/);
  });
  await check('manifesto de páginas rejeita intervalos inválidos',async()=>{
   const part={catalogId:source.id,originalSha256:'b'.repeat(64),
