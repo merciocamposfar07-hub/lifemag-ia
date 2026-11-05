@@ -726,3 +726,18 @@ body{color:#122e49}
  .science-check-result .science-data-row>strong{font-size:17px}
  .science-check-result p{font-size:16px}
 }
+
+/* v0.6.0 — proteção visível do prontuário em Cloudflare Access */
+.clinical-gate{max-width:640px;margin:9vh auto;padding:30px 24px;
+ background:#fff;border:1px solid #cadce8;border-radius:22px;
+ color:#17374f;text-align:center;box-shadow:0 8px 35px #12365a14}
+.clinical-gate h1{font-size:27px;margin:12px 0}
+.clinical-gate p{font-size:17px;line-height:1.6;color:#2d4c65}
+.clinical-gate .btn{font-size:16px;min-height:49px}
+.clinical-sync{font-size:15px;line-height:1.45;font-weight:750;color:#0c5679;
+ padding:10px 13px;margin:0 0 13px;background:#eaf6f9;
+ border:1px solid #c3e1e9;border-radius:12px;overflow-wrap:anywhere}
+@media(max-width:760px){
+ .clinical-gate{margin:8vh 14px 0;padding:26px 18px}
+ .clinical-sync{font-size:16px}
+}
