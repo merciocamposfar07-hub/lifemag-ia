@@ -92,6 +92,24 @@ const cases = [
     assert.equal(draft.linkedVisitId,visit.id);
     assert.equal(api.linkAnonymousDraftToPatient(state,draft.id,'p-demo'),null);
   }],
+  ['custo-benefício exclui opcionais automaticamente e mantém motor e coadjuvante', () => {
+    const st=api.initialState();
+    st.patients.push({id:'p-test',name:'Paciente simulado',phone:'000'});
+    const d=api.createAnonymousFormulaDraft(st,{decision:'preliminary_draft',
+      formula_name:'B12 com opções',ingredients:[
+       {name:'Vitamina B12',dose_value:'1000',dose_unit:'mcg',role:'MOTOR',
+        references:['NICE-B12'],dose_supported:true},
+       {name:'Vitamina D3',dose_value:'600',dose_unit:'UI',role:'OPCIONAL',
+        references:['NIH-D'],dose_supported:true}
+      ]},'Caso 05');
+    assert.equal(d.ingredients.length,2);
+    const visit=api.linkAnonymousDraftToPatient(st,d.id,'p-test');
+    assert.ok(visit);
+    assert.equal(visit.ingredients.length,1);
+    assert.equal(visit.ingredients[0].name,'Vitamina B12');
+    assert.match(visit.observations,/OPCIONAIS/);
+    assert.equal(visit.aiDraftPendingReview,true);
+  }],
   ['recuperação de armazenamento corrompido', () => {
     localStorage.setItem('lifemag-prototype-v0.1.0', '{invalido');
     assert.equal(api.readStore().patients.length, 0);
