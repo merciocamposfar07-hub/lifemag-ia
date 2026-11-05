@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 async function main(){
-  const {normalizeDraft,draftAsText,FORMULA_SCHEMA}=await import('../worker/clinical-draft.js');
+  const {normalizeDraft,draftAsText,FORMULA_SCHEMA,missingClinicalBasics,screenClinicalQuestion}=await import('../worker/clinical-draft.js');
   const evidence=[{id:'1',abstract:'In adults with migraine, riboflavin 400 mg per day was evaluated for prophylaxis.',url:'https://pubmed.ncbi.nlm.nih.gov/12345678/'}];
   const basic=()=>({
     decision:'draft',objective:'Profilaxia da enxaqueca',formula_name:'Riboflavina',quantity:'30 cápsulas',
@@ -15,6 +15,48 @@ async function main(){
   });
   let passed=0,fail=0;
   async function check(name,fn){try{await fn();passed++;console.log('PASSOU:',name)}catch(e){fail++;console.error('FALHOU:',name,e);process.exitCode=1}}
+  await check('caso gravado: idade, sexo, peso informal, alergias e medicamentos são reconhecidos',async()=>{
+    const input='Homem de 41 anos, 68,0 de peso, não tem alergias e não faz uso de medicação contínua. Sente indisposição, cansaço, fadiga. Qual formulação sugerida?';
+    const missing=missingClinicalBasics(input);
+    assert.ok(!missing.includes('Sexo para individualização clínica'));
+    assert.ok(!missing.includes('Faixa etária ou idade'));
+    assert.ok(!missing.includes('Peso corporal em kg'));
+    assert.ok(!missing.includes('Alergias e reações anteriores'));
+    assert.ok(!missing.includes('Medicamentos e suplementos em uso, ou confirmação de ausência'));
+    assert.ok(missing.includes('Comorbidades, antecedentes e fatores de risco'));
+  });
+  await check('fadiga isolada não vira falso sinal de alarme nem receita vazia',async()=>{
+    const input='Homem de 41 anos, 68,0 de peso, não tem alergias e não faz uso de medicação contínua. Sente indisposição, cansaço, fadiga. Qual formulação sugerida?';
+    const triage=screenClinicalQuestion(input);
+    assert.equal(triage.decision,'insufficient_info');
+    assert.deepEqual(triage.red_flags,[]);
+    const answer=draftAsText(triage);
+    assert.ok(answer.includes('INFORMAÇÕES PARA CONTINUAR'));
+    assert.ok(answer.includes('sono'));
+    assert.ok(answer.includes('Há quanto tempo'));
+    assert.ok(!answer.includes('QUANTIDADE PARA MANIPULAR'));
+    assert.ok(!answer.includes('SINAIS DE ALERTA'));
+  });
+  await check('esclarecimentos na mesma conversa retomam avaliação, não reiniciam idade e peso',async()=>{
+    const input='Homem de 41 anos, 68,0 de peso, sem alergias, não usa medicamentos, não possui doenças conhecidas. Sente fadiga. Há 3 semanas, dorme bem. Exames recentes disponíveis.';
+    assert.equal(screenClinicalQuestion(input),null);
+  });
+  await check('negação de falta de ar não inventa sinal de alerta',async()=>{
+    const input='Homem de 41 anos, 68 kg, sem alergias, sem medicamentos, com fadiga, sem falta de ar';
+    assert.equal(screenClinicalQuestion(input).decision,'insufficient_info');
+  });
+  await check('dor no peito relatada com fadiga exige avaliação prioritária',async()=>{
+    const input='Homem de 41 anos, 68 kg, sem alergias, sem medicamentos, com fadiga e dor no peito';
+    assert.equal(screenClinicalQuestion(input).decision,'red_flags');
+  });
+  await check('modelo que inventa sinal de alerta não ultrapassa triagem clínica',async()=>{
+    const fake=basic();
+    fake.decision='red_flags';fake.red_flags=['necessidade de investigar causa da fadiga'];
+    const input='Homem de 41 anos, 68 kg, sem alergias, sem medicamentos, com fadiga';
+    const out=normalizeDraft(fake,evidence,input);
+    assert.equal(out.decision,'insufficient_info');
+    assert.deepEqual(out.red_flags,[]);
+  });
   await check('schema exige todos campos e composição',async()=>{
     assert.ok(FORMULA_SCHEMA.required.includes('ingredients'));
     assert.ok(FORMULA_SCHEMA.required.includes('meal_relation'));
