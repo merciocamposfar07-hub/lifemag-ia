@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** v0.4.9 • consulta automática PubMed + páginas oficiais Anvisa + SQLite científico; cron Cloudflare preparado para tentar extrair gradualmente os PDFs públicos compatíveis, com erro e cobertura auditáveis. Conteúdos integrais ainda não estão confirmados nem aprovados.
+**Status:** v0.5.2 • consulta automática PubMed + páginas oficiais Anvisa + SQLite científico; cron Cloudflare preparado para tentar extrair gradualmente os PDFs públicos compatíveis, com erro e cobertura auditáveis. Conteúdos integrais ainda não estão confirmados nem aprovados.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -173,3 +173,13 @@ A Central Científica admite arquivos divididos em partes, com `manifesto-anvisa
 - Tentativas e erros ficam em `auto_compendium_sync`, recuperados pelo `GET /api/source-status` em `officialIndex.autoSync`. Sem registro, a tela declara **nenhuma tentativa registrada**, não diz que sincronizou.
 - Ainda faltam: confirmar a publicação do Worker protegido com Cron e binding AI, verificar as extrações com PDFs reais, cobrir arquivos sem cópia pública compatível (incluindo plantas acima do limite) e revisar monografias.
 - A conclusão do GitHub Pages **não equivale à implantação do Cloudflare Worker**. O Cron não funcionará até a configuração Cloudflare correspondente estar publicada.
+
+
+## v0.5.2 — plantas medicinais e importação com alarme Durable Object
+
+- O PDF de **Plantas Medicinais** da Farmacopeia 8ª edição, conhecido com aproximadamente 55 MB, voltou à lista de importação automática e tem **prioridade**. Só esse identificador usa teto de tentativa de **62 MiB**; os demais continuam com 46 MiB.
+- A leitura de PDFs acontece num **coordenador Durable Object** com alarme persistente, reduzindo a exposição ao limite de CPU de 10 ms do Worker Free. O armazenamento das monografias continua no SQLite científico protegido e aguarda revisão profissional.
+- O Cron do Worker apenas solicita ao coordenador a próxima operação. O botão **Atualizar compêndios agora** na Central Científica chama, sem upload de arquivos, `POST /api/science/sync-anvisa`, protegido pelo login Cloudflare Access e por verificação de mesma origem.
+- O banco registra `scheduler.status`, `scheduler.lastRunAt`, `scheduler.detail` e `autoSync`. Ausência de registro indica **execução não comprovada**, não base concluída.
+- **Validação registrada em vídeo pelo proprietário em 05/11/2026 03:07 UTC, versão 0.4.9:** PubMed retornou 5 estudos; índice SQLite conectado; 0 documentos aprovados, 0 pendentes, `autoSync=[]`; páginas oficiais online 0 de 3, Workers AI vinculado mas não testado. Esta é a **linha de base anterior à mudança 0.5.2**.
+- A etapa de captura integral ainda exige aferir resultados reais do alarme. PDF com falha de memória, tempo ou conversão permanece como erro explícito, sem prescrição. A preparação segmentada externa existe como alternativa, mas não é ativada automaticamente pelo Worker.
