@@ -1,6 +1,6 @@
 # LifeMag IA — Prescrição Magistral Inteligente
 
-**Status:** v0.6.1 • Conversa Inteligente com PubMed e Consensus complementar sob cota; banco clínico SQLite separado por profissional (Cloudflare Access). Testes automáticos aprovados. Uso com pacientes reais requer verificação funcional autenticada, revisão de privacidade e validação farmacêutica; a IA gera rascunhos, não prescrições autônomas.
+**Status:** v0.6.2 • Conversa Inteligente com PubMed e Consensus complementar sob cota; banco clínico SQLite separado por profissional (Cloudflare Access). Testes automáticos aprovados. Uso com pacientes reais requer verificação funcional autenticada, revisão de privacidade e validação farmacêutica; a IA gera rascunhos, não prescrições autônomas.
 
 Este repositório contém o código-fonte do LifeMag IA, **isolado dos sistemas CSC**. O desenvolvimento segue o visual aprovado A (Clínico Premium), B (Conversa Inteligente) e C (Studio Magistral), usando o ícone oficial escuro.
 
@@ -202,3 +202,7 @@ A Central Científica admite arquivos divididos em partes, com `manifesto-anvisa
 5. **Edição documental e produção:** finalizar assinaturas/identificação, impressão e acompanhamento segundo o fluxo aprovado.
 
 O recurso de importação Anvisa permanece técnico, fora do fluxo obrigatório da consulta. Nenhuma receita é emitida automaticamente.
+
+### v0.6.2 — verificação não invasiva do banco clínico
+
+O Worker oferece `POST /api/clinical/selftest` com Cloudflare Access e validação de origem. A rota grava e lê **apenas um registro sintético vazio**, num Durable Object cujo identificador difere do prontuário do farmacêutico. O app protegido testa automaticamente essa gravação juntamente com a leitura de `GET /api/clinical/state`, antes de liberar o cadastro. O autoteste não verifica o atendimento clínico nem aprova a conformidade LGPD; permite distinguir backend indisponível de banco gravável. Nenhuma informação de pacientes é usada nesse autoteste.
