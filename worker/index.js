@@ -13,7 +13,7 @@ import {importAnvisaCompendium,convertAnvisaDocument,MAX_COMPENDIUM_BYTES} from 
  * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
  * Nenhum texto clínico é registrado em logs.
  */
-const RELEASE='0.6.6';
+const RELEASE='0.6.7';
 const MODEL='@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const OFFICIAL=[
   {name:'Farmacopeia Brasileira — 8ª edição',url:'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/farmacopeia-brasileira',kind:'catalog_only'},
@@ -429,6 +429,36 @@ export default {
         internalScienceIndex:env.SCIENCE_LIBRARY?'durable_sqlite_configured':env.SCIENCE_DB?'binding_configured':'not_configured',consensus:env.CONSENSUS_API_KEY?'key_configured':'not_configured',
         formulaDraft:'structured_review_only',automaticAnvisaOnline:true,
         anvisaOnlineCoverage:'institutional_pages_only_no_full_monographs'})
+    }
+    if(url.pathname==='/api/science/consensus-selftest'&&request.method==='POST'){
+      // Ação manual, autenticada. Cada clique reserva até uma chamada mensal.
+      // Não aceita pergunta do paciente nem expõe o Secret da API.
+      if(request.headers.get('origin')!==url.origin)
+        return reply({ok:false,status:'origin_denied'},403);
+      if(!env.CONSENSUS_API_KEY)
+        return reply({ok:false,status:'not_configured',articles:0},200);
+      if(!env.SCIENCE_LIBRARY)
+        return reply({ok:false,status:'monthly_budget_unavailable',articles:0},503);
+      try{
+        const month=new Date().toISOString().slice(0,7);
+        const monthlyLimit=Math.min(100,Math.max(1,Number(env.CONSENSUS_AUTO_MONTHLY_BUDGET)||20));
+        const budget=await env.SCIENCE_LIBRARY.getByName('lifemag-main')
+          .reserveConsensusSearch(month,monthlyLimit);
+        if(!budget?.allowed)return reply({
+          ok:false,status:'internal_monthly_budget_reached',
+          articles:0,used:budget?.used||0,monthlyLimit
+        },200);
+        const report=await searchConsensus('riboflavin migraine',env);
+        const ok=report.status==='ok'&&report.items.length>0;
+        return reply({
+          ok,status:report.status,articles:report.items.length,
+          sampleTitle:ok?String(report.items[0].title||'').slice(0,150):null,
+          used:budget.used,monthlyLimit,
+          checkedAt:new Date().toISOString()
+        },200);
+      }catch(_){
+        return reply({ok:false,status:'test_unavailable',articles:0},503);
+      }
     }
     if(url.pathname==='/api/clinical/selftest'&&request.method==='POST'){
       if(request.headers.get('origin')!==url.origin)
