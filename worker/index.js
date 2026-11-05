@@ -4,7 +4,7 @@ export {LifeMagScientificStore} from './science-do.js';
 import {searchConsensus} from './consensus.js';
 import {FORMULA_SCHEMA,normalizeDraft,draftAsText} from './clinical-draft.js';
 import {ANVISA_CATALOG} from './anvisa-catalog.js';
-import {importAnvisaCompendium} from './anvisa-importer.js';
+import {importAnvisaCompendium,convertAnvisaDocument,MAX_COMPENDIUM_BYTES} from './anvisa-importer.js';
 /* LifeMag IA: assistente científico, protegido pelo Cloudflare Access.
  * A identidade é recebida do runtime em ctx.access; sem autenticação, falha fechado.
  * Nenhum texto clínico é registrado em logs.
@@ -389,6 +389,29 @@ export default {
         const records=await env.SCIENCE_LIBRARY.getByName('lifemag-main').listCompendiumExtractions();
         return reply({records});
       }catch(_){return reply({error:'Falha ao consultar importações da biblioteca'},503)}
+    }
+    if(url.pathname==='/api/science/upload-anvisa-pdf'&&request.method==='POST'){
+      if(request.headers.get('origin')!==url.origin)
+        return reply({error:'Origem não autorizada para carregar compêndios'},403);
+      if(!String(request.headers.get('content-type')||'').startsWith('multipart/form-data;'))
+        return reply({error:'Envie arquivo PDF como formulário'},415);
+      const length=Number(request.headers.get('content-length')||0);
+      if(length>MAX_COMPENDIUM_BYTES+1024*1024)
+        return reply({error:'PDF maior que 46 MiB. Divida o arquivo por volumes ou partes.'},413);
+      let form,file,docId;
+      try{
+        form=await request.formData();
+        docId=String(form.get('id')||'');
+        file=form.get('file');
+      }catch(_){return reply({error:'Não foi possível ler o arquivo PDF'},400)}
+      if(!ANVISA_CATALOG.some(item=>item.id===docId))
+        return reply({error:'Documento não está no catálogo oficial de 2026'},400);
+      if(!file||typeof file.arrayBuffer!=='function'||!String(file.name||'').toLowerCase().endsWith('.pdf'))
+        return reply({error:'Selecione um arquivo PDF válido'},400);
+      if(file.size>MAX_COMPENDIUM_BYTES)return reply({error:'PDF excede 46 MiB; divisão necessária'},413);
+      const buffer=await file.arrayBuffer();
+      const result=await convertAnvisaDocument(docId,buffer,env,identity,'pdf_oficial_enviado_pelo_profissional');
+      return reply(result,result.ok?202:result.status||500);
     }
     if(url.pathname==='/api/science/ingest-anvisa'&&request.method==='POST'){
       const origin=request.headers.get('origin');
