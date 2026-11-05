@@ -27,6 +27,26 @@ async function tests(){
   headers:{'content-type':'application/json',...headers},
   ...(body?{body:JSON.stringify(body)}:{})});
  const cases=[
+  ['sincronização dos compêndios requer login e origem legítima',async()=>{
+    let enqueued=0;
+    const configured={...env,INGEST_COORDINATOR:{
+      getByName:()=>({enqueue:async()=>{
+       enqueued++;
+       return {status:'scheduled',scheduledFor:'2026-11-05T04:17:00.000Z'};
+      }})
+    }};
+    const url='/api/science/sync-anvisa';
+    const req=extra=>request(url,{method:'POST',headers:extra});
+    assert.equal((await worker.fetch(req({origin:URL_WORKER}),configured,{})).status,401);
+    assert.equal((await worker.fetch(req({origin:'https://evil.example'}),configured,access)).status,403);
+    assert.equal(enqueued,0);
+    const response=await worker.fetch(req({origin:URL_WORKER}),configured,access);
+    assert.equal(response.status,202);
+    const data=await response.json();
+    assert.equal(data.status,'scheduled');
+    assert.equal(data.documentDownloadRequired,false);
+    assert.equal(enqueued,1);
+  }],
   ['sem Access: nenhum arquivo ou API permitido',async()=>{
     assert.equal((await worker.fetch(request('/'),env,{})).status,401);
     assert.equal((await worker.fetch(request('/api/capabilities'),env,{})).status,401);

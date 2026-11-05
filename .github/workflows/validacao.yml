@@ -33,6 +33,7 @@ jobs:
           node --check worker/anvisa-live.js
           node --check worker/anvisa-auto-sync.js
           node --check worker/ingestion-coordinator.js
+          node --check testes/testar_coordenador.js
           node --check worker/anvisa-discover.js
           node --check testes/testar_descoberta_anvisa.js
           node --check testes/testar_auto_sync.js
@@ -60,6 +61,7 @@ jobs:
           node testes/testar_importacao_anvisa.js
           node testes/testar_anvisa_online.js
           node testes/testar_auto_sync.js
+          node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_coordenador.js
           node testes/testar_descoberta_anvisa.js
           node testes/testar_formula.js
           node testes/testar_consensus.js
