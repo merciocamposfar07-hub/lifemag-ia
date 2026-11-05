@@ -68,7 +68,15 @@ export class LifeMagScientificStore extends DurableObject{
    'id TEXT PRIMARY KEY,source_id TEXT NOT NULL,title TEXT NOT NULL,'+
    'edition TEXT NOT NULL,official_url TEXT NOT NULL,heading TEXT NOT NULL,'+
    'body TEXT NOT NULL,verified_at TEXT NOT NULL);'+
-   "CREATE VIRTUAL TABLE IF NOT EXISTS source_overviews_fts USING fts5(body,tokenize='unicode61 remove_diacritics 2');"
+   "CREATE VIRTUAL TABLE IF NOT EXISTS source_overviews_fts USING fts5(body,tokenize='unicode61 remove_diacritics 2');"+
+   'CREATE TABLE IF NOT EXISTS staged_compendia ('+
+   'id TEXT PRIMARY KEY,source_id TEXT NOT NULL,title TEXT NOT NULL,edition TEXT NOT NULL,'+
+   'official_url TEXT NOT NULL,mirror_url TEXT NOT NULL,pdf_sha256 TEXT NOT NULL,'+
+   'submitted_by TEXT NOT NULL,status TEXT NOT NULL,sections INTEGER NOT NULL DEFAULT 0,'+
+   'created_at TEXT NOT NULL);'+
+   'CREATE TABLE IF NOT EXISTS staged_compendium_passages ('+
+   'document_id TEXT NOT NULL,ordinal INTEGER NOT NULL,heading TEXT NOT NULL,body TEXT NOT NULL,'+
+   'PRIMARY KEY(document_id,ordinal));'
   );
   for(const [id,name,kind,url] of SEEDS){
    this.sql.exec('INSERT OR IGNORE INTO sources(id,name,kind,url,status) VALUES(?,?,?,?,?)',
@@ -82,6 +90,70 @@ export class LifeMagScientificStore extends DurableObject{
    this.sql.exec('INSERT INTO source_overviews_fts(rowid,body) '+
     'SELECT rowid,body FROM source_overviews WHERE id=?',item.id);
   }
+ }
+
+ // Entrada de PDF convertido em Markdown, ainda SEM aprovação clínica.
+ // Os trechos ficam em tabela isolada até revisão do documento de origem.
+ async beginCompendiumExtraction(meta){
+  if(!meta||!/^[a-z0-9-]{4,80}$/.test(String(meta.id||''))||
+     !/^[a-f0-9]{64}$/i.test(String(meta.pdfSha256||''))||
+     !allowedOfficialUrl(meta.officialUrl)||
+     !this.sql.exec('SELECT id FROM sources WHERE id=?',String(meta.sourceId||'')).toArray().length)
+   return {ok:false,error:'Origem ou identificação do documento não verificada'};
+  const current=this.sql.exec('SELECT status FROM staged_compendia WHERE id=?',meta.id).toArray()[0];
+  if(current?.status==='pending_review'||current?.status==='approved')
+   return {ok:false,error:'Já existe uma extração aguardando revisão; não sobrescrever'};
+  this.ctx.storage.transactionSync(()=>{
+   this.sql.exec('DELETE FROM staged_compendium_passages WHERE document_id=?',meta.id);
+   this.sql.exec('DELETE FROM staged_compendia WHERE id=?',meta.id);
+   this.sql.exec(
+    'INSERT INTO staged_compendia(id,source_id,title,edition,official_url,mirror_url,pdf_sha256,'+
+    'submitted_by,status,sections,created_at) VALUES(?,?,?,?,?,?,?,?,"extracting",0,?)',
+    str(meta.id,80),str(meta.sourceId,90),str(meta.title,300),
+    str(meta.edition,80),str(meta.officialUrl,600),str(meta.mirrorUrl,600),
+    str(meta.pdfSha256,64),str(meta.submittedBy,130),
+    new Date().toISOString()
+   );
+  });
+  return {ok:true,id:meta.id};
+ }
+ async addCompendiumSegments(id,parts){
+  if(!Array.isArray(parts)||!parts.length||parts.length>30)
+   return {ok:false,error:'Envie lotes de 1 a 30 trechos'};
+  const job=this.sql.exec('SELECT status,sections FROM staged_compendia WHERE id=?',id).toArray()[0];
+  if(!job||job.status!=='extracting')return {ok:false,error:'Extração não está aberta'};
+  const offset=Number(job.sections)||0;
+  if(offset+parts.length>6000)return {ok:false,error:'Volume excede o limite de trechos indexáveis'};
+  for(const part of parts){
+   if(typeof part.body!=='string'||part.body.trim().length<30||
+     part.body.length>4200||typeof part.heading!=='string')
+    return {ok:false,error:'Trecho ausente ou com tamanho inválido'};
+  }
+  this.ctx.storage.transactionSync(()=>{
+   parts.forEach((part,i)=>this.sql.exec(
+    'INSERT INTO staged_compendium_passages(document_id,ordinal,heading,body) VALUES(?,?,?,?)',
+    id,offset+i+1,str(part.heading,250),part.body.trim()));
+   this.sql.exec('UPDATE staged_compendia SET sections=? WHERE id=?',
+    offset+parts.length,id);
+  });
+  return {ok:true,sections:offset+parts.length};
+ }
+ async finishCompendiumExtraction(id,expected){
+  const job=this.sql.exec('SELECT status,sections FROM staged_compendia WHERE id=?',id).toArray()[0];
+  if(!job||job.status!=='extracting'||!Number.isInteger(expected)||
+    expected<=0||expected!==Number(job.sections))
+   return {ok:false,error:'Extração parcial: conferir trechos antes de finalizar'};
+  this.sql.exec("UPDATE staged_compendia SET status='pending_review' WHERE id=?",id);
+  return {ok:true,status:'pending_review',sections:expected,
+   message:'Conteúdo integral convertido e armazenado para revisão; não disponível para prescrição até validação.'};
+ }
+ async listCompendiumExtractions(){
+  const rows=this.sql.exec('SELECT id,source_id,title,edition,status,sections,created_at '+
+   'FROM staged_compendia ORDER BY created_at DESC LIMIT 30').toArray();
+  return rows.map(x=>({
+   id:x.id,sourceId:x.source_id,title:x.title,edition:x.edition,
+   status:x.status,sections:Number(x.sections)||0,createdAt:x.created_at
+  }));
  }
  async status(){
   const counts=this.sql.exec(
@@ -100,9 +172,12 @@ export class LifeMagScientificStore extends DurableObject{
   const documents=Number(counts?.documents)||0;
   const passages=Number(counts?.passages)||0;
   const overviewSections=Number(this.sql.exec('SELECT COUNT(*) AS n FROM source_overviews').one()?.n)||0;
+  const pending=this.sql.exec("SELECT COUNT(*) AS n FROM staged_compendia WHERE status='pending_review'").one()?.n||0;
+  const extracting=this.sql.exec("SELECT COUNT(*) AS n FROM staged_compendia WHERE status='extracting'").one()?.n||0;
   return {status:documents&&passages?'approved_content_available':
    overviewSections?'official_overviews_available':'configured_empty_or_unverified',
    approvedDocuments:documents,approvedPassages:passages,overviewSections,sources,
+   pendingReviewDocuments:Number(pending)||0,incompleteExtracts:Number(extracting)||0,
    storage:'SQLite Durable Object'};
  }
  async search(question){
