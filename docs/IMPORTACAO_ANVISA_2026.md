@@ -90,3 +90,11 @@ O diagnóstico `GET /api/science/anvisa-coverage` apresenta os grupos por fonte 
 
 ### Observação de testes
 O fluxo de CI foi inicialmente bloqueado por um literal SQL incorreto (`"extracting"`) em código anterior. Foi corrigido para `'extracting'`, e o teste SQLite recebeu o status correto `ok_reviewed_document`. A aprovação dos workflows precisa ser observada nos registros da versão mais recente.
+
+## v0.4.8 — consulta online e coleta automatizada (04/11/2026)
+- A busca científica do LifeMag IA usa três mecanismos em paralelo: Europe PMC/PubMed, biblioteca SQLite e páginas oficiais HTML da Anvisa (`worker/anvisa-live.js`).
+- O material consultado pela rede é **contexto institucional**, não monografia integral; fica explicitamente marcado `official_web_context`, sem autorização de dose terapêutica pelo validador.
+- A obtenção dos PDFs públicos menores deixa de depender de seleção manual quando o **Cloudflare Cron** está implantado: `worker/anvisa-auto-sync.js` tenta apenas **um** dos três documentos elegíveis por execução diária. O arquivo acima de 46 MiB e volumes sem URL de cópia pública continuam fora da coleta automática direta.
+- `auto_compendium_sync` registra `extracted_pending_review` ou `import_failed` com data, mensagem e quantidade de trechos. A Central Científica apresenta os registros reais quando disponíveis, sem confundir falhas com importações concluídas.
+- Esse agendamento poderá consumir franquia da Cloudflare AI. O script não afirma que o PDF foi obtido nem altera seu estado para `approved` sem revisão.
+- Testes: `testes/testar_anvisa_online.js` e `testes/testar_auto_sync.js`. Não são testes da execução remota nem das páginas integrais convertidas.
