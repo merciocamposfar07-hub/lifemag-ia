@@ -109,9 +109,11 @@ await check('documento oficial e trecho verificados entram no SQLite REAL',async
 await check('FTS5 recupera trecho oficial com metadados da edição',async()=>{
  const result=await store.search('atividade física adultos');
  assert.equal(result.status,'ok_reviewed_document');
- assert.equal(result.items.length,1);
- assert.match(result.items[0].abstract,/150 e 300 minutos/);
- assert.equal(result.items[0].url,source.officialUrl);
+ assert.ok(result.items.length>=1);
+ const reviewed=result.items.find(x=>x.evidenceTier==='reviewed_document');
+ assert.ok(reviewed,'A busca precisa retornar o documento revisado, junto das sinopses');
+ assert.match(reviewed.abstract,/150 e 300 minutos/);
+ assert.equal(reviewed.url,source.officialUrl);
 });
 await check('não retorna trecho quando a pergunta é alheia ao documento',async()=>{
  const result=await store.search('riboflavina enxaqueca');
