@@ -1037,8 +1037,6 @@ function labExamForm(v,open=false){
  <fieldset><legend>Marque os exames deste atendimento</legend>
  <div class="lab-exam-options">${selected.includes(FASTING_GLUCOSE)?`<label><input type="checkbox" name="exam" value="${FASTING_GLUCOSE}" checked> ${FASTING_GLUCOSE} (seleção anterior)</label>`:''}${LAB_EXAMS.map(exam=>`<label><input type="checkbox" name="exam" value="${E(exam)}" ${selected.includes(exam)?'checked':''}> ${E(exam)}</label>`).join('')}</div>
  </fieldset>
- <div class="field"><label for="lab-exam-purpose">Finalidade do acompanhamento farmacoterapêutico *</label>
- <textarea id="lab-exam-purpose" name="purpose" maxlength="1000" required>${E(request.purpose||'')}</textarea></div>
  <div class="form-actions"><button class="btn primary" type="submit">Salvar e visualizar solicitação</button></div>
  </form></details>`;
 }
@@ -1131,7 +1129,7 @@ function preview(doc,chosen=visit(),service=null){if(clinicalCloudMode&&(!clinic
 }
 function renderPaper(doc,v,p,service){const s=data.settings, names={clinical:'FICHA CLÍNICA / CADASTRO',prescription:'RECEITUÁRIO MAGISTRAL',attendance:'DECLARAÇÃO DE COMPARECIMENTO À CONSULTA FARMACÊUTICA',labs:'SOLICITAÇÃO DE EXAMES LABORATORIAIS',service:'DECLARAÇÃO DE SERVIÇO FARMACÊUTICO',protocol:'PROTOCOLO COMPLEMENTAR'};const line=(label,value)=>`<div class="print-section"><span class="print-label">${label}:</span> ${E(value||'—')}</div>`;const header=`<div class="print-head"><img src="${IMG}" alt="Logo oficial LifeMag IA"/><div><strong>LifeMag IA</strong><small>Prescrição Magistral Inteligente</small><div class="print-institution"><b>${E(s.workplace)}</b><br>${E(s.address)}<br>${E(s.professional)} — ${E(s.role)} — ${E(s.crf)}</div></div></div>`;const common=line('Paciente',p.name)+line('Data do atendimento',fmtDate(v.date))+line('Telefone',p.phone);let body='';if(doc==='prescription'){body=common+line('Endereço do paciente',p.address)+`<table class="print-table"><thead><tr><th>Substância</th><th>Dose</th></tr></thead><tbody>${v.ingredients.map(i=>`<tr><td>${E(i.name)}</td><td>${E(i.dose)} ${E(i.unit||'mg')}</td></tr>`).join('')}</tbody></table>`+line('Apresentação',v.presentation)+line('Via de administração',v.route)+line('Quantidade para manipular',v.quantity)+line('Posologia',v.posology)+line('Horários',v.schedules)+line('Relação com refeições',v.meals)+line('Duração',v.duration+' dias')+line('Orientações',v.observations);}else if(doc==='clinical'){body=common+line('Nascimento',fmtDate(p.dob))+line('Endereço',p.address)+line('Peso (kg)',p.weight)+line('Altura (cm)',p.height)+line('Observações gerais do cadastro',p.notes)+line('Motivo da consulta e objetivo clínico',normalizeClinicalAssessment(v.assessment).chiefComplaint)+line('Sintomas e evolução',normalizeClinicalAssessment(v.assessment).symptoms)+line('Histórico clínico',normalizeClinicalAssessment(v.assessment).clinicalHistory)+line('Medicamentos em uso',normalizeClinicalAssessment(v.assessment).medications)+line('Alergias e reações',normalizeClinicalAssessment(v.assessment).allergies)+line('Exames e resultados',normalizeClinicalAssessment(v.assessment).labResults)+line('Restrições e riscos',normalizeClinicalAssessment(v.assessment).riskFactors)+line('Plano de acompanhamento',normalizeClinicalAssessment(v.assessment).followUpPlan);}else if(doc==='attendance'){body=common+line('Horário de entrada','_________')+line('Horário de saída','_________')+`<p>Declaramos, para fins de comprovação, que a pessoa identificada compareceu à consulta farmacêutica em ${E(s.workplace)} no período efetivamente confirmado.</p>`;}else if(doc==='labs'){
  const request=v.labExamRequest||{};
- body=common+line('Finalidade do acompanhamento',request.purpose)+
+ body=common+(request.purpose?line('Finalidade do acompanhamento',request.purpose):'')+
   '<h2>Exames solicitados</h2><ul class="print-exam-list">'+
   selectedLabExams(request.exams,true).map(exam=>'<li>'+E(exam)+'</li>').join('')+'</ul>';
  }else if(doc==='service'){body=common+(s.cnpj?line('CNPJ',s.cnpj):'')+(s.businessPhone?line('Telefone institucional',s.businessPhone):'')+line('Serviço efetivamente realizado',service?.performed)+line('Resultado e observações',service?.result);}else{body=common+line('Formulação vinculada',v.formulaName)+line('Orientações educativas complementares',v.protocol||'Não informado')+`<p>Intensidade progressiva, iniciando leve e evoluindo gradualmente conforme condicionamento e tolerância, se aplicável.</p>`;}return `<article class="print-page">
@@ -1222,10 +1220,9 @@ function handleSubmit(event){
     const v=visit(), form=new FormData(f);
     if(!v||v.id!==f.dataset.visitId)return;
     const exams=selectedLabExams(form.getAll('exam'),v.labExamRequest?.exams?.includes(FASTING_GLUCOSE));
-    const purpose=String(form.get('purpose')||'').trim().slice(0,1000);
-    if(!exams.length||!purpose){toast('Selecione os exames e informe a finalidade do acompanhamento.');return;}
+    if(!exams.length){toast('Selecione pelo menos um exame.');return;}
     if(clinicalCloudMode&&!clinicalStatus.ready){toast('Prontuário indisponível.');return;}
-    v.labExamRequest={exams,purpose};
+    v.labExamRequest={...v.labExamRequest,exams};
     persist();
     if(clinicalCloudMode)void clinicalSaveQueue.then(()=>preview('labs',v));
     else preview('labs',v);
