@@ -515,7 +515,17 @@ function patients(){const p=patient();return pageHeader('Pacientes','Cadastre in
 <option value="Masculino" ${p?.sex==='Masculino'?'selected':''}>Masculino</option>
 <option value="Feminino" ${p?.sex==='Feminino'?'selected':''}>Feminino</option>
 </select></div>${field('address','Endereço do paciente',p?.address||'')}${field('weight','Peso (kg)',p?.weight||'',false,'number')}${field('height','Altura (cm)',p?.height||'',false,'number')}<div class="field full"><label for="patient-notes">Observações gerais do cadastro (dados fictícios)</label><textarea id="patient-notes" name="notes" placeholder="Informações gerais; a avaliação clínica é preenchida a cada atendimento.">${E(p?.notes||'')}</textarea></div></div><div class="form-actions"><button class="btn primary" type="submit">${I('check')} ${p?'Salvar alterações':'Cadastrar paciente'}</button></div></form>${p?`<div class="form-actions clinical-start"><button class="btn primary" type="button" data-action="new-visit">${I('plus')} Iniciar avaliação clínica</button></div><hr class="divider"><h3>Atendimentos desse paciente</h3>${data.visits.filter(v=>v.patientId===p.id).map(visitRow).join('')||'<p class="muted small">Ainda não há atendimentos.</p>'}`:''}<div class="exam-selection"><h3>Exames e documentos (opcionais)</h3><p class="muted small">Escolha PDF ou imagem da biblioteca, ou tire uma foto. Nesta etapa a seleção é temporária: nenhum exame é salvo ou enviado. A vinculação definitiva exige armazenamento clínico protegido.</p><div class="btnrow"><label class="btn compact exam-picker">Biblioteca / arquivos<input id="patient-exam-gallery" type="file" accept="application/pdf,image/jpeg,image/png,image/heic,image/heif" multiple></label><label class="btn compact exam-picker">Tirar foto<input id="patient-exam-camera" type="file" accept="image/*" capture="environment"></label></div>${(examSession.patientId===p?.id||(!p&&examSession.patientId===null))&&examSession.items.length?'<p class="muted small" role="status">Pré-seleção temporária: '+examSession.items.map(x=>E(x.name)+' ('+Math.ceil(x.bytes/1024)+' KB)').join('; ')+'</p>':''}<p class="muted small">Os exames são opcionais e nunca bloqueiam o cadastro ou atendimento.</p></div><div class="notice blue">Somente demonstração com dados fictícios. Nenhum cadastro é importado de outro sistema.</div></div></div>`;}
-function field(name,label,val='',required=false,type='text'){return `<div class="field"><label for="${name}">${label}${required?' *':''}</label><input id="${name}" name="${name}" type="${type}" ${type==='number'?'step="any"':''} value="${E(val)}" ${required?'required':''}></div>`;}
+function patientPhoneDigits(value){
+ const digits=String(value).replace(/\D/g,'');
+ return /^\s*\+55/.test(value)||(/^55\d{10,11}$/.test(digits))?digits.slice(2):digits;
+}
+function formatPatientPhone(value){
+ const digits=patientPhoneDigits(value);
+ if(!/^[1-9]{2}(?:[2-5]\d{7}|9\d{8})$/.test(digits))return '';
+ return '('+digits.slice(0,2)+') '+digits.slice(2,-4)+'-'+digits.slice(-4);
+}
+const patientPhoneHint='Informe o telefone com DDD: 10 dígitos para fixo ou 11 para celular.';
+function field(name,label,val='',required=false,type='text'){return `<div class="field"><label for="${name}">${label}${required?' *':''}</label><input id="${name}" name="${name}" type="${type}" ${type==='number'?'step="any"':''} ${name==='phone'?'inputmode="numeric" autocomplete="tel-national" placeholder="DDD e telefone"':''} value="${E(val)}" ${required?'required':''}></div>`;}
 function visitRow(v){const p=patientFor(v);return `<div class="listline"><div><strong>${E(p?.name||'Paciente excluído')}</strong><p>${I('calendar',12)} ${fmtDate(v.date)} · ${E(p?.phone||'Sem telefone')} · ${E(v.formulaName||'Rascunho')}</p></div><div class="visit-actions"><button class="btn compact" data-review-visit="${v.id}">Avaliação</button><button class="btn compact" data-open-visit="${v.id}">Fórmula ${I('arrow',14)}</button></div></div>`;}
 function alertRow(v){const p=patientFor(v),remain=daysUntil(endDate(v));return `<div class="listline"><div><strong>${E(p?.name||'Paciente')}</strong><p>${fmtDate(v.date)} · ${E(p?.phone||'—')} · Término ${fmtDate(endDate(v))}</p><span class="badge warn">${remain<0?'Reavaliação pendente':remain===0?'Termina hoje':remain+' dias restantes'}</span></div><button class="btn compact" data-open-visit="${v.id}">Abrir</button></div>`;}
 function pickVisit(){const v=visit();return !v?`<div class="notice blue">Selecione um atendimento em <button class="btn compact" data-page="formulas">Minhas fórmulas</button> ou comece em <button class="btn compact" data-page="patients">Pacientes</button>.</div>`:'';}
@@ -651,7 +661,7 @@ function scientificOnly(){
       data.patients.map(p=>'<option value="'+E(p.id)+'">'+E(p.name)+'</option>').join('')+
       '</select></label>':'')+
     '<label>Nome completo (para novo cadastro)<input name="patientName" autocomplete="off" placeholder="Nome do paciente"></label>'+
-    '<label>Telefone (para novo cadastro)<input name="patientPhone" inputmode="tel" autocomplete="off" placeholder="DDD e telefone"></label>'+
+    '<label>Telefone (para novo cadastro)<input name="patientPhone" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="DDD e telefone"></label>'+
     '<button class="btn primary" type="submit">Abrir formulação no Studio Magistral</button>'+
     '<button class="btn subtle" type="button" data-cancel-fast-recipe="1">Cancelar</button>'+
    '</form>':'')+
@@ -1096,10 +1106,11 @@ function handleSubmit(event){
       toast('Selecione um paciente existente.');return;
     }
     if(!pid){
-      if(!val.patientName||val.patientName.trim().length<2||
-        !val.patientPhone||val.patientPhone.trim().length<7){
-        toast('Informe nome e telefone para o receituário.');return;
+      if(!val.patientName||val.patientName.trim().length<2){
+        toast('Informe o nome do paciente para o receituário.');return;
       }
+      val.patientPhone=formatPatientPhone(val.patientPhone||'');
+      if(!val.patientPhone){toast(patientPhoneHint);return;}
       const duplicated=findPotentialDuplicatePatient(data.patients,{
        name:val.patientName,phone:val.patientPhone},'');
       if(duplicated){pid=duplicated.id;}
@@ -1123,6 +1134,8 @@ function handleSubmit(event){
   if(f.id==='patient-form'){
     const val=trimForm(readForm(f));
     if(!val.name||!val.phone){toast('Nome completo e telefone são obrigatórios.');return;}
+    val.phone=formatPatientPhone(val.phone);
+    if(!val.phone){toast(patientPhoneHint);return;}
     if(val.dob&&(!parseISODate(val.dob)||val.dob>yyyyMmDd())){toast('Revise a data de nascimento.');return;}
     const existing=findPotentialDuplicatePatient(data.patients,val,ui.patientId||'');
     if(existing){
@@ -1198,7 +1211,14 @@ if(typeof addEventListener==='function')addEventListener('beforeunload',event=>{
   event.preventDefault();event.returnValue='';
  }
 });
-document.addEventListener('click',handleClick);document.addEventListener('submit',handleSubmit);document.addEventListener('change',handleChange);document.addEventListener('input',e=>{if(e.target.id==='patient-filter'){ui.search=e.target.value;const root=document.getElementById('patient-results');if(root)root.innerHTML=data.patients.filter(x=>(x.name+' '+x.phone).toLowerCase().includes(ui.search.toLowerCase())).map(patientCard).join('')||empty('Nenhum resultado','Revise a busca.');}});
+document.addEventListener('click',handleClick);document.addEventListener('submit',handleSubmit);document.addEventListener('change',handleChange);document.addEventListener('input',e=>{
+ const input=e.target;
+ if(input.matches('#patient-form input[name="phone"],#quick-recipe-form input[name="patientPhone"]')){
+  const digits=patientPhoneDigits(input.value).slice(0,11);
+  if(input.value!==digits)input.value=digits;
+  return;
+ }
+ if(e.target.id==='patient-filter'){ui.search=e.target.value;const root=document.getElementById('patient-results');if(root)root.innerHTML=data.patients.filter(x=>(x.name+' '+x.phone).toLowerCase().includes(ui.search.toLowerCase())).map(patientCard).join('')||empty('Nenhum resultado','Revise a busca.');}});
 // Uma demonstração contém apenas dados explicitamente criados pelo usuário; não há pacientes reais embutidos.
 render();
 void initializeClinicalRecords();
