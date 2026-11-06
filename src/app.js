@@ -1133,19 +1133,31 @@ function renderPaper(doc,v,p,service){const s=data.settings, names={clinical:'FI
   '<h2>Exames solicitados</h2><ul class="print-exam-list">'+
   selectedLabExams(request.exams,true).map(exam=>'<li>'+E(exam)+'</li>').join('')+'</ul>';
  }else if(doc==='service'){body=common+(s.cnpj?line('CNPJ',s.cnpj):'')+(s.businessPhone?line('Telefone institucional',s.businessPhone):'')+line('Serviço efetivamente realizado',service?.performed)+line('Resultado e observações',service?.result);}else{body=common+line('Formulação vinculada',v.formulaName)+line('Orientações educativas complementares',v.protocol||'Não informado')+`<p>Intensidade progressiva, iniciando leve e evoluindo gradualmente conforme condicionamento e tolerância, se aplicável.</p>`;}return `<article class="print-page">
- <svg class="print-art print-art-top" viewBox="0 0 210 125" aria-hidden="true">
- <path fill="#d6f3f6" d="M0 0h210v125C102 125 109 31 0 0Z"/>
- <path fill="#79cddb" d="M60 0h150v107C133 96 140 30 60 0Z"/>
- <path fill="#2495c0" d="M210 61v64H96c41-4 71-46 114-64Z"/>
- <rect x="172" y="19" width="16" height="16" rx="3" fill="#fff"/>
- <rect x="146" y="43" width="12" height="12" rx="3" fill="#effbff"/>
- <rect x="128" y="60" width="9" height="9" rx="2" fill="#20bad1"/>
- </svg>${header}<h1 class="print-h">${names[doc]}</h1><p class="print-note"><b>RASCUNHO DE TESTE — NÃO ASSINADO — NÃO VÁLIDO PARA USO CLÍNICO</b></p>${body}<div class="print-foot">
- <svg class="print-art print-art-bottom" viewBox="0 0 720 64" preserveAspectRatio="none" aria-hidden="true">
- <path fill="#d6f3f6" d="M0 30C67 8 102 62 213 64H0ZM720 0C674 35 626 64 510 64h210Z"/>
- <path fill="#78cedc" d="M0 43C64 23 103 64 185 64H0ZM720 26c-51-12-90 30-163 38h163Z"/>
- <path fill="#329ec3" d="M0 51c54-17 98 13 148 13H0ZM720 43c-39-11-75 16-128 21h128Z"/>
- </svg><div class="print-sign"><b>${E(s.professional)}</b><br>${E(s.role)} — ${E(s.crf)}<br><small>Campo reservado à assinatura válida</small></div></div></article>`;}
+ <svg class="print-art print-art-top" viewBox="0 0 320 310" aria-hidden="true">
+ <defs>
+ <linearGradient id="paper-top-a" x2="1" y2="1"><stop stop-color="#e6f7fb"/><stop offset=".55" stop-color="#6ad4df"/><stop offset="1" stop-color="#1592b3"/></linearGradient>
+ <linearGradient id="paper-top-b" x2="0" y2="1"><stop stop-color="#087bad"/><stop offset="1" stop-color="#edf8fc" stop-opacity="0"/></linearGradient>
+ <linearGradient id="paper-top-c" x2="1" y2="0"><stop stop-color="#f4fbfe"/><stop offset="1" stop-color="#99dfeb"/></linearGradient>
+ </defs>
+ <path fill="url(#paper-top-a)" d="M65 0H320V176H223C181 112 127 41 65 0Z"/>
+ <path fill="url(#paper-top-b)" d="M320 178V310H0C130 307 181 230 320 178Z"/>
+ <path fill="url(#paper-top-c)" d="M0 310C161 292 184 139 320 127V179C185 226 151 306 0 310Z"/>
+ <rect x="233" y="59" width="37" height="37" rx="6" fill="#fff"/>
+ <rect x="195" y="105" width="32" height="32" rx="5" fill="#f5fcfe"/>
+ <rect x="157" y="150" width="26" height="26" rx="5" fill="#18cce4"/>
+ <rect x="130" y="190" width="20" height="20" rx="4" fill="#45bce5"/>
+ </svg>${header}<h1 class="print-h">${names[doc]}</h1>${body}<div class="print-foot">
+ <svg class="print-art print-art-bottom" viewBox="0 0 1000 146" preserveAspectRatio="none" aria-hidden="true">
+ <defs>
+ <linearGradient id="paper-bottom-left" x2="1" y2=".4"><stop stop-color="#42c9d2"/><stop offset="1" stop-color="#80c7ee"/></linearGradient>
+ <linearGradient id="paper-bottom-right" x2="1" y2=".4"><stop stop-color="#e2f6fb"/><stop offset="1" stop-color="#59cbdc"/></linearGradient>
+ </defs>
+ <path fill="#a1e4ec" d="M0 86C116 58 199 134 321 146H0Z"/>
+ <path fill="url(#paper-bottom-left)" d="M0 114C98 78 176 136 277 146H0Z"/>
+ <path fill="url(#paper-bottom-right)" d="M1000 0C921 65 899 139 650 146H1000Z"/>
+ <path fill="#67bde5" fill-opacity=".79" d="M1000 86C922 70 864 138 808 146H1000Z"/>
+ <path fill="#239ebc" fill-opacity=".35" d="M1000 113C958 107 922 126 888 146H1000Z"/>
+ </svg><div class="print-sign"><b>${E(s.professional)}</b><br>${E(s.role)} — ${E(s.crf)}</div></div></article>`;}
 function handleClick(event){const b=event.target.closest('[data-test-consensus],[data-delete-patient],[data-fast-recipe],[data-cancel-fast-recipe],[data-reset-research],[data-clinical-reload],[data-science-sync],[data-page],[data-action],[data-select-patient],[data-review-visit],[data-open-visit],[data-add-ingredient],[data-remove-ingredient],[data-print-visit],[data-complete],[data-doc],[data-science-check],[data-import-draft],[data-save-anon-draft],[data-open-anon-draft],[data-link-anon-draft],[data-delete-anon-draft],[data-ingest-anvisa],[data-anvisa-batch]');if(!b)return;
 if(b.dataset.testConsensus){void testConsensusConnection();return;}
 if(b.dataset.deletePatient){deleteSelectedPatient(b.dataset.deletePatient);return;}
