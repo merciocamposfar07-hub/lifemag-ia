@@ -93,55 +93,20 @@ export function screenClinicalQuestion(question){
  const q=normalizeClinical(question);
  if(!fatiguePattern.test(q))return null;
  const urgent=explicitUrgentSigns(question);
- const missing=[];
- const basics=missingClinicalBasics(question);
- if(basics.includes('Faixa etária ou idade'))missing.push('Qual a idade do paciente?');
- if(basics.includes('Sexo para individualização clínica'))missing.push('Qual o sexo do paciente?');
- if(basics.includes('Peso corporal em kg'))missing.push('Qual o peso em kg?');
- if(basics.includes('Medicamentos e suplementos em uso, ou confirmação de ausência'))
-  missing.push('Usa medicamentos ou suplementos?');
- if(basics.includes('Alergias e reações anteriores'))missing.push('Há alergias conhecidas?');
- if(basics.includes('Comorbidades, antecedentes e fatores de risco'))
-  missing.push('Possui doenças prévias, diagnóstico conhecido ou outras condições relevantes?');
- if(!/\b(?:ha\s+\d|desde\s+|durante\s+|inicio\s+|comecou\s+|semanas?|meses?|dias?|anos?\s+de\s+fadiga)\b/.test(q))
-  missing.push('Há quanto tempo começaram a fadiga e o cansaço?');
- if(!/\b(?:sono|dorme|dormindo|dormiu|insonia|apneia|descanso)\b/.test(q))
-  missing.push('Como estão o sono, o descanso e a rotina de trabalho?');
- // Exames são úteis quando existentes, mas não são exigidos em todas as situações.
- if(!/\b(?:exames?|hemograma|ferritina|tsh|glicemia|b12|vitamina|laboratorio)\b/.test(q))
-  missing.push('Existem exames recentes ou sinais associados (febre, perda de peso, falta de ar)?');
- // Queixa isolada: devolve perguntas dirigidas, sem pesquisa ampla nem dose.
- const current=q.split('informacao nova:').pop().split('\n').pop().trim();
- const complaint=current.replace(/^(?:o\s+|a\s+)?paciente\s+(?:(?:esta|chegou)\s+com|com|apresenta|relata|refere)\s+/,'');
- const isolated=complaint.split(/[,;\s]+/).every(term=>/^(?:e|fadiga|cansaco|indisposicao|astenia|fraqueza|sonolencia|\.)[.]?$/.test(term));
- if(!urgent.length&&!isolated)return null;
+ if(!urgent.length)return null;
  const raw={
-  decision:urgent.length?'red_flags':'insufficient_info',
+  decision:'red_flags',
   objective:'Avaliar causas de fadiga e indisposição',
   formula_name:'Avaliação farmacêutica em andamento',
   quantity:'',pharmaceutical_form:'',route:'',
   ingredients:[],posology:'',meal_relation:'',daily_schedule:'',
   initial_duration_days:0,reassessment_days:0,extension_criteria:'',
   monitoring:[],interactions:[],contraindications:[],
-  missing_information:urgent.length?[]:missing,
+  missing_information:[],
   red_flags:urgent,
   limitations:['Não atribuir fadiga a uma deficiência ou indicar doses terapêuticas sem avaliação clínica.']
  };
- const draft=normalizeDraft(raw,[],question);
- if(!urgent.length){
-  const age=q.match(/\b(\d{1,3})\s*anos?\b/);
-  const pediatric=age&&Number(age[1])<16;
-  draft.fatigueOrientation=pediatric?[
-   'O cadastro indica '+age[1]+' anos. Confirme a idade se o cadastro estiver incorreto.',
-   'Na avaliação pediátrica, considere sono, alimentação, anemia e outras causas conforme o quadro.',
-   'B12, ferro ou vitamina D podem entrar na avaliação quando houver indicação específica para a idade.'
-  ]:[
-   'Hipóteses iniciais: sono insuficiente ou não reparador, anemia e efeitos de medicamentos, conforme o contexto.',
-   'B12 é uma opção a avaliar se houver risco de deficiência, como dieta restrita, má absorção ou uso prolongado de metformina.',
-   'Ferro e vitamina D só entram como opções de reposição se houver indicação compatível para cada um.'
-  ];
- }
- return draft;
+ return normalizeDraft(raw,[],question);
 }
 
 export function normalizeDraft(raw,sources=[],question=''){

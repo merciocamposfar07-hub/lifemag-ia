@@ -197,7 +197,7 @@ async function tests(){
      };
      let aiUsed=false;
      const clinical={...env,AI:{run:async()=>{aiUsed=true;return {response:candidate}}}};
-     const question='Homem de 41 anos, 68,0 de peso, não tem alergias e não faz uso de medicação contínua. Sente indisposição, cansaço, fadiga. Qual formulação sugerida?';
+     const question='Cansaço, fadiga e indisposição';
      const response=await worker.fetch(request('/api/assist',{method:'POST',
        body:{question,useConsensus:'auto'}}),clinical,access);
      assert.equal(response.status,200);

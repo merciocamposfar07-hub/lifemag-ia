@@ -27,7 +27,8 @@ async function main(){
   });
   await check('fadiga isolada não vira falso sinal de alarme nem receita vazia',async()=>{
     const input='Homem de 41 anos, 68,0 de peso, não tem alergias e não faz uso de medicação contínua. Sente indisposição, cansaço, fadiga. Qual formulação sugerida?';
-    assert.equal(screenClinicalQuestion(input),null); // Sem urgência: pesquisar evidências e construir opções.
+    assert.equal(screenClinicalQuestion(input),null);
+    assert.equal(screenClinicalQuestion('Cansaço, fadiga e indisposição'),null);
   });
   await check('esclarecimentos na mesma conversa retomam avaliação, não reiniciam idade e peso',async()=>{
     const input='Homem de 41 anos, 68,0 de peso, sem alergias, não usa medicamentos, não possui doenças conhecidas. Sente fadiga. Há 3 semanas, dorme bem. Exames recentes disponíveis.';

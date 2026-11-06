@@ -150,6 +150,7 @@ function assistantPrompt(evidence){
   'IMPORTANTE: referências [W1], [W2] são páginas institucionais da Anvisa consultadas ao vivo (não são monografias); [O1], [O2] são sinopses institucionais; [P1], [P2] são trechos de PDFs oficiais convertidos, mas ainda NÃO revisados quanto a tabelas e unidades. As duas categorias podem servir apenas de contexto e identificação de capítulo. NÃO use esses identificadores para validar dose terapêutica, indicação individual, interação, preparo ou ciclo prolongado. Somente estudos clínicos e documentos profissionalmente revisados podem fundamentar doses, após análise de segurança.',
   'Inclua em ingredients[].references apenas identificadores verificados abaixo, por exemplo "1" para PubMed, "C1" para monografia aprovada ou "K1" para Consensus. Não cite fonte apenas por estar no catálogo.',
   'Não dê por estabelecido diagnóstico com base apenas em sintomas. Fadiga, indisposição e cansaço isolados NÃO constituem urgência. Se houver dose e indicação suportadas, apresente proposta preliminar com limitações; se não houver, explique brevemente a falta de evidência e faça uma pergunta clínica prioritária. Exames podem ser recomendados, nunca pedidos automaticamente como regra geral.',
+  'Comece com uma resposta útil mesmo quando a entrada contiver apenas sintomas. Se houver base para uma proposta preliminar, preencha substâncias, doses apoiadas nas fontes, posologia, refeições, duração inicial e reavaliação. Liste dados complementares junto à proposta, sem transformar a lista em questionário obrigatório.',
   'Responda no formato JSON solicitado, em português técnico e conciso. Use decision=draft apenas se suficientemente individualizado, preliminary_draft quando houver boa evidência mas lacunas não críticas, insufficient_evidence na ausência de base apropriada, red_flags em sinais de urgência. Sem evidência, não invente substâncias, doses ou exames obrigatórios.',
   'O campo posology deve especificar doses por tomada e frequência; meal_relation deve indicar antes, durante ou após refeições somente quando houver fundamento; daily_schedule diferencia manhã, tarde e noite.',
   'initial_duration_days e reassessment_days exigem fundamentação individual e não são sinônimos de dose máxima. Em situação sem fundamento, use 0. Avaliar resposta, eventos adversos e critérios objetivos.',
@@ -188,22 +189,18 @@ async function analyze(request,env){
   if(/\b\d{3}[. ]?\d{3}[. ]?\d{3}[- ]?\d{2}\b/.test(question)||/\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b/.test(question)){
     return reply({error:'Remova CPF, e-mail e qualquer identificação pessoal antes de consultar a IA.'},400)
   }
-  if(question.length<8||question.length>2500)return reply({error:'Descreva a pergunta entre 8 e 2.500 caracteres'},400);
-  // Fadiga sem duração, sono ou antecedentes exige esclarecimentos, não um
-  // falso diagnóstico e nem consulta bibliográfica desconexa. Sem custo de IA.
-  // Resposta imediata, com referência estável e sem chamadas externas:
-  // valores B12 e D em contexto clínico são interpretados antes de acionar
-  // pesquisas genéricas que poderiam demorar ou retornar doses sem pertinência.
-  const nutrientGuidance=quickB12VitaminDGuidance(question);
-  if(nutrientGuidance)return reply(nutrientGuidance);
+  if(question.length<5||question.length>2500)return reply({error:'Descreva a pergunta entre 5 e 2.500 caracteres'},400);
+  // Sinais de urgência têm prioridade sobre atalhos e consultas externas.
   const screening=screenClinicalQuestion(question);
   if(screening)return reply({
     answer:draftAsText(screening),draft:screening,sources:[],
-    sourceStatus:{pubmed:'not_requested_pending_clinical_data',
-      consensus:'not_requested_pending_clinical_data',internal:'not_requested'},
-    requiresProfessionalReview:true,needsMoreInfo:screening.decision==='insufficient_info',
+    sourceStatus:{pubmed:'not_requested_red_flags',
+      consensus:'not_requested_red_flags',internal:'not_requested'},
+    requiresProfessionalReview:true,needsMoreInfo:false,
     model:'clinical_triage_rules'
   });
+  const nutrientGuidance=quickB12VitaminDGuidance(question);
+  if(nutrientGuidance)return reply(nutrientGuidance);
   const terms=question;
   const [evidence,indexed,liveAnvisa]=await Promise.all([
     searchEvidence(terms),searchOfficialSources(question,env),searchAnvisaOnline(question)
