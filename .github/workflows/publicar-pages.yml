@@ -67,7 +67,7 @@ jobs:
       - name: Preparar somente arquivos públicos do site
         run: |
           mkdir -p public/src public/assets
-          cp index.html public/
+          cp index.html manifest.webmanifest public/
           cp src/app.js src/store.js src/style.css public/src/
           cp assets/icone-oficial-escuro.png public/assets/
           touch public/.nojekyll

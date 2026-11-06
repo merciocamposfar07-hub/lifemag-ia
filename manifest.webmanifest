@@ -1,0 +1,16 @@
+{
+  "name": "LifeMag IA",
+  "short_name": "LifeMag IA",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "theme_color": "#072449",
+  "icons": [
+    {
+      "src": "https://merciocamposfar07-hub.github.io/lifemag-ia/assets/icone-oficial-escuro.png",
+      "sizes": "1254x1254",
+      "type": "image/png"
+    }
+  ]
+}
