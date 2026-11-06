@@ -1117,14 +1117,133 @@ function preview(doc,chosen=visit(),service=null){if(clinicalCloudMode&&(!clinic
  return;
 }if(doc==='prescription'&&(!v.ingredients.length||!v.posology||!v.quantity)){toast('Complete substâncias, quantidade e posologia antes do receituário.');setPage('editor');return;}ui.doc=doc;
  const root=document.getElementById('print-root');
+ if(root.classList.contains('measure-print'))return;
  root.innerHTML=renderPaper(doc,v,p,service);
  root.classList.add('measure-print');
+ paginatePrint(root);
+ const previewWindow=window.open('about:blank','_blank');
+ if(!previewWindow){
+  root.classList.remove('measure-print');
+  toast('Permita abrir uma nova aba para visualizar o PDF.');
+  return;
+ }
+ previewWindow.opener=null;
+ void openPrintPdf(root,previewWindow);
+}
+async function openPrintPdf(root,previewWindow){
  try {
-  paginatePrint(root);
- } finally {
+  const pages=Array.from(root.children);
+  if(pages.some(page=>!page.classList.contains('print-sheet'))){
+   previewWindow.close();
+   window.print();
+   return;
+  }
+  await Promise.all(Array.from(root.querySelectorAll('img'),image=>image.decode()));
+  const pdf=buildPrintPdf(pages.map(rasterPrintPage));
+  const url=URL.createObjectURL(pdf);
+  previewWindow.location.replace(url);
+  setTimeout(()=>URL.revokeObjectURL(url),300000);
+ }catch(error){
+  previewWindow.close();
+  toast('Não foi possível abrir o PDF. Tente visualizar o documento novamente.');
+ }finally{
   root.classList.remove('measure-print');
  }
- window.print();
+}
+function rasterPrintPage(page){
+ const bounds=page.getBoundingClientRect();
+ const canvas=document.createElement('canvas');
+ canvas.width=1654;
+ canvas.height=2339;
+ const ctx=canvas.getContext('2d',{alpha:false});
+ ctx.fillStyle='#fff';
+ ctx.fillRect(0,0,canvas.width,canvas.height);
+ ctx.scale(canvas.width/bounds.width,canvas.height/bounds.height);
+ for(const img of page.querySelectorAll('img')){
+  const box=img.getBoundingClientRect();
+  ctx.drawImage(img,box.left-bounds.left,box.top-bounds.top,box.width,box.height);
+ }
+ for(const el of page.querySelectorAll('.print-head,.print-h,.print-section,.print-table td,.print-table th,.print-sign')){
+  const style=getComputedStyle(el);
+  const box=el.getBoundingClientRect();
+  for(const side of ['Top','Bottom']){
+   const width=parseFloat(style['border'+side+'Width']);
+   if(!width)continue;
+   ctx.fillStyle=style['border'+side+'Color'];
+   ctx.fillRect(box.left-bounds.left,
+    (side==='Top'?box.top:box.bottom-width)-bounds.top,box.width,width);
+  }
+ }
+ const walker=document.createTreeWalker(page,NodeFilter.SHOW_TEXT);
+ const range=document.createRange();
+ for(let node=walker.nextNode();node;node=walker.nextNode()){
+  if(!node.data.trim())continue;
+  const style=getComputedStyle(node.parentElement);
+  ctx.fillStyle=style.color;
+  ctx.font=style.fontWeight+' '+style.fontSize+' '+style.fontFamily;
+  ctx.textBaseline='alphabetic';
+  const metrics=ctx.measureText('Ag');
+  const ascent=metrics.fontBoundingBoxAscent||parseFloat(style.fontSize)*0.85;
+  const paint=(text,box)=>ctx.fillText(text,box.left-bounds.left,box.top-bounds.top+ascent);
+  for(const word of node.data.matchAll(/\S+/gu)){
+   range.setStart(node,word.index);
+   range.setEnd(node,word.index+word[0].length);
+   const rects=range.getClientRects();
+   if(rects.length===1){paint(word[0],rects[0]);continue;}
+   let offset=word.index;
+   for(const char of word[0]){
+    range.setStart(node,offset);
+    offset+=char.length;
+    range.setEnd(node,offset);
+    paint(char,range.getBoundingClientRect());
+   }
+  }
+ }
+ for(const item of page.querySelectorAll('.print-exam-list li')){
+  const box=item.getBoundingClientRect();
+  ctx.fillStyle='#182a43';
+  ctx.beginPath();
+  ctx.arc(box.left-bounds.left-8,box.top-bounds.top+12,1.7,0,Math.PI*2);
+  ctx.fill();
+ }
+ const encoded=canvas.toDataURL('image/jpeg',0.93).split(',')[1];
+ return {width:canvas.width,height:canvas.height,bytes:Uint8Array.from(atob(encoded),c=>c.charCodeAt(0))};
+}
+function buildPrintPdf(images){
+ const encoder=new TextEncoder();
+ const parts=[];
+ const offsets=[0];
+ let length=0;
+ const write=value=>{
+  const bytes=typeof value==='string'?encoder.encode(value):value;
+  parts.push(bytes);
+  length+=bytes.length;
+ };
+ const object=(id,body,stream)=>{
+  offsets[id]=length;
+  write(id+' 0 obj\n'+body);
+  if(stream){write('\nstream\n');write(stream);write('\nendstream');}
+  write('\nendobj\n');
+ };
+ const width='595.2756',height='841.8898';
+ write('%PDF-1.4\n');
+ object(1,'<< /Type /Catalog /Pages 2 0 R >>');
+ object(2,'<< /Type /Pages /Count '+images.length+' /Kids ['+
+  images.map((_,i)=>(3+i*3)+' 0 R').join(' ')+'] >>');
+ for(const [i,image] of images.entries()){
+  const page=3+i*3;
+  object(page,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+width+' '+height+
+   '] /Resources << /XObject << /Sheet '+(page+1)+' 0 R >> >> /Contents '+(page+2)+' 0 R >>');
+  object(page+1,'<< /Type /XObject /Subtype /Image /Width '+image.width+' /Height '+image.height+
+   ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+image.bytes.length+' >>',image.bytes);
+  const commands=encoder.encode('q '+width+' 0 0 '+height+' 0 0 cm /Sheet Do Q');
+  object(page+2,'<< /Length '+commands.length+' >>',commands);
+ }
+ const xref=length;
+ write('xref\n0 '+offsets.length+'\n0000000000 65535 f \n');
+ for(const offset of offsets.slice(1))write(String(offset).padStart(10,'0')+' 00000 n \n');
+ write('trailer\n<< /Size '+offsets.length+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF\n');
+ return new Blob(parts,{type:'application/pdf'});
 }
 function paginatePrint(root){
  const first=root.firstElementChild;
