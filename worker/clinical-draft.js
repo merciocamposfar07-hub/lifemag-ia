@@ -110,7 +110,10 @@ export function screenClinicalQuestion(question){
  // Exames são úteis quando existentes, mas não são exigidos em todas as situações.
  if(!/\b(?:exames?|hemograma|ferritina|tsh|glicemia|b12|vitamina|laboratorio)\b/.test(q))
   missing.push('Existem exames recentes ou sinais associados (febre, perda de peso, falta de ar)?');
- if(!urgent.length)return null;
+ // Queixa isolada: devolve perguntas dirigidas, sem pesquisa ampla nem dose.
+ const current=q.split('informacao nova:').pop().split('\n').pop().trim();
+ const isolated=current.split(/[,;\s]+/).every(term=>/^(?:e|fadiga|cansaco|indisposicao|astenia|fraqueza|\.)[.]?$/.test(term));
+ if(!urgent.length&&!isolated)return null;
  const raw={
   decision:urgent.length?'red_flags':'insufficient_info',
   objective:'Avaliar causas de fadiga e indisposição',
