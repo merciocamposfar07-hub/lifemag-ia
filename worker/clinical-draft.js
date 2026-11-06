@@ -112,7 +112,8 @@ export function screenClinicalQuestion(question){
   missing.push('Existem exames recentes ou sinais associados (febre, perda de peso, falta de ar)?');
  // Queixa isolada: devolve perguntas dirigidas, sem pesquisa ampla nem dose.
  const current=q.split('informacao nova:').pop().split('\n').pop().trim();
- const isolated=current.split(/[,;\s]+/).every(term=>/^(?:e|fadiga|cansaco|indisposicao|astenia|fraqueza|\.)[.]?$/.test(term));
+ const complaint=current.replace(/^(?:o\s+|a\s+)?paciente\s+(?:(?:esta|chegou)\s+com|com|apresenta|relata|refere)\s+/,'');
+ const isolated=complaint.split(/[,;\s]+/).every(term=>/^(?:e|fadiga|cansaco|indisposicao|astenia|fraqueza|sonolencia|\.)[.]?$/.test(term));
  if(!urgent.length&&!isolated)return null;
  const raw={
   decision:urgent.length?'red_flags':'insufficient_info',
@@ -126,7 +127,21 @@ export function screenClinicalQuestion(question){
   red_flags:urgent,
   limitations:['Não atribuir fadiga a uma deficiência ou indicar doses terapêuticas sem avaliação clínica.']
  };
- return normalizeDraft(raw,[],question);
+ const draft=normalizeDraft(raw,[],question);
+ if(!urgent.length){
+  const age=q.match(/\b(\d{1,3})\s*anos?\b/);
+  const pediatric=age&&Number(age[1])<16;
+  draft.fatigueOrientation=pediatric?[
+   'O cadastro indica '+age[1]+' anos. Confirme a idade se o cadastro estiver incorreto.',
+   'Na avaliação pediátrica, considere sono, alimentação, anemia e outras causas conforme o quadro.',
+   'B12, ferro ou vitamina D podem entrar na avaliação quando houver indicação específica para a idade.'
+  ]:[
+   'Hipóteses iniciais: sono insuficiente ou não reparador, anemia e efeitos de medicamentos, conforme o contexto.',
+   'B12 é uma opção a avaliar se houver risco de deficiência, como dieta restrita, má absorção ou uso prolongado de metformina.',
+   'Ferro e vitamina D só entram como opções de reposição se houver indicação compatível para cada um.'
+  ];
+ }
+ return draft;
 }
 
 export function normalizeDraft(raw,sources=[],question=''){
@@ -187,6 +202,13 @@ export function draftAsText(d){
   insufficient_evidence:'EVIDÊNCIA INSUFICIENTE — NÃO LIBERAR RECEITA',
   red_flags:'SINAIS DE ALERTA — FORMULAÇÃO NÃO LIBERADA'
  }[d.decision]||'AVALIAÇÃO FARMACÊUTICA';
+ if(d.fatigueOrientation){
+  return ['AVALIAÇÃO INICIAL — FADIGA E FRAQUEZA',
+   ...d.fatigueOrientation.map(item=>'• '+item),
+   'Se souber, informe há quanto tempo começou e se está piorando. Se não souber, registre como não informado.',
+   'Registre a avaliação no atendimento. As opções são condicionais e ainda não têm dose individualizada.'
+  ].join('\n');
+ }
  if(d.decision==='insufficient_info'||d.decision==='red_flags'){
   const lines=[
    d.decision==='red_flags'?'ATENÇÃO — AVALIAR SINAIS DE ALERTA':
