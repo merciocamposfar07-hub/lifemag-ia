@@ -56,7 +56,7 @@ export class LifeMagClinicalRecords extends DurableObject{
    'visit_count INTEGER NOT NULL);'
   );
  }
- async read(){
+ read(){
   const row=this.sql.exec('SELECT revision,payload,updated_at FROM clinical_state WHERE id=1').toArray()[0];
   if(!row)return {ok:true,revision:0,state:null,updatedAt:null};
   try{
@@ -65,7 +65,7 @@ export class LifeMagClinicalRecords extends DurableObject{
    return {ok:true,revision:Number(row.revision),state,updatedAt:row.updated_at};
   }catch(_){return {ok:false,error:'Registro clínico ilegível'};}
  }
- async save({revision,state,action='update'}={}){
+ save({revision,state,action='update'}={}){
   if(!Number.isSafeInteger(revision)||revision<0||
      !validState(state)||!['update','delete'].includes(action))
    return {ok:false,status:422,error:'Estrutura clínica inválida'};
@@ -93,6 +93,29 @@ export class LifeMagClinicalRecords extends DurableObject{
    throw error;
   }
   return {ok:true,revision:next,updatedAt:at};
+ }
+ verifySyntheticLifecycle(){
+  const before=this.read();
+  if(!before.ok)return {ok:false,stage:'initial_read'};
+  const empty={schema:1,patients:[],visits:[],anonymousDrafts:[],settings:{}};
+  const patient={id:'probe_patient',name:'Paciente fictício do autoteste',phone:''};
+  const visit={id:'probe_visit',patientId:patient.id,ingredients:[],chat:[],revisions:[]};
+  const fixture={...empty,patients:[patient],visits:[visit]};
+  const saved=this.save({revision:before.revision,state:fixture});
+  if(!saved.ok)return {ok:false,stage:'write'};
+  let readBack, removed;
+  try{
+   readBack=this.read();
+  }finally{
+   removed=this.save({revision:saved.revision,state:empty,action:'delete'});
+  }
+  const after=this.read();
+  const read=readBack.ok&&readBack.revision===saved.revision&&
+   readBack.state?.patients[0]?.name===patient.name&&
+   readBack.state?.visits[0]?.patientId===patient.id;
+  const deleted=removed.ok&&after.ok&&after.revision===removed.revision&&
+   after.state?.patients.length===0&&after.state?.visits.length===0;
+  return {ok:read&&deleted,read,written:true,deleted,syntheticOnly:true};
  }
  async audit(){
   return this.sql.exec('SELECT revision,action,at,patient_count,visit_count '+
