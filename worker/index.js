@@ -467,16 +467,8 @@ export default {
         if(!env.CLINICAL_RECORDS)return reply({ok:false,error:'Banco clínico ausente'},503);
         // Nome separado: NUNCA tocar nos prontuários do profissional.
         const synthetic=await personalClinicalStore(env,{email:identity.email+'#synthetic-only'});
-        const before=await synthetic.read();
-        if(!before?.ok)return reply({ok:false,error:'Não foi possível ler o banco de testes'},503);
-        const state={schema:1,patients:[],visits:[],anonymousDrafts:[],settings:{}};
-        const saved=await synthetic.save({revision:before.revision,state});
-        if(!saved?.ok)return reply({ok:false,error:'Gravação clínica de teste falhou'},503);
-        const after=await synthetic.read();
-        const healthy=after?.ok&&after.revision===saved.revision&&
-          Array.isArray(after.state?.patients)&&after.state.patients.length===0;
-        return reply({ok:healthy,read:true,written:healthy,syntheticOnly:true},
-          healthy?200:503);
+        const result=await synthetic.verifySyntheticLifecycle();
+        return reply(result,result.ok?200:503);
       }catch(_){return reply({ok:false,error:'Autoteste de prontuário não concluído'},503)}
     }
     if(url.pathname==='/api/clinical/state'&&request.method==='GET'){
