@@ -693,13 +693,15 @@ body{color:#122e49}
   .anvisa-import .anvisa-actions .btn{width:100%;min-height:48px;text-align:center}
 }
 
-#print-root.measure-print{display:block;position:absolute;left:-10000px;top:0;width:184mm;visibility:hidden}
-.print-page{font:11pt/1.45 Arial,sans-serif;color:#182a43;overflow-wrap:anywhere}.print-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #10b6b0;padding-bottom:14px;margin-bottom:20px}.print-head img{width:67px;height:67px;object-fit:contain;border-radius:12px}.print-head strong{font-size:18pt;display:block;color:#0b315a}.print-head small{display:block;font-size:9pt;color:#50657c}.print-institution{font-size:9pt;margin-top:4px}.print-h{font-size:16pt;color:#0e365a;text-align:center;border-bottom:1px solid #dae9ee;padding-bottom:12px;margin-bottom:17px}.print-section{padding:8px 0;border-bottom:1px solid #e2eaf2}.print-label{font-weight:700;color:#174568}.print-table{width:100%;border-collapse:collapse;margin:14px 0}.print-table td,.print-table th{border-bottom:1px solid #dce7ef;padding:8px;text-align:left}.print-foot{margin-top:var(--print-footer-gap,0px);padding-top:24mm;text-align:center;break-inside:avoid;page-break-inside:avoid}.print-sign{border-top:1px solid #52687d;display:inline-block;padding:6px 35px 0}
+#print-root.measure-print{display:block;position:absolute;left:-10000px;top:0;width:194mm;visibility:hidden}
+.print-page{display:flow-root;padding:5mm;font:11pt/1.45 Arial,sans-serif;color:#182a43;overflow-wrap:anywhere}.print-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #10b6b0;padding-bottom:14px;margin-bottom:20px}.print-head img{width:67px;height:67px;object-fit:contain;border-radius:12px}.print-head strong{font-size:18pt;display:block;color:#0b315a}.print-head small{display:block;font-size:9pt;color:#50657c}.print-institution{font-size:9pt;margin-top:4px}.print-h{font-size:16pt;color:#0e365a;text-align:center;border-bottom:1px solid #dae9ee;padding-bottom:12px;margin-bottom:17px}.print-section{padding:8px 0;border-bottom:1px solid #e2eaf2}.print-label{font-weight:700;color:#174568}.print-table{width:100%;border-collapse:collapse;margin:14px 0}.print-table td,.print-table th{border-bottom:1px solid #dce7ef;padding:8px;text-align:left}.print-foot{padding:10mm 0 12mm;text-align:center;break-inside:avoid;page-break-inside:avoid}.print-sign{border-top:1px solid #52687d;display:inline-block;padding:6px 35px 0}
 @media print{
- @page{size:A4;margin:13mm 13mm 14mm}
- body{background:#fff;color:#142b47}
+ @page{size:A4;margin:8mm}
+ html,body{margin:0;min-height:0;height:auto;background:#fff;color:#142b47}
  .app-shell,.bottomnav,.toast{display:none!important}
  #print-root{display:block!important}
+ .print-single-page{height:254mm}
+ .print-single-page .print-foot{position:absolute;bottom:5mm;left:5mm;right:5mm}
 }
 
 
@@ -843,8 +845,8 @@ body{color:#122e49}
 .lab-exam-options input{width:19px;height:19px;flex:none;accent-color:#087f92}
 .print-page,.print-foot{position:relative}
 .print-art{position:absolute;pointer-events:none}
-.print-art-top{width:60mm;height:auto;top:-10mm;right:-10mm}
-.print-art-bottom{width:calc(100% + 20mm);height:24mm;bottom:-9mm;left:-10mm}
+.print-art-top{width:58.4mm;height:auto;top:0;right:0}
+.print-art-bottom{width:calc(100% + 10mm);height:auto;bottom:-5mm;left:-5mm}
 .print-head,.print-sign{position:relative}
 .print-exam-list{columns:2;padding-left:20px}
 .print-exam-list li{break-inside:avoid;padding:2px 0}
