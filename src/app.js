@@ -1184,19 +1184,14 @@ function rasterPrintPage(page){
   ctx.textBaseline='alphabetic';
   const metrics=ctx.measureText('Ag');
   const ascent=metrics.fontBoundingBoxAscent||parseFloat(style.fontSize)*0.85;
-  const paint=(text,box)=>ctx.fillText(text,box.left-bounds.left,box.top-bounds.top+ascent);
-  for(const word of node.data.matchAll(/\S+/gu)){
-   range.setStart(node,word.index);
-   range.setEnd(node,word.index+word[0].length);
-   const rects=range.getClientRects();
-   if(rects.length===1){paint(word[0],rects[0]);continue;}
-   let offset=word.index;
-   for(const char of word[0]){
-    range.setStart(node,offset);
-    offset+=char.length;
-    range.setEnd(node,offset);
-    paint(char,range.getBoundingClientRect());
-   }
+  for(const line of printTextLines(node,range)){
+   const width=ctx.measureText(line.text).width;
+   if(!width||line.right<=line.left)continue;
+   ctx.save();
+   ctx.translate(line.left-bounds.left,line.top-bounds.top+ascent);
+   ctx.scale((line.right-line.left)/width,1);
+   ctx.fillText(line.text,0,0);
+   ctx.restore();
   }
  }
  for(const item of page.querySelectorAll('.print-exam-list li')){
@@ -1208,6 +1203,39 @@ function rasterPrintPage(page){
  }
  const encoded=canvas.toDataURL('image/jpeg',0.93).split(',')[1];
  return {width:canvas.width,height:canvas.height,bytes:Uint8Array.from(atob(encoded),c=>c.charCodeAt(0))};
+}
+function printTextLines(node,range){
+ const lines=[];
+ const rects=(start,end)=>{
+  range.setStart(node,start);
+  range.setEnd(node,end);
+  return range.getClientRects();
+ };
+ const append=(text,box,space)=>{
+  if(!box.width)return;
+  const last=lines[lines.length-1];
+  if(last&&Math.abs(last.top-box.top)<0.5){
+   last.text+=(space?' ':'')+text;
+   last.right=box.right;
+  }else lines.push({text,top:box.top,left:box.left,right:box.right});
+ };
+ let previousEnd=0;
+ for(const word of node.data.matchAll(/[^ \t\r\n\f]+/gu)){
+  const start=word.index,end=start+word[0].length;
+  const boxes=rects(start,end);
+  if(boxes.length===1)append(word[0],boxes[0],start>previousEnd);
+  else{
+   let offset=start;
+   for(const char of word[0]){
+    const next=offset+char.length;
+    const box=rects(offset,next)[0];
+    if(box)append(char,box,offset===start&&start>previousEnd);
+    offset=next;
+   }
+  }
+  previousEnd=end;
+ }
+ return lines;
 }
 function buildPrintPdf(images){
  const encoder=new TextEncoder();
