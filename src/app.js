@@ -963,7 +963,7 @@ async function checkScientificServices(kind){
 const FASTING_GLUCOSE='Glicemia de jejum';
 const HOMA_IR_EXAM='Glicemia de jejum e insulina de jejum, com cálculo do HOMA-IR';
 const LAB_EXAMS=[
- "Hemograma",
+ "Hemograma completo",
  "Hemoglobina glicada (HbA1c)",
  "Coagulograma (TS, TC, TP e TTPA)",
  "Fator Rh",
@@ -1011,12 +1011,18 @@ const LAB_EXAMS=[
  "Parasitológico de fezes",
  "25-OH vitamina D",
  "Vitamina B12",
- "Ferritina"
+ "Ferritina",
+ "TSH",
+ "T3 livre",
+ "T4",
+ "Zinco",
+ "Selênio"
 ];
 function selectedLabExams(values,includeLegacy=false){
  if(!Array.isArray(values))return [];
+ const hasLegacyHemogram=includeLegacy&&values.includes("Hemograma");
  return LAB_EXAMS.flatMap(exam=>{
-  if(values.includes(exam))return [exam];
+  if(values.includes(exam)||(exam==="Hemograma completo"&&hasLegacyHemogram))return [exam];
   if(exam===HOMA_IR_EXAM&&includeLegacy&&values.includes(FASTING_GLUCOSE))return [FASTING_GLUCOSE];
   return [];
  });
