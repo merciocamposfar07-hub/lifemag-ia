@@ -418,6 +418,8 @@ export default {
   },
   async fetch(request,env,ctx){
     const url=new URL(request.url);
+    if(url.pathname==='/apple-touch-icon.png'&&(request.method==='GET'||request.method==='HEAD'))
+      return serveStatic(request);
     const identity=await verifyAccess(request,env,ctx);
     if(!identity)return reply({error:'Acesso profissional não autenticado pelo Cloudflare Access'},401);
     if(url.pathname==='/api/capabilities'&&request.method==='GET'){

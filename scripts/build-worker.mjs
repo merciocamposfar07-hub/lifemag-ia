@@ -5,6 +5,7 @@
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 const files=[
   ['index.html','text/html; charset=utf-8'],
+  ['apple-touch-icon.png','image/png'],
   ['manifest.webmanifest','application/manifest+json; charset=utf-8'],
   ['src/app.js','application/javascript; charset=utf-8'],
   ['src/store.js','application/javascript; charset=utf-8'],
