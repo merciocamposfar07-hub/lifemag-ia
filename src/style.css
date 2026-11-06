@@ -834,3 +834,17 @@ body{color:#122e49}
  #formula-form .two-col-row>div:empty{display:none}
  #formula-form .panel-title{flex-wrap:wrap}
 }
+
+.lab-exams{margin:16px 0}
+.lab-exams summary{cursor:pointer;font-weight:750;color:#153853}
+.lab-exams fieldset{min-width:0;margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:12px}
+.lab-exam-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px 16px}
+.lab-exam-options label{display:flex;align-items:center;gap:8px;min-height:36px}
+.lab-exam-options input{width:19px;height:19px;flex:none;accent-color:#087f92}
+.print-page,.print-foot{position:relative}
+.print-art{position:absolute;pointer-events:none}
+.print-art-top{width:48mm;height:auto;top:-8mm;right:-8mm}
+.print-art-bottom{width:calc(100% + 16mm);height:11mm;bottom:-5mm;left:-8mm}
+.print-head,.print-sign{position:relative}
+.print-exam-list{columns:2;padding-left:20px}
+.print-exam-list li{break-inside:avoid;padding:2px 0}
