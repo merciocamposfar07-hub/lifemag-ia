@@ -406,7 +406,7 @@ function serveStatic(request){
     'x-content-type-options':'nosniff',
     'referrer-policy':'no-referrer',
     'x-frame-options':'DENY',
-    'content-security-policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    'content-security-policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://merciocamposfar07-hub.github.io/lifemag-ia/assets/icone-oficial-escuro.png; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
   };
   return new Response(request.method==='HEAD'?null:data,{status:200,headers});
 }
