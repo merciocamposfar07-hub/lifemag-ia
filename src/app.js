@@ -960,6 +960,8 @@ async function checkScientificServices(kind){
  }catch(_){scienceCheck.error='Não foi possível consultar o diagnóstico da Cloudflare.'}
  finally{scienceCheck.busy=false;scienceCheck.lastCheck=new Date().toISOString();render()}
 }
+const FASTING_GLUCOSE='Glicemia de jejum';
+const HOMA_IR_EXAM='Glicemia de jejum e insulina de jejum, com cálculo do HOMA-IR';
 const LAB_EXAMS=[
  "Hemograma",
  "Hemoglobina glicada (HbA1c)",
@@ -983,7 +985,7 @@ const LAB_EXAMS=[
  "Lipidograma",
  "Bilirrubina total e frações",
  "Amilase",
- "Glicemia de jejum",
+ HOMA_IR_EXAM,
  "Glicemia pós-prandial",
  "Ureia",
  "Creatinina",
@@ -1011,18 +1013,23 @@ const LAB_EXAMS=[
  "Vitamina B12",
  "Ferritina"
 ];
-function selectedLabExams(values){
- return LAB_EXAMS.filter(exam=>Array.isArray(values)&&values.includes(exam));
+function selectedLabExams(values,includeLegacy=false){
+ if(!Array.isArray(values))return [];
+ return LAB_EXAMS.flatMap(exam=>{
+  if(values.includes(exam))return [exam];
+  if(exam===HOMA_IR_EXAM&&includeLegacy&&values.includes(FASTING_GLUCOSE))return [FASTING_GLUCOSE];
+  return [];
+ });
 }
 function labExamForm(v,open=false){
  if(!v)return '';
  const request=v.labExamRequest||{};
- const selected=selectedLabExams(request.exams);
+ const selected=selectedLabExams(request.exams,true);
  return `<details class="panel lab-exams" ${open?'open':''}>
  <summary>Solicitação de exames laboratoriais</summary>
  <form id="lab-exam-form" data-visit-id="${E(v.id)}">
  <fieldset><legend>Marque os exames deste atendimento</legend>
- <div class="lab-exam-options">${LAB_EXAMS.map(exam=>`<label><input type="checkbox" name="exam" value="${E(exam)}" ${selected.includes(exam)?'checked':''}> ${E(exam)}</label>`).join('')}</div>
+ <div class="lab-exam-options">${selected.includes(FASTING_GLUCOSE)?`<label><input type="checkbox" name="exam" value="${FASTING_GLUCOSE}" checked> ${FASTING_GLUCOSE} (seleção anterior)</label>`:''}${LAB_EXAMS.map(exam=>`<label><input type="checkbox" name="exam" value="${E(exam)}" ${selected.includes(exam)?'checked':''}> ${E(exam)}</label>`).join('')}</div>
  </fieldset>
  <div class="field"><label for="lab-exam-purpose">Finalidade do acompanhamento farmacoterapêutico *</label>
  <textarea id="lab-exam-purpose" name="purpose" maxlength="1000" required>${E(request.purpose||'')}</textarea></div>
@@ -1120,7 +1127,7 @@ function renderPaper(doc,v,p,service){const s=data.settings, names={clinical:'FI
  const request=v.labExamRequest||{};
  body=common+line('Finalidade do acompanhamento',request.purpose)+
   '<h2>Exames solicitados</h2><ul class="print-exam-list">'+
-  selectedLabExams(request.exams).map(exam=>'<li>'+E(exam)+'</li>').join('')+'</ul>';
+  selectedLabExams(request.exams,true).map(exam=>'<li>'+E(exam)+'</li>').join('')+'</ul>';
  }else if(doc==='service'){body=common+(s.cnpj?line('CNPJ',s.cnpj):'')+(s.businessPhone?line('Telefone institucional',s.businessPhone):'')+line('Serviço efetivamente realizado',service?.performed)+line('Resultado e observações',service?.result);}else{body=common+line('Formulação vinculada',v.formulaName)+line('Orientações educativas complementares',v.protocol||'Não informado')+`<p>Intensidade progressiva, iniciando leve e evoluindo gradualmente conforme condicionamento e tolerância, se aplicável.</p>`;}return `<article class="print-page">
  <svg class="print-art print-art-top" viewBox="0 0 210 125" aria-hidden="true">
  <path fill="#d6f3f6" d="M0 0h210v125C102 125 109 31 0 0Z"/>
@@ -1208,7 +1215,7 @@ function handleSubmit(event){
   if(f.id==='lab-exam-form'){
     const v=visit(), form=new FormData(f);
     if(!v||v.id!==f.dataset.visitId)return;
-    const exams=selectedLabExams(form.getAll('exam'));
+    const exams=selectedLabExams(form.getAll('exam'),v.labExamRequest?.exams?.includes(FASTING_GLUCOSE));
     const purpose=String(form.get('purpose')||'').trim().slice(0,1000);
     if(!exams.length||!purpose){toast('Selecione os exames e informe a finalidade do acompanhamento.');return;}
     if(clinicalCloudMode&&!clinicalStatus.ready){toast('Prontuário indisponível.');return;}
