@@ -421,6 +421,25 @@ export default {
     if(url.pathname==='/apple-touch-icon.png'&&(request.method==='GET'||request.method==='HEAD'))
       return serveStatic(request);
     const identity=await verifyAccess(request,env,ctx);
+    // Uma navegação real (não fetch) permite ao Access abrir o login no app iOS.
+    // O endpoint só redireciona após a identidade ser verificada pelo runtime.
+    if(url.pathname==='/api/clinical/login'&&request.method==='GET'){
+      if(!identity)return new Response(
+        '<!doctype html><html lang="pt-BR"><meta charset="utf-8">'+
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+        '<title>LifeMag IA — autenticação pendente</title>'+
+        '<h1>Autenticação profissional pendente</h1>'+
+        '<p>O Cloudflare Access não confirmou sua identidade nesta rota. '+
+        'A proteção de produção do Worker lifemag-ia-clinico precisa ser conferida '+ 
+        'na aba Access, com acesso permitido apenas a profissionais autorizados.</p>'+
+        '<p>O prontuário permanece bloqueado. Não informe dados de pacientes.</p>'+
+        '</html>',
+        {status:401,headers:{'content-type':'text/html; charset=utf-8',
+          'cache-control':'no-store','x-content-type-options':'nosniff',
+          'referrer-policy':'no-referrer','x-frame-options':'DENY'}});
+      return new Response(null,{status:303,headers:{
+        location:'/', 'cache-control':'no-store','referrer-policy':'no-referrer'}});
+    }
     if(!identity)return reply({error:'Acesso profissional não autenticado pelo Cloudflare Access'},401);
     if(url.pathname==='/api/capabilities'&&request.method==='GET'){
       return reply({ready:!!env.AI,science:'Europe PMC (resumos indexados no PubMed)',
