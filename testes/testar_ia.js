@@ -27,6 +27,14 @@ async function tests(){
   headers:{'content-type':'application/json',...headers},
   ...(body?{body:JSON.stringify(body)}:{})});
  const cases=[
+  ['retomada de sessão clínica exige Access e redireciona somente autenticados',async()=>{
+    const unauthenticated=await worker.fetch(request('/api/clinical/login'),env,{});
+    assert.equal(unauthenticated.status,401);
+    assert.match(await unauthenticated.text(),/Cloudflare Access/);
+    const authorized=await worker.fetch(request('/api/clinical/login'),env,access);
+    assert.equal(authorized.status,303);
+    assert.equal(authorized.headers.get('location'),'/');
+  }],
   ['prontuário clínico exige identidade, origem e isola profissional',async()=>{
     const stores=new Map();
     const clinicalEnv={...env,CLINICAL_RECORDS:{getByName:key=>{
