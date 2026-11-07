@@ -162,7 +162,9 @@ async function tests(){
        entries.set(name,{
         read:async()=>({ok:true,revision,state}),
         save:async x=>{if(x.revision!==revision)return {ok:false,status:409};
-          state=x.state;revision++;return {ok:true,revision};}
+          state=x.state;revision++;return {ok:true,revision};},
+        // Simula a operação do objeto clínico; o teste deste caso foca isolamento e rota.
+        verifySyntheticLifecycle:async()=>({ok:true,syntheticOnly:true,written:true})
        });
       }
       return entries.get(name);
