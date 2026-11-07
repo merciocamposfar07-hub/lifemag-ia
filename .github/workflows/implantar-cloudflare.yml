@@ -1,17 +1,12 @@
 name: LifeMag IA — implantar IA protegida no Cloudflare
-# Publicação após validação automática concluída com sucesso na branch principal.
-# O disparo manual continua disponível para recuperação operacional.
+# Alternativa opcional: se houver integração direta GitHub->Cloudflare, ela realiza a publicação.
+# Este fluxo manual exige credenciais Cloudflare configuradas no GitHub Actions.
 on:
-  workflow_run:
-    workflows: ["LifeMag IA — validação automática"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   implantar:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -19,8 +14,6 @@ jobs:
     steps:
       - name: Obter projeto isolado LifeMag IA
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: Preparar Node 22
         uses: actions/setup-node@v4
         with:
