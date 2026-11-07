@@ -35,7 +35,7 @@ const S = (name,value='',opts='')=>`<div class="field"><label for="${E(name)}">$
 const clinicalCloudMode=location.hostname==='lifemag-ia-clinico.merciocamposfar07.workers.dev';
 const data=clinicalCloudMode?initialState():readStore();
 const clinicalStatus={loading:clinicalCloudMode,ready:!clinicalCloudMode,
- revision:0,pending:0,error:null,updatedAt:null};
+ revision:0,pending:0,error:null,updatedAt:null,authRequired:false};
 let clinicalSaveQueue=Promise.resolve();
 function clinicalSyncLabel(){
  if(clinicalStatus.error)return 'Armazenamento indisponível. Atualize a página; não insira dados.';
@@ -48,6 +48,7 @@ function updateClinicalSyncUi(){
 }
 async function initializeClinicalRecords(){
  if(!clinicalCloudMode)return;
+ clinicalStatus.authRequired=false;
  try{
   const [response,probe]=await Promise.all([
    fetch('/api/clinical/state',{
@@ -57,6 +58,10 @@ async function initializeClinicalRecords(){
     headers:{'content-type':'application/json'},
     body:'{}'})
   ]);
+  if(response.status===401||probe.status===401){
+   clinicalStatus.authRequired=true;
+   throw Error('Sessão profissional ausente neste aplicativo. Entre pelo Cloudflare Access para abrir o prontuário.');
+  }
   const test=await probe.json();
   if(!probe.ok||test.ok!==true||test.syntheticOnly!==true||test.written!==true)
    throw Error(String(test.error||'Banco clínico não passou no teste de gravação'));
@@ -73,6 +78,7 @@ async function initializeClinicalRecords(){
   clinicalStatus.revision=result.revision;
   clinicalStatus.updatedAt=result.updatedAt||null;
   clinicalStatus.error=null;
+  clinicalStatus.authRequired=false;
   clinicalStatus.ready=true;
  }catch(error){
   clinicalStatus.error=String(error?.message||'Prontuário protegido indisponível').slice(0,160);
@@ -1097,7 +1103,11 @@ function render(){
    '<img src="'+IMG+'" alt="LifeMag IA" width="62" height="62">'+
    '<h1>LifeMag IA</h1><p>'+E(msg)+'</p>'+
    '<p>O cadastro de pacientes fica bloqueado até o armazenamento responder.</p>'+
-   (clinicalStatus.error?'<button class="btn primary" data-clinical-reload="1">Reabrir prontuário</button>':'')+
+   (clinicalStatus.error?(clinicalStatus.authRequired?
+    '<button class="btn primary" data-clinical-login="1">Entrar pelo Cloudflare Access</button> '+
+    '<button class="btn" data-clinical-reload="1">Verificar novamente</button>':
+    '<button class="btn primary" data-clinical-reload="1">Reabrir prontuário</button> '+
+    '<button class="btn" data-clinical-login="1">Entrar pelo Cloudflare Access</button>'):'')+
    '</main>';
   return;
  }
@@ -1356,6 +1366,7 @@ if(b.dataset.resetResearch){
  anonymousResearch.chat=[];anonymousResearch.currentDraftId=null;
  persistResearchConversation();render();return;
 }
+if(b.dataset.clinicalLogin){location.assign('/api/clinical/login');return;}
 if(b.dataset.clinicalReload){clinicalStatus.error=null;clinicalStatus.ready=false;void initializeClinicalRecords();return;}if(b.dataset.importDraft){const v=visit();importFormulaDraft(v?.chat?.find(m=>m.id===b.dataset.importDraft));return;}if(b.dataset.saveAnonDraft){saveAnonymousCase(b.dataset.saveAnonDraft);return}
 if(b.dataset.openAnonDraft){openAnonymousCase(b.dataset.openAnonDraft);return}
 if(b.dataset.linkAnonDraft){linkAnonymousCase(b.dataset.linkAnonDraft);return}
