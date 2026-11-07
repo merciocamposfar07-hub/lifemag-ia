@@ -77,6 +77,34 @@ jobs:
           node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_sqlite_real.mjs
           node --no-warnings --experimental-loader ./testes/cloudflare-runtime-loader.mjs testes/testar_prontuario_seguro.mjs
           node testes/testar_preparo_d1.js
+      - name: Diagnóstico anônimo das rotas Cloudflare Access em produção
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        shell: bash
+        run: |
+          origin='https://lifemag-ia-clinico.merciocamposfar07.workers.dev'
+          for endpoint in '/' '/api/clinical/login' '/apple-touch-icon.png'; do
+            headers="$(mktemp)"
+            body="$(mktemp)"
+            code="$(curl -sS --max-time 15 -D "$headers" -o "$body" -w '%{http_code}' "${origin}${endpoint}" || true)"
+            echo "Rota ${endpoint}: HTTP ${code:-erro}"
+            if [[ "${endpoint}" == '/api/clinical/login' ]]; then
+              if grep -q 'O Cloudflare Access não confirmou' "$body"; then
+                echo "::warning::A rota de login chegou ao Worker sem identidade Access. Confira a proteção All traffic no Cloudflare."
+              elif [[ "${code}" == 302 || "${code}" == 303 ]]; then
+                echo "A rota de login foi interceptada/redirecionada pelo Access; autenticação interativa deve ser testada no iPhone."
+              else
+                echo "::notice::A rota exige conferência manual; sem credenciais não é possível validar uma sessão."
+              fi
+            fi
+            if [[ "${endpoint}" == '/' && "${code}" == 200 ]]; then
+              echo "::warning::A Home respondeu sem credenciais; confirme se a política Access protege produção."
+            fi
+            if [[ "${endpoint}" == '/apple-touch-icon.png' && "${code}" != 200 ]]; then
+              echo "::notice::O ícone público ainda pode estar bloqueado na instalação do iPhone."
+            fi
+            rm -f "$headers" "$body"
+          done
       - name: Testar recuperação REAL de artigos PubMed pela internet
         id: pubmed_live
         continue-on-error: true
